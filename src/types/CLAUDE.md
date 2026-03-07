@@ -3,7 +3,7 @@
 ## Files
 
 - **`grid.ts`** — `Grid3D`, `Cell`, `Coordinate` types; `CellState` enum; column/row/depth label constants
-- **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant
+- **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant; `TOTAL_SHIP_CELLS` constant
 - **`game.ts`** — `GamePhase` enum, `PlayerState`, `GameState` interfaces; `PlayerIndex = 0 | 1`. No dead code (`GameEvent` removed).
 - **`abilities.ts`** — `AbilityId` union, `AbilityState` interface, `ABILITY_DEFINITIONS` constant
 - **`events.ts`** — `LogEventType` string literal union (includes `fleet.decoy_place`, `view.depth_change`, `view.mode_change`, `view.board_toggle`), `LogEvent` interface, payload interfaces per event category
@@ -28,3 +28,9 @@
 - `PlayerIndex = 0 | 1` — ALPHA is 0, BRAVO is 1. Used throughout engine and UI.
 - Event payload interfaces are per-category (fleet, combat, ability) — each event type has a typed payload.
 - `CellState` enum values are used directly as CSS class suffixes in the UI layer.
+
+## PlacementAxis
+
+6 axes — no purely vertical (depth-only): `'col' | 'row' | 'diag+' | 'diag-' | 'col-depth' | 'row-depth'`
+- Within-slice: `col`, `row`, `diag+`, `diag-`
+- Cross-slice: `col-depth`, `row-depth`

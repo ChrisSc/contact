@@ -198,6 +198,10 @@ export class OrbitControls {
     this.updateCamera();
   }
 
+  get dragging(): boolean {
+    return this.isDragging;
+  }
+
   setEnabled(enabled: boolean): void {
     this.enabled = enabled;
     if (!enabled) {

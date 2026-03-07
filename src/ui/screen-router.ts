@@ -53,7 +53,15 @@ export class ScreenRouter {
 
     const mount = this.screens.get(screen);
     if (mount) {
-      this.currentCleanup = mount(this.screenContainer, this.context);
+      try {
+        this.currentCleanup = mount(this.screenContainer, this.context);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.screenContainer.innerHTML = `<div style="color:#ff3333;padding:2rem;font-family:monospace;">Screen mount failed: ${msg}</div>`;
+        try {
+          getLogger().emit('system.error', { message: `Screen mount failed: ${msg}`, screen });
+        } catch { /* ignore */ }
+      }
     }
 
     getLogger().emit('view.change', { screen });

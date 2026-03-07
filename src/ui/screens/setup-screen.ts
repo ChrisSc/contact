@@ -4,18 +4,17 @@ import { CellState, GRID_SIZE } from '../../types/grid';
 import type { FleetRosterEntry, PlacementAxis } from '../../types/fleet';
 import { FLEET_ROSTER } from '../../types/fleet';
 import { calculateShipCells, validatePlacement } from '../../engine/fleet';
-import { getCell } from '../../engine/grid';
-import { SliceGrid } from '../components/slice-grid';
-import { DepthSelector } from '../components/depth-selector';
-import { AxisSelector } from '../components/axis-selector';
+import { getCell, formatCoordinate } from '../../engine/grid';
 import { ShipRoster } from '../components/ship-roster';
-import { CoordinateDisplay } from '../components/coordinate-display';
+import { SceneManager } from '../../renderer/scene';
+import type { ViewMode } from '../../renderer/views';
 import { PLAYER_DESIGNATIONS } from '../../types/game';
 
 interface SetupUIState {
   selectedShipId: string | null;
   currentAxis: PlacementAxis;
-  currentDepth: number;
+  currentDepth: number | null;
+  viewMode: ViewMode;
   hoveredCoord: Coordinate | null;
   placementPhase: 'ships' | 'decoy' | 'confirm';
 }
@@ -28,72 +27,145 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
     selectedShipId: null,
     currentAxis: 'col',
     currentDepth: 0,
+    viewMode: 'cube',
     hoveredCoord: null,
     placementPhase: 'ships',
   };
 
-  // Root element
+  // Root — fills viewport, positions everything absolute
   const el = document.createElement('div');
   el.className = 'setup-screen';
 
-  // Header
-  const header = document.createElement('div');
-  header.className = 'setup-screen__header';
-  header.innerHTML = `
-    <span class="setup-screen__header-title">FLEET DEPLOYMENT</span>
-    <span class="setup-screen__header-player">${PLAYER_DESIGNATIONS[player.index]}</span>
-  `;
-  el.appendChild(header);
+  // --- Full-screen 3D canvas ---
+  const canvasContainer = document.createElement('div');
+  canvasContainer.className = 'setup-screen__canvas';
+  el.appendChild(canvasContainer);
 
-  // Grid area
-  const gridArea = document.createElement('div');
-  gridArea.className = 'setup-screen__grid-area';
-  el.appendChild(gridArea);
+  // --- Top bar (overlay) ---
+  const topBar = document.createElement('div');
+  topBar.className = 'setup-screen__top-bar';
 
-  // Coordinate display
-  const coordDisplay = new CoordinateDisplay();
-  gridArea.appendChild(coordDisplay.render());
+  const topLeft = document.createElement('div');
+  topLeft.className = 'setup-screen__top-left';
 
-  // Slice grid
-  let sliceGrid = createSliceGrid();
-  gridArea.appendChild(sliceGrid.render());
+  const playerBadge = document.createElement('span');
+  playerBadge.className = 'setup-screen__player-badge';
+  playerBadge.textContent = PLAYER_DESIGNATIONS[player.index];
+  topLeft.appendChild(playerBadge);
 
-  // Status message
+  const titleLabel = document.createElement('span');
+  titleLabel.className = 'setup-screen__title-label';
+  titleLabel.textContent = 'FLEET DEPLOYMENT';
+  topLeft.appendChild(titleLabel);
+
+  topBar.appendChild(topLeft);
+
+  // Coordinate display — large, centered
+  const coordDisplay = document.createElement('div');
+  coordDisplay.className = 'setup-screen__coord-display';
+  coordDisplay.textContent = '\u2014 \u2014';
+  topBar.appendChild(coordDisplay);
+
+  const topRight = document.createElement('div');
+  topRight.className = 'setup-screen__top-right';
+  topRight.textContent = '3D SONAR ARRAY // 8\u00d78\u00d78 // 512 CELLS';
+  topBar.appendChild(topRight);
+
+  el.appendChild(topBar);
+
+  // --- Status message (below top bar, centered) ---
   const statusEl = document.createElement('div');
   statusEl.className = 'setup-screen__status';
-  gridArea.appendChild(statusEl);
+  el.appendChild(statusEl);
 
-  // Controls column
-  const controls = document.createElement('div');
-  controls.className = 'setup-screen__controls';
-  el.appendChild(controls);
+  // --- Axis selector (below status, centered) ---
+  const axisBar = document.createElement('div');
+  axisBar.className = 'setup-screen__axis-bar';
 
-  // Axis selector
-  const axisSelector = new AxisSelector({
-    initialAxis: uiState.currentAxis,
-    onAxisChange(axis) {
-      uiState.currentAxis = axis;
-      updateGhostPreview();
-    },
-  });
-  controls.appendChild(axisSelector.render());
+  const axisLabel = document.createElement('span');
+  axisLabel.className = 'setup-screen__axis-label';
+  axisLabel.textContent = 'AXIS';
+  axisBar.appendChild(axisLabel);
 
-  // Depth selector
-  const depthSelector = new DepthSelector({
-    initialDepth: uiState.currentDepth,
-    onDepthChange(depth) {
-      uiState.currentDepth = depth === -1 ? 0 : depth;
-      rebuildSliceGrid();
-    },
-  });
-  controls.appendChild(depthSelector.render());
+  const axes: { id: PlacementAxis; label: string }[] = [
+    { id: 'col', label: 'COL' },
+    { id: 'row', label: 'ROW' },
+    { id: 'diag+', label: 'DIAG\u2197' },
+    { id: 'diag-', label: 'DIAG\u2198' },
+    { id: 'col-depth', label: 'COL+D' },
+    { id: 'row-depth', label: 'ROW+D' },
+  ];
 
-  // Sidebar
-  const sidebar = document.createElement('div');
-  sidebar.className = 'setup-screen__sidebar';
-  el.appendChild(sidebar);
+  for (const axis of axes) {
+    const btn = document.createElement('button');
+    btn.className = 'setup-screen__axis-btn';
+    if (axis.id === uiState.currentAxis) {
+      btn.classList.add('setup-screen__axis-btn--active');
+    }
+    btn.textContent = axis.label;
+    btn.dataset.axis = axis.id;
+    btn.addEventListener('click', () => handleAxisChange(axis.id));
+    axisBar.appendChild(btn);
+  }
 
-  // Ship roster
+  el.appendChild(axisBar);
+
+  // --- View mode selector (left edge overlay) ---
+  const viewModes = document.createElement('div');
+  viewModes.className = 'setup-screen__view-modes';
+
+  const modes: { id: ViewMode; label: string }[] = [
+    { id: 'cube', label: 'CUBE' },
+    { id: 'slice', label: 'SLICE' },
+    { id: 'xray', label: 'X-RAY' },
+  ];
+
+  for (const mode of modes) {
+    const btn = document.createElement('button');
+    btn.className = 'setup-screen__mode-btn';
+    if (mode.id === uiState.viewMode) {
+      btn.classList.add('setup-screen__mode-btn--active');
+    }
+    btn.textContent = mode.label;
+    btn.dataset.mode = mode.id;
+    btn.addEventListener('click', () => handleViewModeChange(mode.id));
+    viewModes.appendChild(btn);
+  }
+
+  el.appendChild(viewModes);
+
+  // --- Depth selector (right edge overlay) ---
+  const depthPanel = document.createElement('div');
+  depthPanel.className = 'setup-screen__depth-panel';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'setup-screen__depth-btn';
+  if (uiState.currentDepth === null) {
+    allBtn.classList.add('setup-screen__depth-btn--active');
+  }
+  allBtn.textContent = 'ALL';
+  allBtn.dataset.depth = '-1';
+  allBtn.addEventListener('click', () => handleDepthChange(-1));
+  depthPanel.appendChild(allBtn);
+
+  for (let i = 0; i < 8; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'setup-screen__depth-btn';
+    if (uiState.currentDepth === i) {
+      btn.classList.add('setup-screen__depth-btn--active');
+    }
+    btn.textContent = String(i + 1);
+    btn.dataset.depth = String(i);
+    btn.addEventListener('click', () => handleDepthChange(i));
+    depthPanel.appendChild(btn);
+  }
+
+  el.appendChild(depthPanel);
+
+  // --- Ship roster (right side overlay) ---
+  const rosterPanel = document.createElement('div');
+  rosterPanel.className = 'setup-screen__roster-panel';
+
   const shipRoster = new ShipRoster({
     onShipSelect(entry: FleetRosterEntry) {
       if (uiState.placementPhase !== 'ships') return;
@@ -108,27 +180,25 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
         uiState.selectedShipId = null;
         shipRoster.setSelected(null);
       }
-      // If we were past ships phase, go back
       uiState.placementPhase = 'ships';
       refreshState();
     },
   });
   shipRoster.updatePlaced(player.ships);
-  sidebar.appendChild(shipRoster.render());
+  rosterPanel.appendChild(shipRoster.render());
 
-  // Footer
+  el.appendChild(rosterPanel);
+
+  // --- Footer (bottom overlay) ---
   const footer = document.createElement('div');
   footer.className = 'setup-screen__footer';
-  el.appendChild(footer);
 
-  // Reset button
   const resetBtn = document.createElement('button');
   resetBtn.className = 'crt-button crt-button--danger';
   resetBtn.textContent = 'RESET ALL';
   resetBtn.addEventListener('click', handleReset);
   footer.appendChild(resetBtn);
 
-  // Confirm button
   const confirmBtn = document.createElement('button');
   confirmBtn.className = 'crt-button';
   confirmBtn.textContent = 'CONFIRM DEPLOYMENT';
@@ -136,26 +206,84 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   confirmBtn.addEventListener('click', handleConfirm);
   footer.appendChild(confirmBtn);
 
+  el.appendChild(footer);
+
+  // --- Controls hint ---
+  const hint = document.createElement('div');
+  hint.className = 'setup-screen__hint';
+  hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO PLACE';
+  el.appendChild(hint);
+
   container.appendChild(el);
+
+  // --- Initialize 3D Scene ---
+  const sceneManager = new SceneManager({ container: canvasContainer });
+  sceneManager.setViewMode(uiState.viewMode);
+  sceneManager.setBoardType('own');
+  sceneManager.setDepth(uiState.currentDepth);
+
+  sceneManager.onCellClick(handleCellClick);
+  sceneManager.onCellHover(handleCellHover);
+
+  updateSceneGrid();
+  sceneManager.start();
   updateStatus();
 
-  // --- Helpers ---
+  // --- Handlers ---
 
-  function createSliceGrid(): SliceGrid {
-    return new SliceGrid({
-      grid: game.getCurrentPlayer().ownGrid,
-      depth: uiState.currentDepth,
-      showShips: true,
-      onCellClick: handleCellClick,
-      onCellHover: handleCellHover,
-    });
+  function handleViewModeChange(mode: ViewMode): void {
+    if (mode === uiState.viewMode) return;
+    uiState.viewMode = mode;
+    sceneManager.setViewMode(mode);
+
+    const btns = viewModes.querySelectorAll('.setup-screen__mode-btn');
+    for (const btn of btns) {
+      const el = btn as HTMLElement;
+      el.classList.toggle('setup-screen__mode-btn--active', el.dataset.mode === mode);
+    }
+
+    if (mode === 'slice' && uiState.currentDepth === null) {
+      uiState.currentDepth = 0;
+      updateDepthButtons();
+    }
+
+    updateSceneGrid();
   }
 
-  function rebuildSliceGrid(): void {
-    const oldEl = sliceGrid.render();
-    sliceGrid.destroy();
-    sliceGrid = createSliceGrid();
-    gridArea.insertBefore(sliceGrid.render(), oldEl.nextSibling ?? statusEl);
+  function handleDepthChange(depth: number): void {
+    uiState.currentDepth = depth === -1 ? null : depth;
+    sceneManager.setDepth(uiState.currentDepth);
+    updateDepthButtons();
+    updateSceneGrid();
+  }
+
+  function updateDepthButtons(): void {
+    const btns = depthPanel.querySelectorAll('.setup-screen__depth-btn');
+    for (const btn of btns) {
+      const el = btn as HTMLElement;
+      const d = Number(el.dataset.depth);
+      el.classList.toggle('setup-screen__depth-btn--active',
+        (uiState.currentDepth === null && d === -1) ||
+        (uiState.currentDepth === d));
+    }
+  }
+
+  function handleAxisChange(axis: PlacementAxis): void {
+    if (axis === uiState.currentAxis) return;
+    uiState.currentAxis = axis;
+
+    const btns = axisBar.querySelectorAll('.setup-screen__axis-btn');
+    for (const btn of btns) {
+      const el = btn as HTMLElement;
+      el.classList.toggle('setup-screen__axis-btn--active', el.dataset.axis === axis);
+    }
+
+    updateGhostPreview();
+  }
+
+  function updateSceneGrid(): void {
+    const currentPlayer = game.getCurrentPlayer();
+    sceneManager.updateGrid(currentPlayer.ownGrid);
     updateGhostPreview();
   }
 
@@ -169,7 +297,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
 
   function handleCellHover(coord: Coordinate | null): void {
     uiState.hoveredCoord = coord;
-    coordDisplay.update(coord);
+    coordDisplay.textContent = coord ? formatCoordinate(coord) : '\u2014 \u2014';
     updateGhostPreview();
   }
 
@@ -179,7 +307,10 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
     if (!entry) return;
 
     const success = game.placeShipForCurrentPlayer(entry, coord, uiState.currentAxis);
-    if (!success) return;
+    if (!success) {
+      statusEl.textContent = 'INVALID PLACEMENT \u2014 CHECK OVERLAP / BOUNDS';
+      return;
+    }
 
     uiState.selectedShipId = null;
     shipRoster.setSelected(null);
@@ -211,12 +342,10 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
 
   function handleReset(): void {
     const currentPlayer = game.getCurrentPlayer();
-    // Remove all ships
     const shipIds = currentPlayer.ships.map((s) => s.id);
     for (const id of shipIds) {
       game.removeShipForCurrentPlayer(id);
     }
-    // Remove decoy — scan grid for decoy cells
     for (let col = 0; col < GRID_SIZE; col++) {
       for (let row = 0; row < GRID_SIZE; row++) {
         for (let depth = 0; depth < GRID_SIZE; depth++) {
@@ -247,7 +376,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
         const cells = calculateShipCells(uiState.hoveredCoord, uiState.currentAxis, entry.size);
         const currentPlayer = game.getCurrentPlayer();
         const validation = validatePlacement(currentPlayer.ownGrid, entry, uiState.hoveredCoord, uiState.currentAxis);
-        sliceGrid.setGhostCells(cells, validation.valid);
+        sceneManager.setGhostCells(cells, validation.valid);
         return;
       }
     }
@@ -256,11 +385,11 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
       const currentPlayer = game.getCurrentPlayer();
       const cell = getCell(currentPlayer.ownGrid, uiState.hoveredCoord);
       const valid = cell?.state === CellState.Empty;
-      sliceGrid.setGhostCells([uiState.hoveredCoord], valid);
+      sceneManager.setGhostCells([uiState.hoveredCoord], valid);
       return;
     }
 
-    sliceGrid.clearGhostCells();
+    sceneManager.clearGhostCells();
   }
 
   function updateStatus(): void {
@@ -268,16 +397,16 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
       case 'ships':
         if (uiState.selectedShipId) {
           const entry = FLEET_ROSTER.find((r) => r.id === uiState.selectedShipId);
-          statusEl.textContent = `PLACING: ${entry?.name?.toUpperCase() ?? ''} — CLICK GRID TO DEPLOY`;
+          statusEl.textContent = `PLACING: ${entry?.name?.toUpperCase() ?? ''} \u2014 CLICK GRID TO DEPLOY`;
         } else {
           statusEl.textContent = 'SELECT A VESSEL FROM THE ROSTER';
         }
         break;
       case 'decoy':
-        statusEl.textContent = 'DEPLOY DECOY — CLICK AN EMPTY CELL';
+        statusEl.textContent = 'DEPLOY DECOY \u2014 CLICK AN EMPTY CELL';
         break;
       case 'confirm':
-        statusEl.textContent = 'FLEET DEPLOYED — CONFIRM WHEN READY';
+        statusEl.textContent = 'FLEET DEPLOYED \u2014 CONFIRM WHEN READY';
         break;
     }
     confirmBtn.disabled = uiState.placementPhase !== 'confirm';
@@ -286,21 +415,14 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   function refreshState(): void {
     const currentPlayer = game.getCurrentPlayer();
     shipRoster.updatePlaced(currentPlayer.ships);
-    sliceGrid.update({
-      grid: currentPlayer.ownGrid,
-      depth: uiState.currentDepth,
-    });
-    updateGhostPreview();
+    updateSceneGrid();
     updateStatus();
   }
 
   return {
     unmount(): void {
-      sliceGrid.destroy();
-      depthSelector.destroy();
-      axisSelector.destroy();
+      sceneManager.dispose();
       shipRoster.destroy();
-      coordDisplay.destroy();
       el.remove();
     },
   };

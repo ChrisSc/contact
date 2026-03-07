@@ -117,6 +117,48 @@ describe('GridCube', () => {
     expect(cell.group.position.z).toBeCloseTo(GRID_OFFSET);
   });
 
+  it('getCellMeshesAtDepth returns 64 cells', () => {
+    const cells = cube.getCellMeshesAtDepth(0);
+    expect(cells.length).toBe(64);
+    for (const cell of cells) {
+      expect(cell.coord.depth).toBe(0);
+    }
+  });
+
+  it('getCellMeshesAtDepth returns cells for each depth', () => {
+    for (let d = 0; d < GRID_SIZE; d++) {
+      const cells = cube.getCellMeshesAtDepth(d);
+      expect(cells.length).toBe(64);
+    }
+  });
+
+  it('getAllCellMeshes returns all 512 cells', () => {
+    expect(cube.getAllCellMeshes().length).toBe(512);
+  });
+
+  it('setLayerVisible hides all cells at depth', () => {
+    cube.setLayerVisible(3, false);
+    const cells = cube.getCellMeshesAtDepth(3);
+    for (const cell of cells) {
+      expect(cell.group.visible).toBe(false);
+    }
+
+    // Other depths remain visible
+    const otherCells = cube.getCellMeshesAtDepth(0);
+    for (const cell of otherCells) {
+      expect(cell.group.visible).toBe(true);
+    }
+  });
+
+  it('setLayerVisible can re-show hidden cells', () => {
+    cube.setLayerVisible(3, false);
+    cube.setLayerVisible(3, true);
+    const cells = cube.getCellMeshesAtDepth(3);
+    for (const cell of cells) {
+      expect(cell.group.visible).toBe(true);
+    }
+  });
+
   it('dispose clears all internal state', () => {
     cube.dispose();
     expect(cube.root.children.length).toBe(0);

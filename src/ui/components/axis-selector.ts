@@ -3,7 +3,10 @@ import type { PlacementAxis } from '../../types/fleet';
 const AXES: { key: PlacementAxis; label: string }[] = [
   { key: 'col', label: 'COL' },
   { key: 'row', label: 'ROW' },
-  { key: 'depth', label: 'DEPTH' },
+  { key: 'diag+', label: 'DIAG\u2197' },
+  { key: 'diag-', label: 'DIAG\u2198' },
+  { key: 'col-depth', label: 'COL+D' },
+  { key: 'row-depth', label: 'ROW+D' },
 ];
 
 export interface AxisSelectorOptions {

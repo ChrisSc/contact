@@ -1,12 +1,22 @@
 import * as THREE from 'three';
-import type { Grid } from '../types/grid';
+import type { Coordinate, Grid } from '../types/grid';
 import { MaterialPool, CRT_COLORS } from './materials';
+import type { CellMesh } from './cube';
 import { GridCube } from './cube';
 import { OrbitControls } from './orbit';
+import { ViewManager } from './views';
+import type { ViewMode, BoardType } from './views';
+import { GridRaycaster } from './raycaster';
 import { getLogger } from '../observability/logger';
 
 export interface SceneConfig {
   container: HTMLElement;
+}
+
+interface GhostEntry {
+  cell: CellMesh;
+  origFill: THREE.Material;
+  origEdge: THREE.Material;
 }
 
 export class SceneManager {
@@ -16,10 +26,25 @@ export class SceneManager {
   readonly orbit: OrbitControls;
   readonly cube: GridCube;
   readonly materialPool: MaterialPool;
+  readonly views: ViewManager;
+  readonly raycaster: GridRaycaster;
 
   private animationFrameId: number | null = null;
   private resizeObserver: ResizeObserver;
   private container: HTMLElement;
+  private lastTime = 0;
+
+  private cellClickCallbacks: ((coord: Coordinate) => void)[] = [];
+  private cellHoverCallbacks: ((coord: Coordinate | null) => void)[] = [];
+
+  private ghostEntries: GhostEntry[] = [];
+  private ghostValidMat: THREE.MeshBasicMaterial;
+  private ghostValidEdge: THREE.LineBasicMaterial;
+  private ghostInvalidMat: THREE.MeshBasicMaterial;
+  private ghostInvalidEdge: THREE.LineBasicMaterial;
+
+  private boundOnClick: (e: PointerEvent) => void;
+  private boundOnPointerMove: (e: PointerEvent) => void;
 
   constructor(config: SceneConfig) {
     this.container = config.container;
@@ -41,12 +66,26 @@ export class SceneManager {
     this.cube = new GridCube(this.materialPool);
     this.scene.add(this.cube.root);
 
+    this.ghostValidMat = new THREE.MeshBasicMaterial({ color: CRT_COLORS.GREEN, transparent: true, opacity: 0.3, depthWrite: false });
+    this.ghostValidEdge = new THREE.LineBasicMaterial({ color: CRT_COLORS.GREEN, transparent: true, opacity: 0.7 });
+    this.ghostInvalidMat = new THREE.MeshBasicMaterial({ color: CRT_COLORS.RED, transparent: true, opacity: 0.3, depthWrite: false });
+    this.ghostInvalidEdge = new THREE.LineBasicMaterial({ color: CRT_COLORS.RED, transparent: true, opacity: 0.7 });
+
+    this.views = new ViewManager(this.cube, this.materialPool);
+    this.raycaster = new GridRaycaster(this.camera, this.renderer.domElement, this.cube);
+    this.raycaster.setMeshSource(() => this.views.getInteractableMeshes());
+
     const canvas = this.renderer.domElement;
     canvas.style.display = 'block';
     canvas.style.touchAction = 'none';
     config.container.appendChild(canvas);
 
     this.orbit = new OrbitControls(this.camera, canvas);
+
+    this.boundOnClick = this.handleClick.bind(this);
+    this.boundOnPointerMove = this.handlePointerMove.bind(this);
+    canvas.addEventListener('click', this.boundOnClick as EventListener);
+    canvas.addEventListener('pointermove', this.boundOnPointerMove);
 
     this.resizeObserver = new ResizeObserver(() => this.resize());
     this.resizeObserver.observe(config.container);
@@ -58,14 +97,88 @@ export class SceneManager {
     }
   }
 
+  private handleClick(e: PointerEvent): void {
+    const coord = this.raycaster.pick(e);
+    if (coord) {
+      for (const cb of this.cellClickCallbacks) {
+        cb(coord);
+      }
+    }
+  }
+
+  private handlePointerMove(e: PointerEvent): void {
+    // Suppress hover during orbit drag
+    if (this.orbit.dragging) {
+      for (const cb of this.cellHoverCallbacks) {
+        cb(null);
+      }
+      return;
+    }
+
+    const coord = this.raycaster.pick(e);
+    for (const cb of this.cellHoverCallbacks) {
+      cb(coord);
+    }
+  }
+
+  onCellClick(cb: (coord: Coordinate) => void): void {
+    this.cellClickCallbacks.push(cb);
+  }
+
+  onCellHover(cb: (coord: Coordinate | null) => void): void {
+    this.cellHoverCallbacks.push(cb);
+  }
+
+  setViewMode(mode: ViewMode): void {
+    this.views.setMode(mode);
+  }
+
+  setDepth(depth: number | null): void {
+    this.views.setDepth(depth);
+  }
+
+  setBoardType(type: BoardType): void {
+    this.views.setBoardType(type);
+  }
+
+  setGhostCells(coords: Coordinate[], valid: boolean): void {
+    this.clearGhostCells();
+    const fillMat = valid ? this.ghostValidMat : this.ghostInvalidMat;
+    const edgeMat = valid ? this.ghostValidEdge : this.ghostInvalidEdge;
+    for (const coord of coords) {
+      const cell = this.cube.getCellMesh(coord);
+      if (cell) {
+        this.ghostEntries.push({
+          cell,
+          origFill: cell.box.material as THREE.Material,
+          origEdge: cell.edges.material as THREE.Material,
+        });
+        cell.box.material = fillMat;
+        cell.edges.material = edgeMat;
+      }
+    }
+  }
+
+  clearGhostCells(): void {
+    for (const entry of this.ghostEntries) {
+      entry.cell.box.material = entry.origFill;
+      entry.cell.edges.material = entry.origEdge;
+    }
+    this.ghostEntries.length = 0;
+  }
+
   start(): void {
     if (this.animationFrameId !== null) return;
-    const loop = (): void => {
+    this.lastTime = performance.now();
+    const loop = (now: number): void => {
       this.animationFrameId = requestAnimationFrame(loop);
+      const dt = (now - this.lastTime) / 1000;
+      this.lastTime = now;
+      this.views.update(dt);
       this.orbit.update();
       this.renderer.render(this.scene, this.camera);
     };
-    loop();
+    this.animationFrameId = requestAnimationFrame(loop);
   }
 
   stop(): void {
@@ -77,6 +190,7 @@ export class SceneManager {
 
   updateGrid(grid: Grid): void {
     this.cube.updateFromGrid(grid);
+    this.views.applyView(grid);
   }
 
   resize(): void {
@@ -92,13 +206,28 @@ export class SceneManager {
 
   dispose(): void {
     this.stop();
+    this.clearGhostCells();
+
+    const canvas = this.renderer.domElement;
+    canvas.removeEventListener('click', this.boundOnClick as EventListener);
+    canvas.removeEventListener('pointermove', this.boundOnPointerMove);
+
+    this.ghostValidMat.dispose();
+    this.ghostValidEdge.dispose();
+    this.ghostInvalidMat.dispose();
+    this.ghostInvalidEdge.dispose();
+
+    this.views.dispose();
+    this.raycaster.dispose();
     this.orbit.dispose();
     this.cube.dispose();
     this.materialPool.dispose();
     this.renderer.dispose();
     this.resizeObserver.disconnect();
 
-    const canvas = this.renderer.domElement;
+    this.cellClickCallbacks.length = 0;
+    this.cellHoverCallbacks.length = 0;
+
     if (canvas.parentElement) {
       canvas.parentElement.removeChild(canvas);
     }

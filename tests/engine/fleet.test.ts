@@ -43,10 +43,50 @@ describe('calculateShipCells', () => {
     ]);
   });
 
-  it('extends along depth axis', () => {
-    const cells = calculateShipCells({ col: 5, row: 5, depth: 0 }, 'depth', 4);
-    expect(cells).toHaveLength(4);
-    expect(cells[3]).toEqual({ col: 5, row: 5, depth: 3 });
+  it('extends along diag+ axis (col and row increase)', () => {
+    const cells = calculateShipCells({ col: 0, row: 0, depth: 2 }, 'diag+', 3);
+    expect(cells).toEqual([
+      { col: 0, row: 0, depth: 2 },
+      { col: 1, row: 1, depth: 2 },
+      { col: 2, row: 2, depth: 2 },
+    ]);
+  });
+
+  it('extends along diag- axis (col increases, row decreases)', () => {
+    const cells = calculateShipCells({ col: 0, row: 4, depth: 1 }, 'diag-', 3);
+    expect(cells).toEqual([
+      { col: 0, row: 4, depth: 1 },
+      { col: 1, row: 3, depth: 1 },
+      { col: 2, row: 2, depth: 1 },
+    ]);
+  });
+
+  it('stays at consistent depth for within-slice axes', () => {
+    for (const axis of ['col', 'row', 'diag+', 'diag-'] as const) {
+      const cells = calculateShipCells({ col: 3, row: 3, depth: 5 }, axis, 2);
+      for (const cell of cells) {
+        expect(cell.depth).toBe(5);
+      }
+    }
+  });
+
+  it('extends along col-depth axis (col and depth increase)', () => {
+    const cells = calculateShipCells({ col: 0, row: 2, depth: 0 }, 'col-depth', 3);
+    expect(cells).toEqual([
+      { col: 0, row: 2, depth: 0 },
+      { col: 1, row: 2, depth: 1 },
+      { col: 2, row: 2, depth: 2 },
+    ]);
+  });
+
+  it('extends along row-depth axis (row and depth increase)', () => {
+    const cells = calculateShipCells({ col: 3, row: 0, depth: 1 }, 'row-depth', 4);
+    expect(cells).toEqual([
+      { col: 3, row: 0, depth: 1 },
+      { col: 3, row: 1, depth: 2 },
+      { col: 3, row: 2, depth: 3 },
+      { col: 3, row: 3, depth: 4 },
+    ]);
   });
 });
 
@@ -63,6 +103,20 @@ describe('validatePlacement', () => {
     const result = validatePlacement(grid, typhoon, { col: 4, row: 0, depth: 0 }, 'col');
     expect(result.valid).toBe(false);
     expect(result.error).toContain('boundaries');
+  });
+
+  it('rejects diag- placement that goes below row 0', () => {
+    const grid = createGrid();
+    // diag- from row 1, size 3: rows 1, 0, -1 — OOB
+    const result = validatePlacement(grid, seawolf, { col: 0, row: 1, depth: 0 }, 'diag-');
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('boundaries');
+  });
+
+  it('accepts valid diagonal placement', () => {
+    const grid = createGrid();
+    const result = validatePlacement(grid, seawolf, { col: 0, row: 0, depth: 0 }, 'diag+');
+    expect(result.valid).toBe(true);
   });
 
   it('rejects overlapping placement', () => {

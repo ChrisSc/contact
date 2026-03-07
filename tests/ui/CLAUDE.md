@@ -3,29 +3,30 @@
 ## Files
 
 - **`slice-grid.test.ts`** — 10 tests: grid rendering, cell state CSS classes, ghost cell preview, click callbacks
-- **`setup-screen.test.ts`** — 10 tests: DOM structure, ship placement flow, reset, full end-to-end placement, depth selector (9 buttons incl. ALL)
+- **`setup-screen.test.ts`** — 16 tests: mocked SceneManager (no WebGL), 3D canvas container, view mode selector (CUBE/SLICE/X-RAY), depth buttons (ALL+1-8), 6-axis selector (COL/ROW/DIAG↗/DIAG↘/COL+D/ROW+D), ship roster, raycaster cell click placement, raycaster hover coordinate display, ghost cell preview via setGhostCells, full placement flow (ships+decoy+confirm), reset, dispose on unmount
 - **`screen-router.test.ts`** — 4 tests: mount/unmount lifecycle, context passing, cleanup callback invocation
-- **`combat-screen.test.ts`** — 14 tests: header/grid/HUD rendering (DEPTH/VIEW/CELLS metrics), fire torpedo flow, board toggle, end turn navigation, game log, victory auto-navigation, depth selector (9 buttons incl. ALL)
+- **`combat-screen.test.ts`** — 20 tests: mocked SceneManager (no WebGL), header/HUD rendering (DEPTH/VISIBLE/SHOTS/HITS/SUNK/MODE), 3D canvas container, view mode selector (CUBE/SLICE/X-RAY), fire torpedo via raycaster callback, coordinate hover feedback, board toggle → setBoardType, end turn navigation, game log, victory auto-navigation, dispose on unmount
 - **`victory-screen.test.ts`** — 4 tests: winner designation, stats display, export session trigger, new engagement restart
 
 ## Architecture
 
 - Component and screen **integration tests** using jsdom.
-- Tests mount real components with real `GameController` instances — not mocked.
+- Tests mount real components with real `GameController` instances. `SceneManager` is mocked in both setup and combat tests (WebGL unavailable in jsdom).
 - Verifies both DOM output and engine state consistency.
 
 ## Style Guide
 
 - **Per-file jsdom pragma**: `// @vitest-environment jsdom` at top of each file (not configured globally).
 - DOM queries via `querySelector` / `querySelectorAll`.
-- Event simulation via `.click()` on DOM elements.
+- Event simulation via `.click()` on DOM elements or raycaster callback invocation.
 - State verified through both CSS class assertions and `game.getCurrentPlayer()` checks.
 
 ## Patterns
 
 - `beforeEach` creates fresh DOM container + GameController + Logger for isolation.
-- **Full user flow tests**: Select ship -> click cell -> verify placement in both DOM and engine.
-- **Cleanup verification**: Confirm cleanup callbacks are called on screen navigation.
+- **SceneManager mock pattern**: Shared across setup and combat tests — mock object with `vi.fn()` for all methods, `onCellClick`/`onCellHover` capture callbacks, `views` sub-object with `getInteractableMeshes`. `resetMocks()` helper clears state between tests.
+- **Full user flow tests**: Select ship -> raycaster click -> verify placement in both DOM and engine.
+- **Cleanup verification**: Confirm `dispose()` called on screen navigation.
 - **CSS class assertions**: Visual state (hit, miss, ship, ghost) verified via `classList.contains()`.
 - **`setupCombatGame()` helper**: Places all ships + decoys for both players at known positions, confirms both → Combat phase. Reused across combat and victory tests.
 - **Programmatic game progression**: For victory tests, fires torpedoes and alternates turns via engine API to reach near-victory or full victory state before mounting the screen under test.

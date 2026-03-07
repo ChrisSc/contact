@@ -24,6 +24,8 @@ vi.mock('three', async () => {
 });
 
 import { SceneManager } from '../../src/renderer/scene';
+import { ViewManager } from '../../src/renderer/views';
+import { GridRaycaster } from '../../src/renderer/raycaster';
 
 // Polyfill ResizeObserver for jsdom
 class MockResizeObserver {
@@ -60,6 +62,11 @@ describe('SceneManager', () => {
     expect(manager.materialPool).toBeDefined();
   });
 
+  it('creates ViewManager and GridRaycaster', () => {
+    expect(manager.views).toBeInstanceOf(ViewManager);
+    expect(manager.raycaster).toBeInstanceOf(GridRaycaster);
+  });
+
   it('appends canvas to container', () => {
     const canvas = container.querySelector('canvas');
     expect(canvas).not.toBeNull();
@@ -82,9 +89,45 @@ describe('SceneManager', () => {
     cancelSpy.mockRestore();
   });
 
+  it('setViewMode delegates to ViewManager', () => {
+    const spy = vi.spyOn(manager.views, 'setMode');
+    manager.setViewMode('slice');
+    expect(spy).toHaveBeenCalledWith('slice');
+  });
+
+  it('setDepth delegates to ViewManager', () => {
+    const spy = vi.spyOn(manager.views, 'setDepth');
+    manager.setDepth(3);
+    expect(spy).toHaveBeenCalledWith(3);
+  });
+
+  it('setBoardType delegates to ViewManager', () => {
+    const spy = vi.spyOn(manager.views, 'setBoardType');
+    manager.setBoardType('own');
+    expect(spy).toHaveBeenCalledWith('own');
+  });
+
   it('dispose() cleans up all resources', () => {
     const rendererDispose = vi.spyOn(manager.renderer, 'dispose');
+    const viewsDispose = vi.spyOn(manager.views, 'dispose');
+    const raycasterDispose = vi.spyOn(manager.raycaster, 'dispose');
     manager.dispose();
     expect(rendererDispose).toHaveBeenCalled();
+    expect(viewsDispose).toHaveBeenCalled();
+    expect(raycasterDispose).toHaveBeenCalled();
+  });
+
+  it('onCellClick registers callback', () => {
+    const cb = vi.fn();
+    manager.onCellClick(cb);
+    // Callback is stored — we can't easily trigger it without raycasting
+    // but verify it doesn't throw
+    expect(() => manager.onCellClick(cb)).not.toThrow();
+  });
+
+  it('onCellHover registers callback', () => {
+    const cb = vi.fn();
+    manager.onCellHover(cb);
+    expect(() => manager.onCellHover(cb)).not.toThrow();
   });
 });

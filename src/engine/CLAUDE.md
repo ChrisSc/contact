@@ -3,7 +3,7 @@
 ## Files
 
 - **`grid.ts`** — 6 pure functions: `createGrid`, `getCell`, `setCell`, `parseCoordinate`, `formatCoordinate`, `isValidCoordinate`
-- **`fleet.ts`** — 8 functions: `calculateShipCells`, `validatePlacement`, `placeShip`, `removeShip`, `placeDecoy`, `isFleetComplete`, `checkSunk`, `getShipHealth`
+- **`fleet.ts`** — 8 functions: `calculateShipCells`, `validatePlacement`, `placeShip`, `removeShip`, `placeDecoy`, `isFleetComplete`, `checkSunk`, `getShipHealth`. Uses `AXIS_DELTAS` lookup table for cell offset computation.
 - **`game.ts`** — `GameController` class: setup flow, combat turns, victory detection, turn management
 
 ## Architecture
@@ -27,3 +27,9 @@
 - `combat.fire` on hit includes `ship` and `remaining` (via `getShipHealth`); `combat.sunk` includes `remaining: 0`.
 - Decoy placement emits `fleet.decoy_place` (not `fleet.place`).
 - Ship placement validates: axis alignment, no overlap, in-bounds, correct size.
+
+## Placement Axes
+
+6 axes via `AXIS_DELTAS` table — no purely vertical (depth-only) placement:
+- **Within-slice** (constant depth): `col`, `row`, `diag+` (col+row increase), `diag-` (col increases, row decreases)
+- **Cross-slice** (spans depth layers): `col-depth` (col+depth increase), `row-depth` (row+depth increase)

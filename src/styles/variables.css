@@ -63,6 +63,13 @@ html, body {
   position: relative;
 }
 
+/* Combat screen overrides container to allow absolute positioning */
+.screen-container:has(.combat-screen) {
+  display: block;
+  text-align: left;
+  gap: 0;
+}
+
 .title-text {
   font-family: var(--font-display);
   font-size: 48px;

@@ -1,6 +1,6 @@
 import type { Coordinate } from './grid';
 
-export type PlacementAxis = 'col' | 'row' | 'depth';
+export type PlacementAxis = 'col' | 'row' | 'diag+' | 'diag-' | 'col-depth' | 'row-depth';
 
 export interface ShipPlacement {
   origin: Coordinate;

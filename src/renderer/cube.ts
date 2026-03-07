@@ -99,6 +99,30 @@ export class GridCube {
     return [...this.meshToCoord.keys()];
   }
 
+  getCellMeshesAtDepth(depth: number): CellMesh[] {
+    const result: CellMesh[] = [];
+    for (let col = 0; col < GRID_SIZE; col++) {
+      for (let row = 0; row < GRID_SIZE; row++) {
+        const cell = this.cellMeshes.get(coordKey(col, row, depth));
+        if (cell) result.push(cell);
+      }
+    }
+    return result;
+  }
+
+  getAllCellMeshes(): CellMesh[] {
+    return [...this.cellMeshes.values()];
+  }
+
+  setLayerVisible(depth: number, visible: boolean): void {
+    for (let col = 0; col < GRID_SIZE; col++) {
+      for (let row = 0; row < GRID_SIZE; row++) {
+        const cell = this.cellMeshes.get(coordKey(col, row, depth));
+        if (cell) cell.group.visible = visible;
+      }
+    }
+  }
+
   coordFromMesh(mesh: THREE.Object3D): Coordinate | null {
     if (mesh instanceof THREE.Mesh) {
       return this.meshToCoord.get(mesh) ?? null;

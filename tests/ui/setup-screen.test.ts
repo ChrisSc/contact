@@ -6,8 +6,60 @@ import { mountSetupScreen } from '../../src/ui/screens/setup-screen';
 import { mountHandoffScreen } from '../../src/ui/screens/handoff-screen';
 import { initLogger } from '../../src/observability/logger';
 import { FLEET_ROSTER } from '../../src/types/fleet';
-import { CellState, GRID_SIZE } from '../../src/types/grid';
-import { getCell } from '../../src/engine/grid';
+import type { Coordinate } from '../../src/types/grid';
+
+// Mock SceneManager to avoid WebGL requirement
+let cellClickCb: ((coord: Coordinate) => void) | null = null;
+let cellHoverCb: ((coord: Coordinate | null) => void) | null = null;
+
+const mockSceneManager = {
+  setViewMode: vi.fn(),
+  setDepth: vi.fn(),
+  setBoardType: vi.fn(),
+  updateGrid: vi.fn(),
+  setGhostCells: vi.fn(),
+  clearGhostCells: vi.fn(),
+  start: vi.fn(),
+  stop: vi.fn(),
+  dispose: vi.fn(),
+  onCellClick: vi.fn((cb: (coord: Coordinate) => void) => { cellClickCb = cb; }),
+  onCellHover: vi.fn((cb: (coord: Coordinate | null) => void) => { cellHoverCb = cb; }),
+  views: {
+    getInteractableMeshes: vi.fn(() => new Array(64)),
+    getMode: vi.fn(() => 'cube'),
+    getDepth: vi.fn(() => 0),
+  },
+};
+
+vi.mock('../../src/renderer/scene', () => ({
+  SceneManager: vi.fn(() => mockSceneManager),
+}));
+
+class MockResizeObserver {
+  observe = vi.fn();
+  unobserve = vi.fn();
+  disconnect = vi.fn();
+}
+vi.stubGlobal('ResizeObserver', MockResizeObserver);
+
+function resetMocks(): void {
+  cellClickCb = null;
+  cellHoverCb = null;
+  for (const fn of Object.values(mockSceneManager)) {
+    if (typeof fn === 'object' && fn !== null) {
+      for (const innerFn of Object.values(fn)) {
+        if (typeof innerFn === 'function' && 'mockClear' in innerFn) {
+          (innerFn as ReturnType<typeof vi.fn>).mockClear();
+        }
+      }
+    }
+    if (typeof fn === 'function' && 'mockClear' in fn) {
+      (fn as ReturnType<typeof vi.fn>).mockClear();
+    }
+  }
+  mockSceneManager.onCellClick.mockImplementation((cb: (coord: Coordinate) => void) => { cellClickCb = cb; });
+  mockSceneManager.onCellHover.mockImplementation((cb: (coord: Coordinate | null) => void) => { cellHoverCb = cb; });
+}
 
 describe('Setup Screen', () => {
   let container: HTMLElement;
@@ -16,6 +68,7 @@ describe('Setup Screen', () => {
   let appContainer: HTMLElement;
 
   beforeEach(() => {
+    resetMocks();
     initLogger('test');
     document.body.innerHTML = '';
     appContainer = document.createElement('div');
@@ -38,28 +91,53 @@ describe('Setup Screen', () => {
     expect(entries.length).toBe(5);
   });
 
-  it('renders header with ALPHA designation for P1', () => {
+  it('renders top bar with ALPHA player badge', () => {
     mountScreen();
-    const header = container.querySelector('.setup-screen__header-player');
-    expect(header?.textContent).toBe('ALPHA');
+    const badge = container.querySelector('.setup-screen__player-badge');
+    expect(badge?.textContent).toBe('ALPHA');
   });
 
-  it('renders slice grid with 64 cells', () => {
+  it('renders 3D canvas container', () => {
     mountScreen();
-    const cells = container.querySelectorAll('.slice-grid__cell');
-    expect(cells.length).toBe(64);
+    expect(container.querySelector('.setup-screen__canvas')).not.toBeNull();
   });
 
-  it('renders depth selector with 8 buttons', () => {
+  it('initializes SceneManager with own board type', () => {
     mountScreen();
-    const buttons = container.querySelectorAll('.depth-selector__btn');
-    expect(buttons.length).toBe(9);
+    expect(mockSceneManager.setViewMode).toHaveBeenCalledWith('cube');
+    expect(mockSceneManager.setBoardType).toHaveBeenCalledWith('own');
+    expect(mockSceneManager.start).toHaveBeenCalled();
   });
 
-  it('renders axis selector with 3 buttons', () => {
+  it('renders view mode buttons (CUBE/SLICE/X-RAY)', () => {
     mountScreen();
-    const buttons = container.querySelectorAll('.axis-selector__btn');
-    expect(buttons.length).toBe(3);
+    const btns = container.querySelectorAll('.setup-screen__mode-btn');
+    expect(btns.length).toBe(3);
+    expect(Array.from(btns).map(b => b.textContent)).toEqual(['CUBE', 'SLICE', 'X-RAY']);
+  });
+
+  it('renders depth buttons (ALL + 1-8)', () => {
+    mountScreen();
+    const btns = container.querySelectorAll('.setup-screen__depth-btn');
+    expect(btns.length).toBe(9);
+  });
+
+  it('renders axis selector with 6 buttons', () => {
+    mountScreen();
+    const btns = container.querySelectorAll('.setup-screen__axis-btn');
+    expect(btns.length).toBe(6);
+    expect(Array.from(btns).map(b => b.textContent)).toEqual([
+      'COL', 'ROW', 'DIAG\u2197', 'DIAG\u2198', 'COL+D', 'ROW+D',
+    ]);
+  });
+
+  it('clicking view mode button updates active state and calls setViewMode', () => {
+    mountScreen();
+    const btns = container.querySelectorAll('.setup-screen__mode-btn');
+    const sliceBtn = Array.from(btns).find(b => b.textContent === 'SLICE') as HTMLElement;
+    sliceBtn.click();
+    expect(sliceBtn.classList.contains('setup-screen__mode-btn--active')).toBe(true);
+    expect(mockSceneManager.setViewMode).toHaveBeenCalledWith('slice');
   });
 
   it('shows status prompting to select a vessel', () => {
@@ -75,70 +153,85 @@ describe('Setup Screen', () => {
     expect(firstEntry.classList.contains('ship-roster__entry--selected')).toBe(true);
   });
 
-  it('places a ship on cell click after selecting from roster', () => {
+  it('places a ship via raycaster cell click after selecting from roster', () => {
     mountScreen();
 
-    // Select Midget Sub (size 2, easy to place)
+    // Select Midget Sub (size 2)
     const entries = container.querySelectorAll('.ship-roster__entry');
     const midgetEntry = Array.from(entries).find(
       (e) => e.querySelector('.ship-roster__name')?.textContent === 'Midget Sub',
     ) as HTMLElement;
     midgetEntry.click();
 
-    // Click a cell
-    const cell = container.querySelector('[data-col="0"][data-row="0"]') as HTMLElement;
-    cell.click();
+    // Simulate raycaster cell click
+    cellClickCb!({ col: 0, row: 0, depth: 0 });
 
-    // Ship should be placed
     const player = game.getCurrentPlayer();
     expect(player.ships.length).toBe(1);
     expect(player.ships[0]!.id).toBe('midget');
   });
 
+  it('cell hover updates coordinate display', () => {
+    mountScreen();
+    cellHoverCb!({ col: 2, row: 3, depth: 4 });
+    const coord = container.querySelector('.setup-screen__coord-display');
+    expect(coord?.textContent).toBe('C-4-D5');
+  });
+
+  it('hover with selected ship calls setGhostCells', () => {
+    mountScreen();
+
+    // Select Midget Sub
+    const entries = container.querySelectorAll('.ship-roster__entry');
+    const midgetEntry = Array.from(entries).find(
+      (e) => e.querySelector('.ship-roster__name')?.textContent === 'Midget Sub',
+    ) as HTMLElement;
+    midgetEntry.click();
+
+    mockSceneManager.setGhostCells.mockClear();
+    cellHoverCb!({ col: 0, row: 0, depth: 0 });
+
+    expect(mockSceneManager.setGhostCells).toHaveBeenCalled();
+    const [coords, valid] = mockSceneManager.setGhostCells.mock.calls[0]!;
+    expect(coords.length).toBe(2);
+    expect(valid).toBe(true);
+  });
+
   it('full placement flow: place all ships + decoy + confirm', () => {
     mountScreen();
 
-    // Place all 5 ships along column axis at depth 0, different rows to avoid overlap
     const placements = [
-      { id: 'typhoon', col: 0, row: 0 },   // size 5, cols 0-4
-      { id: 'akula', col: 0, row: 1 },      // size 4, cols 0-3
-      { id: 'seawolf', col: 0, row: 2 },    // size 3, cols 0-2
-      { id: 'virginia', col: 0, row: 3 },   // size 3, cols 0-2
-      { id: 'midget', col: 0, row: 4 },     // size 2, cols 0-1
+      { id: 'typhoon', col: 0, row: 0, depth: 0 },
+      { id: 'akula', col: 0, row: 1, depth: 0 },
+      { id: 'seawolf', col: 0, row: 2, depth: 0 },
+      { id: 'virginia', col: 0, row: 3, depth: 0 },
+      { id: 'midget', col: 0, row: 4, depth: 0 },
     ];
 
     for (const p of placements) {
-      // Find and click roster entry
       const entries = container.querySelectorAll('.ship-roster__entry');
       const entry = Array.from(entries).find(
         (e) => e.getAttribute('data-ship-id') === p.id,
       ) as HTMLElement;
       entry.click();
 
-      // Click grid cell to place
-      const cell = container.querySelector(`[data-col="${p.col}"][data-row="${p.row}"]`) as HTMLElement;
-      cell.click();
+      // Place via raycaster click
+      cellClickCb!({ col: p.col, row: p.row, depth: p.depth });
     }
 
     expect(game.getCurrentPlayer().ships.length).toBe(5);
 
-    // Status should prompt for decoy
     const status = container.querySelector('.setup-screen__status');
     expect(status?.textContent).toContain('DECOY');
 
-    // Place decoy at an empty cell
-    const decoyCell = container.querySelector('[data-col="7"][data-row="7"]') as HTMLElement;
-    decoyCell.click();
+    // Place decoy via raycaster
+    cellClickCb!({ col: 7, row: 7, depth: 7 });
 
-    // Confirm button should be enabled
     const confirmBtn = container.querySelector('.crt-button:not(.crt-button--danger)') as HTMLButtonElement;
     expect(confirmBtn.disabled).toBe(false);
     expect(status?.textContent).toContain('CONFIRM');
 
-    // Click confirm
     confirmBtn.click();
-
-    // Should navigate to handoff
     expect(router.getCurrentScreen()).toBe('handoff');
   });
 
@@ -147,17 +240,24 @@ describe('Setup Screen', () => {
 
     // Place one ship
     const entries = container.querySelectorAll('.ship-roster__entry');
-    const first = entries[4] as HTMLElement; // Midget Sub
-    first.click();
-    const cell = container.querySelector('[data-col="0"][data-row="0"]') as HTMLElement;
-    cell.click();
+    const midget = Array.from(entries).find(
+      (e) => e.querySelector('.ship-roster__name')?.textContent === 'Midget Sub',
+    ) as HTMLElement;
+    midget.click();
+    cellClickCb!({ col: 0, row: 0, depth: 0 });
 
     expect(game.getCurrentPlayer().ships.length).toBe(1);
 
-    // Click reset
     const resetBtn = container.querySelector('.crt-button--danger') as HTMLElement;
     resetBtn.click();
 
     expect(game.getCurrentPlayer().ships.length).toBe(0);
+  });
+
+  it('dispose is called on unmount', () => {
+    mountScreen();
+    mockSceneManager.dispose.mockClear();
+    router.navigate('handoff');
+    expect(mockSceneManager.dispose).toHaveBeenCalled();
   });
 });

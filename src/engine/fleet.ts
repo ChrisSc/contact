@@ -6,17 +6,27 @@ import type { PlayerIndex } from '../types/game';
 import { isValidCoordinate, getCell, setCell, formatCoordinate } from './grid';
 import { getLogger } from '../observability/logger';
 
+const AXIS_DELTAS: Record<PlacementAxis, [number, number, number]> = {
+  'col':       [1, 0, 0],
+  'row':       [0, 1, 0],
+  'diag+':     [1, 1, 0],
+  'diag-':     [1, -1, 0],
+  'col-depth': [1, 0, 1],
+  'row-depth': [0, 1, 1],
+};
+
 export function calculateShipCells(
   origin: Coordinate,
   axis: PlacementAxis,
   size: number,
 ): Coordinate[] {
+  const [dc, dr, dd] = AXIS_DELTAS[axis];
   const cells: Coordinate[] = [];
   for (let i = 0; i < size; i++) {
     cells.push({
-      col: origin.col + (axis === 'col' ? i : 0),
-      row: origin.row + (axis === 'row' ? i : 0),
-      depth: origin.depth + (axis === 'depth' ? i : 0),
+      col: origin.col + dc * i,
+      row: origin.row + dr * i,
+      depth: origin.depth + dd * i,
     });
   }
   return cells;

@@ -69,7 +69,66 @@ describe('MaterialPool', () => {
     expect(fill.opacity).toBe(0);
   });
 
+  it('getDimmedMaterials returns a MaterialSet for every CellState', () => {
+    for (const state of Object.values(CellState)) {
+      const set = pool.getDimmedMaterials(state);
+      expect(set).toBeDefined();
+      expect(set.fill).toBeDefined();
+      expect(set.edge).toBeDefined();
+    }
+  });
+
+  it('getDimmedMaterials returns different references from normal pool', () => {
+    const normal = pool.getMaterials(CellState.Hit);
+    const dimmed = pool.getDimmedMaterials(CellState.Hit);
+    expect(dimmed).not.toBe(normal);
+    expect(dimmed.fill).not.toBe(normal.fill);
+  });
+
+  it('dimmed materials have lower opacity than normal', () => {
+    const normal = pool.getMaterials(CellState.Ship);
+    const dimmed = pool.getDimmedMaterials(CellState.Ship);
+    expect(dimmed.fill.opacity).toBeLessThan(normal.fill.opacity);
+    expect(dimmed.edge.opacity).toBeLessThan(normal.edge.opacity);
+  });
+
+  it('getGhostMaterials returns a MaterialSet for every CellState', () => {
+    for (const state of Object.values(CellState)) {
+      const set = pool.getGhostMaterials(state);
+      expect(set).toBeDefined();
+      expect(set.fill).toBeDefined();
+    }
+  });
+
+  it('ghost materials have lower opacity than dimmed', () => {
+    const dimmed = pool.getDimmedMaterials(CellState.Ship);
+    const ghost = pool.getGhostMaterials(CellState.Ship);
+    expect(ghost.fill.opacity).toBeLessThan(dimmed.fill.opacity);
+  });
+
+  it('setDimOpacity scales dimmed pool opacities', () => {
+    const before = pool.getDimmedMaterials(CellState.Ship).fill.opacity;
+    pool.setDimOpacity(0.5);
+    const after = pool.getDimmedMaterials(CellState.Ship).fill.opacity;
+    expect(after).toBeCloseTo(before * 0.5);
+  });
+
+  it('setGhostOpacity scales ghost pool opacities', () => {
+    const before = pool.getGhostMaterials(CellState.Ship).fill.opacity;
+    pool.setGhostOpacity(0.5);
+    const after = pool.getGhostMaterials(CellState.Ship).fill.opacity;
+    expect(after).toBeCloseTo(before * 0.5);
+  });
+
   it('dispose() does not throw', () => {
     expect(() => pool.dispose()).not.toThrow();
+  });
+
+  it('dispose cleans up dimmed and ghost pools', () => {
+    // Just verify dispose doesn't throw with all pools
+    const pool2 = new MaterialPool();
+    pool2.getDimmedMaterials(CellState.Hit);
+    pool2.getGhostMaterials(CellState.Hit);
+    expect(() => pool2.dispose()).not.toThrow();
   });
 });

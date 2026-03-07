@@ -37,6 +37,9 @@ const MATERIAL_DEFS: Record<CellState, MaterialDef> = {
   [CellState.SonarNegative]: { fillColor: CRT_COLORS.GREEN_DIM, fillOpacity: 0.1, edgeColor: CRT_COLORS.GREEN_DIM, edgeOpacity: 0.15 },
 };
 
+export const DIMMED_SCALE = 0.3;
+export const GHOST_SCALE = 0.15;
+
 function createMaterialSet(def: MaterialDef): MaterialSet {
   return {
     fill: new THREE.MeshBasicMaterial({
@@ -53,14 +56,42 @@ function createMaterialSet(def: MaterialDef): MaterialSet {
   };
 }
 
+function createScaledMaterialSet(def: MaterialDef, scale: number): MaterialSet {
+  return createMaterialSet({
+    fillColor: def.fillColor,
+    fillOpacity: def.fillOpacity * scale,
+    edgeColor: def.edgeColor,
+    edgeOpacity: def.edgeOpacity * scale,
+  });
+}
+
 export class MaterialPool {
   private pool: Map<CellState, MaterialSet> = new Map();
+  private dimmedPool: Map<CellState, MaterialSet> = new Map();
+  private ghostPool: Map<CellState, MaterialSet> = new Map();
   private hoverSet: MaterialSet;
+
+  private dimmedBaseline: Map<CellState, { fillOpacity: number; edgeOpacity: number }> = new Map();
+  private ghostBaseline: Map<CellState, { fillOpacity: number; edgeOpacity: number }> = new Map();
 
   constructor() {
     for (const state of Object.values(CellState)) {
       const def = MATERIAL_DEFS[state];
       this.pool.set(state, createMaterialSet(def));
+
+      const dimmed = createScaledMaterialSet(def, DIMMED_SCALE);
+      this.dimmedPool.set(state, dimmed);
+      this.dimmedBaseline.set(state, {
+        fillOpacity: dimmed.fill.opacity,
+        edgeOpacity: dimmed.edge.opacity,
+      });
+
+      const ghost = createScaledMaterialSet(def, GHOST_SCALE);
+      this.ghostPool.set(state, ghost);
+      this.ghostBaseline.set(state, {
+        fillOpacity: ghost.fill.opacity,
+        edgeOpacity: ghost.edge.opacity,
+      });
     }
 
     this.hoverSet = createMaterialSet({
@@ -75,17 +106,45 @@ export class MaterialPool {
     return this.pool.get(state)!;
   }
 
+  getDimmedMaterials(state: CellState): MaterialSet {
+    return this.dimmedPool.get(state)!;
+  }
+
+  getGhostMaterials(state: CellState): MaterialSet {
+    return this.ghostPool.get(state)!;
+  }
+
   getHoverMaterials(): MaterialSet {
     return this.hoverSet;
   }
 
+  setDimOpacity(t: number): void {
+    for (const state of Object.values(CellState)) {
+      const set = this.dimmedPool.get(state)!;
+      const baseline = this.dimmedBaseline.get(state)!;
+      set.fill.opacity = baseline.fillOpacity * t;
+      set.edge.opacity = baseline.edgeOpacity * t;
+    }
+  }
+
+  setGhostOpacity(t: number): void {
+    for (const state of Object.values(CellState)) {
+      const set = this.ghostPool.get(state)!;
+      const baseline = this.ghostBaseline.get(state)!;
+      set.fill.opacity = baseline.fillOpacity * t;
+      set.edge.opacity = baseline.edgeOpacity * t;
+    }
+  }
+
   dispose(): void {
-    for (const set of this.pool.values()) {
-      set.fill.dispose();
-      set.edge.dispose();
+    for (const pool of [this.pool, this.dimmedPool, this.ghostPool]) {
+      for (const set of pool.values()) {
+        set.fill.dispose();
+        set.edge.dispose();
+      }
+      pool.clear();
     }
     this.hoverSet.fill.dispose();
     this.hoverSet.edge.dispose();
-    this.pool.clear();
   }
 }

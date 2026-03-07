@@ -5,14 +5,14 @@ import type { FireResult } from '../../engine/game';
 import { GamePhase, PLAYER_DESIGNATIONS } from '../../types/game';
 import { FLEET_ROSTER } from '../../types/fleet';
 import { formatCoordinate } from '../../engine/grid';
-import { SliceGrid } from '../components/slice-grid';
-import { DepthSelector } from '../components/depth-selector';
-import { CoordinateDisplay } from '../components/coordinate-display';
+import { SceneManager } from '../../renderer/scene';
+import type { ViewMode } from '../../renderer/views';
 import { getLogger } from '../../observability/logger';
 
 interface CombatUIState {
-  currentDepth: number;
+  currentDepth: number | null;
   boardView: 'targeting' | 'own';
+  viewMode: ViewMode;
   hoveredCoord: Coordinate | null;
   lastFireResult: FireResult | null;
   actionTaken: boolean;
@@ -26,6 +26,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   const uiState: CombatUIState = {
     currentDepth: 0,
     boardView: 'targeting',
+    viewMode: 'cube',
     hoveredCoord: null,
     lastFireResult: null,
     actionTaken: false,
@@ -33,39 +34,52 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     gameLog: [],
   };
 
-  // Root element
+  // Root — fills viewport, positions everything absolute
   const el = document.createElement('div');
   el.className = 'combat-screen';
 
-  // --- Header (row 1, all cols) ---
-  const header = document.createElement('div');
-  header.className = 'combat-screen__header';
+  // --- Full-screen 3D canvas ---
+  const canvasContainer = document.createElement('div');
+  canvasContainer.className = 'combat-screen__canvas';
+  el.appendChild(canvasContainer);
 
-  const headerPlayer = document.createElement('span');
-  headerPlayer.className = 'combat-screen__header-player';
-  header.appendChild(headerPlayer);
+  // --- Top bar (overlay) ---
+  const topBar = document.createElement('div');
+  topBar.className = 'combat-screen__top-bar';
 
-  const headerTitle = document.createElement('span');
-  headerTitle.className = 'combat-screen__header-title';
-  headerTitle.textContent = 'COMBAT';
-  header.appendChild(headerTitle);
+  const topLeft = document.createElement('div');
+  topLeft.className = 'combat-screen__top-left';
 
-  const headerTurn = document.createElement('span');
-  headerTurn.className = 'combat-screen__header-turn';
-  header.appendChild(headerTurn);
+  const playerBadge = document.createElement('span');
+  playerBadge.className = 'combat-screen__player-badge';
+  topLeft.appendChild(playerBadge);
 
-  el.appendChild(header);
+  const turnLabel = document.createElement('span');
+  turnLabel.className = 'combat-screen__turn-label';
+  topLeft.appendChild(turnLabel);
 
-  // --- Grid area (row 2, col 1) ---
-  const gridArea = document.createElement('div');
-  gridArea.className = 'combat-screen__grid-area';
-  el.appendChild(gridArea);
+  topBar.appendChild(topLeft);
 
-  // Coordinate display
-  const coordDisplay = new CoordinateDisplay();
-  gridArea.appendChild(coordDisplay.render());
+  // Coordinate display — large, centered
+  const coordDisplay = document.createElement('div');
+  coordDisplay.className = 'combat-screen__coord-display';
+  coordDisplay.textContent = '\u2014 \u2014';
+  topBar.appendChild(coordDisplay);
 
-  // Board toggle buttons
+  const topRight = document.createElement('div');
+  topRight.className = 'combat-screen__top-right';
+  topRight.textContent = '3D SONAR ARRAY // 8\u00d78\u00d78 // 512 CELLS';
+  topBar.appendChild(topRight);
+
+  el.appendChild(topBar);
+
+  // --- Select target label ---
+  const selectLabel = document.createElement('div');
+  selectLabel.className = 'combat-screen__select-label';
+  selectLabel.textContent = 'SELECT TARGET';
+  el.appendChild(selectLabel);
+
+  // --- Board toggle (below select label) ---
   const boardToggle = document.createElement('div');
   boardToggle.className = 'combat-screen__board-toggle';
 
@@ -81,107 +95,153 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   ownFleetBtn.addEventListener('click', () => handleBoardToggle('own'));
   boardToggle.appendChild(ownFleetBtn);
 
-  gridArea.appendChild(boardToggle);
+  el.appendChild(boardToggle);
 
-  // Slice grid
-  let sliceGrid = createSliceGrid();
-  gridArea.appendChild(sliceGrid.render());
+  // --- View mode selector (left edge overlay) ---
+  const viewModes = document.createElement('div');
+  viewModes.className = 'combat-screen__view-modes';
 
-  // Status message
+  const modes: { id: ViewMode; label: string }[] = [
+    { id: 'cube', label: 'CUBE' },
+    { id: 'slice', label: 'SLICE' },
+    { id: 'xray', label: 'X-RAY' },
+  ];
+
+  for (const mode of modes) {
+    const btn = document.createElement('button');
+    btn.className = 'combat-screen__mode-btn';
+    if (mode.id === uiState.viewMode) {
+      btn.classList.add('combat-screen__mode-btn--active');
+    }
+    btn.textContent = mode.label;
+    btn.dataset.mode = mode.id;
+    btn.addEventListener('click', () => handleViewModeChange(mode.id));
+    viewModes.appendChild(btn);
+  }
+
+  el.appendChild(viewModes);
+
+  // --- Depth selector (right edge overlay) ---
+  const depthPanel = document.createElement('div');
+  depthPanel.className = 'combat-screen__depth-panel';
+
+  const allBtn = document.createElement('button');
+  allBtn.className = 'combat-screen__depth-btn combat-screen__depth-btn--active';
+  allBtn.textContent = 'ALL';
+  allBtn.dataset.depth = '-1';
+  allBtn.addEventListener('click', () => handleDepthChange(-1));
+  depthPanel.appendChild(allBtn);
+
+  for (let i = 0; i < 8; i++) {
+    const btn = document.createElement('button');
+    btn.className = 'combat-screen__depth-btn';
+    btn.textContent = String(i + 1);
+    btn.dataset.depth = String(i);
+    btn.addEventListener('click', () => handleDepthChange(i));
+    depthPanel.appendChild(btn);
+  }
+
+  el.appendChild(depthPanel);
+
+  // --- Status message (center, above bottom bar) ---
   const statusEl = document.createElement('div');
   statusEl.className = 'combat-screen__status';
-  gridArea.appendChild(statusEl);
+  el.appendChild(statusEl);
 
-  // --- Controls (row 2, col 2) ---
-  const controls = document.createElement('div');
-  controls.className = 'combat-screen__controls';
-  el.appendChild(controls);
-
-  const depthSelector = new DepthSelector({
-    initialDepth: uiState.currentDepth,
-    onDepthChange(depth) {
-      uiState.currentDepth = depth === -1 ? 0 : depth;
-      rebuildSliceGrid();
-      refreshHud();
-    },
-  });
-  controls.appendChild(depthSelector.render());
-
-  // --- Sidebar (row 2, col 3) ---
-  const sidebar = document.createElement('div');
-  sidebar.className = 'combat-screen__sidebar';
-  el.appendChild(sidebar);
-
-  // HUD
-  const hud = document.createElement('div');
-  hud.className = 'combat-screen__hud';
-  sidebar.appendChild(hud);
-
-  // Fleet status
-  const fleetStatus = document.createElement('div');
-  fleetStatus.className = 'combat-screen__fleet-status';
+  // --- Enemy fleet (bottom-right overlay) ---
+  const fleetPanel = document.createElement('div');
+  fleetPanel.className = 'combat-screen__fleet-panel';
 
   const fleetTitle = document.createElement('div');
   fleetTitle.className = 'combat-screen__fleet-title';
   fleetTitle.textContent = 'ENEMY FLEET';
-  fleetStatus.appendChild(fleetTitle);
+  fleetPanel.appendChild(fleetTitle);
 
-  sidebar.appendChild(fleetStatus);
+  el.appendChild(fleetPanel);
 
-  // Game log
-  const logContainer = document.createElement('div');
-  logContainer.className = 'combat-screen__log';
-
-  const logTitle = document.createElement('div');
-  logTitle.className = 'combat-screen__log-title';
-  logTitle.textContent = 'COMBAT LOG';
-  logContainer.appendChild(logTitle);
-
-  const logEntries = document.createElement('div');
-  logEntries.className = 'combat-screen__log-entries';
-  logContainer.appendChild(logEntries);
-
-  sidebar.appendChild(logContainer);
-
-  // --- Footer (row 3, all cols) ---
-  const footer = document.createElement('div');
-  footer.className = 'combat-screen__footer';
-  el.appendChild(footer);
-
+  // --- End turn button (bottom-right) ---
   const endTurnBtn = document.createElement('button');
-  endTurnBtn.className = 'crt-button';
+  endTurnBtn.className = 'combat-screen__end-turn crt-button';
   endTurnBtn.textContent = 'END TURN';
   endTurnBtn.disabled = true;
   endTurnBtn.addEventListener('click', handleEndTurn);
-  footer.appendChild(endTurnBtn);
+  el.appendChild(endTurnBtn);
+
+  // --- Bottom stats bar ---
+  const bottomBar = document.createElement('div');
+  bottomBar.className = 'combat-screen__bottom-bar';
+  el.appendChild(bottomBar);
+
+  // --- Controls hint ---
+  const hint = document.createElement('div');
+  hint.className = 'combat-screen__hint';
+  hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO FIRE';
+  el.appendChild(hint);
 
   container.appendChild(el);
 
-  // Initial render
+  // --- Initialize 3D Scene ---
+  const sceneManager = new SceneManager({ container: canvasContainer });
+  sceneManager.setViewMode(uiState.viewMode);
+  sceneManager.setBoardType(uiState.boardView);
+  sceneManager.setDepth(uiState.currentDepth);
+
+  sceneManager.onCellClick(handleCellClick);
+  sceneManager.onCellHover(handleCellHover);
+
+  updateSceneGrid();
+  sceneManager.start();
+
   refreshHeader();
-  refreshHud();
+  refreshBottomBar();
   refreshFleetStatus();
 
-  // --- Helpers ---
+  // --- Handlers ---
 
-  function createSliceGrid(): SliceGrid {
-    const player = game.getCurrentPlayer();
-    const grid = uiState.boardView === 'targeting' ? player.targetingGrid : player.ownGrid;
-    const showShips = uiState.boardView === 'own';
-    return new SliceGrid({
-      grid,
-      depth: uiState.currentDepth,
-      showShips,
-      onCellClick: handleCellClick,
-      onCellHover: handleCellHover,
-    });
+  function handleViewModeChange(mode: ViewMode): void {
+    if (mode === uiState.viewMode) return;
+    uiState.viewMode = mode;
+    sceneManager.setViewMode(mode);
+
+    const btns = viewModes.querySelectorAll('.combat-screen__mode-btn');
+    for (const btn of btns) {
+      const el = btn as HTMLElement;
+      el.classList.toggle('combat-screen__mode-btn--active', el.dataset.mode === mode);
+    }
+
+    if (mode === 'slice' && uiState.currentDepth === null) {
+      uiState.currentDepth = 0;
+      updateDepthButtons();
+    }
+
+    refreshBottomBar();
+    updateSceneGrid();
   }
 
-  function rebuildSliceGrid(): void {
-    const oldEl = sliceGrid.render();
-    sliceGrid.destroy();
-    sliceGrid = createSliceGrid();
-    gridArea.insertBefore(sliceGrid.render(), oldEl.nextSibling ?? statusEl);
+  function handleDepthChange(depth: number): void {
+    uiState.currentDepth = depth === -1 ? null : depth;
+    sceneManager.setDepth(uiState.currentDepth);
+    updateDepthButtons();
+    getLogger().emit('view.depth_change', { depth: uiState.currentDepth });
+    refreshBottomBar();
+    updateSceneGrid();
+  }
+
+  function updateDepthButtons(): void {
+    const btns = depthPanel.querySelectorAll('.combat-screen__depth-btn');
+    for (const btn of btns) {
+      const el = btn as HTMLElement;
+      const d = Number(el.dataset.depth);
+      el.classList.toggle('combat-screen__depth-btn--active',
+        (uiState.currentDepth === null && d === -1) ||
+        (uiState.currentDepth === d));
+    }
+  }
+
+  function updateSceneGrid(): void {
+    const player = game.getCurrentPlayer();
+    const grid = uiState.boardView === 'targeting' ? player.targetingGrid : player.ownGrid;
+    sceneManager.updateGrid(grid);
   }
 
   function handleBoardToggle(view: 'targeting' | 'own'): void {
@@ -191,9 +251,10 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     targetingBtn.classList.toggle('combat-screen__toggle-btn--active', view === 'targeting');
     ownFleetBtn.classList.toggle('combat-screen__toggle-btn--active', view === 'own');
 
+    sceneManager.setBoardType(view);
+    selectLabel.textContent = view === 'targeting' ? 'SELECT TARGET' : 'OWN FLEET VIEW';
     getLogger().emit('view.board_toggle', { view });
-
-    rebuildSliceGrid();
+    updateSceneGrid();
   }
 
   function handleCellClick(coord: Coordinate): void {
@@ -203,7 +264,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handleCellHover(coord: Coordinate | null): void {
     uiState.hoveredCoord = coord;
-    coordDisplay.update(coord);
+    coordDisplay.textContent = coord ? formatCoordinate(coord) : '\u2014 \u2014';
   }
 
   function handleFire(coord: Coordinate): void {
@@ -218,7 +279,6 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     const coordStr = formatCoordinate(coord);
     const state = game.getState();
 
-    // Update status element
     statusEl.className = 'combat-screen__status';
     let statusText: string;
 
@@ -227,9 +287,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       const shipName = entry ? entry.name.toUpperCase() : (result.shipId ?? 'UNKNOWN').toUpperCase();
       statusText = `TORPEDO: SUNK - ${shipName}`;
       statusEl.classList.add('combat-screen__status--sunk');
-      if (result.shipId) {
-        uiState.sunkShipIds.push(result.shipId);
-      }
+      if (result.shipId) uiState.sunkShipIds.push(result.shipId);
     } else if (result.result === 'hit') {
       statusText = 'TORPEDO: HIT';
       statusEl.classList.add('combat-screen__status--hit');
@@ -240,23 +298,14 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
     statusEl.textContent = statusText;
 
-    // Append to game log
     const logLine = `T${state.turnCount} ${coordStr}: ${result.result.toUpperCase()}`;
     uiState.gameLog.push(logLine);
-    appendLogEntry(logLine);
 
-    // Refresh grid and sidebar
-    sliceGrid.update({
-      grid: game.getCurrentPlayer().targetingGrid,
-      depth: uiState.currentDepth,
-    });
-    refreshHud();
+    updateSceneGrid();
+    refreshBottomBar();
     refreshFleetStatus();
-
-    // Enable end turn
     endTurnBtn.disabled = false;
 
-    // Check for victory
     if (game.getState().phase === GamePhase.Victory) {
       router.navigate('victory');
     }
@@ -270,31 +319,32 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   function refreshHeader(): void {
     const player = game.getCurrentPlayer();
     const state = game.getState();
-    headerPlayer.textContent = PLAYER_DESIGNATIONS[player.index];
-    headerTurn.textContent = `TURN ${state.turnCount}`;
+    playerBadge.textContent = PLAYER_DESIGNATIONS[player.index];
+    turnLabel.textContent = `TURN ${state.turnCount}`;
   }
 
-  function refreshHud(): void {
+  function refreshBottomBar(): void {
     const player = game.getCurrentPlayer();
-    const state = game.getState();
     const { shotsFired, shotsHit } = player;
-    const hitRate = shotsFired > 0 ? `${(shotsHit / shotsFired * 100).toFixed(0)}%` : '---';
+    const meshCount = sceneManager.views.getInteractableMeshes().length;
+    const depthLabel = uiState.currentDepth !== null
+      ? (DEPTH_LABELS[uiState.currentDepth] ?? 'ALL')
+      : 'ALL';
 
-    hud.innerHTML = '';
+    bottomBar.innerHTML = '';
 
     const stats: Array<{ label: string; value: string }> = [
-      { label: 'DEPTH', value: DEPTH_LABELS[uiState.currentDepth] ?? 'ALL' },
-      { label: 'VIEW', value: 'SLICE' },
-      { label: 'CELLS', value: '64' },
-      { label: 'TURN', value: String(state.turnCount) },
+      { label: 'DEPTH', value: depthLabel },
+      { label: 'VISIBLE', value: String(meshCount) },
       { label: 'SHOTS', value: String(shotsFired) },
       { label: 'HITS', value: String(shotsHit) },
-      { label: 'RATE', value: hitRate },
+      { label: 'SUNK', value: `${uiState.sunkShipIds.length}/5` },
+      { label: 'MODE', value: uiState.viewMode.toUpperCase() },
     ];
 
     for (const stat of stats) {
-      const statEl = document.createElement('div');
-      statEl.className = 'combat-screen__stat';
+      const group = document.createElement('div');
+      group.className = 'combat-screen__stat';
 
       const labelEl = document.createElement('span');
       labelEl.className = 'combat-screen__stat-label';
@@ -304,59 +354,44 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       valueEl.className = 'combat-screen__stat-value';
       valueEl.textContent = stat.value;
 
-      statEl.appendChild(labelEl);
-      statEl.appendChild(valueEl);
-      hud.appendChild(statEl);
+      group.appendChild(labelEl);
+      group.appendChild(valueEl);
+      bottomBar.appendChild(group);
     }
   }
 
   function refreshFleetStatus(): void {
-    // Remove all fleet entry elements (keep the title)
-    const entries = fleetStatus.querySelectorAll('.combat-screen__fleet-entry');
-    for (const entry of entries) {
-      entry.remove();
-    }
+    const entries = fleetPanel.querySelectorAll('.combat-screen__fleet-entry');
+    for (const entry of entries) entry.remove();
 
     for (const rosterEntry of FLEET_ROSTER) {
       const entryEl = document.createElement('div');
       entryEl.className = 'combat-screen__fleet-entry';
 
       const isSunk = uiState.sunkShipIds.includes(rosterEntry.id);
-      if (isSunk) {
-        entryEl.classList.add('combat-screen__fleet-entry--sunk');
-      }
+      if (isSunk) entryEl.classList.add('combat-screen__fleet-entry--sunk');
 
       const nameEl = document.createElement('span');
-      nameEl.className = 'combat-screen__fleet-entry-name';
       nameEl.textContent = rosterEntry.name.toUpperCase();
 
-      const sizeEl = document.createElement('span');
-      sizeEl.className = 'combat-screen__fleet-entry-size';
-      sizeEl.textContent = `[${rosterEntry.size}]`;
+      // Health pips
+      const pips = document.createElement('span');
+      pips.className = 'combat-screen__fleet-pips';
+      for (let i = 0; i < rosterEntry.size; i++) {
+        const pip = document.createElement('span');
+        pip.className = isSunk ? 'combat-screen__pip combat-screen__pip--sunk' : 'combat-screen__pip';
+        pips.appendChild(pip);
+      }
 
-      const statusEl = document.createElement('span');
-      statusEl.className = 'combat-screen__fleet-entry-status';
-      statusEl.textContent = isSunk ? 'SUNK' : 'ACTIVE';
       entryEl.appendChild(nameEl);
-      entryEl.appendChild(sizeEl);
-      entryEl.appendChild(statusEl);
-      fleetStatus.appendChild(entryEl);
+      entryEl.appendChild(pips);
+      fleetPanel.appendChild(entryEl);
     }
-  }
-
-  function appendLogEntry(text: string): void {
-    const entryEl = document.createElement('div');
-    entryEl.className = 'combat-screen__log-entry';
-    entryEl.textContent = text;
-    logEntries.appendChild(entryEl);
-    logEntries.scrollTop = logEntries.scrollHeight;
   }
 
   return {
     unmount(): void {
-      sliceGrid.destroy();
-      depthSelector.destroy();
-      coordDisplay.destroy();
+      sceneManager.dispose();
       el.remove();
     },
   };
