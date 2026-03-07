@@ -347,4 +347,33 @@ describe('GameController - Logger Events', () => {
     expect(events.some((e) => e.event === 'game.turn_end')).toBe(true);
     expect(events.filter((e) => e.event === 'game.turn_start').length).toBeGreaterThanOrEqual(2);
   });
+
+  it('combat.fire payload includes ship and remaining on hit', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hits typhoon
+
+    const events = getLogger().getBuffer();
+    const fireEvent = events.find(
+      (e) => e.event === 'combat.fire' && e.data.result === 'hit',
+    )!;
+    expect(fireEvent.data.ship).toBe('typhoon');
+    expect(fireEvent.data.remaining).toBe(4); // typhoon size 5, 1 hit = 4 remaining
+  });
+
+  it('combat.sunk payload includes remaining: 0', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Sink midget sub (size 2)
+    gc.fireTorpedo({ col: 0, row: 4, depth: 0 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 4, depth: 0 });
+
+    const events = getLogger().getBuffer();
+    const sunkEvent = events.find((e) => e.event === 'combat.sunk')!;
+    expect(sunkEvent.data.remaining).toBe(0);
+  });
 });

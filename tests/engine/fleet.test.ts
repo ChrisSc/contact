@@ -11,8 +11,9 @@ import {
   placeDecoy,
   isFleetComplete,
   checkSunk,
+  getShipHealth,
 } from '../../src/engine/fleet';
-import { initLogger } from '../../src/observability/logger';
+import { initLogger, getLogger } from '../../src/observability/logger';
 
 beforeEach(() => {
   initLogger('test-session');
@@ -169,5 +170,38 @@ describe('checkSunk', () => {
     expect(result.ship.sunk).toBe(true);
     expect(getCell(result.grid, { col: 0, row: 0, depth: 0 })!.state).toBe(CellState.Sunk);
     expect(getCell(result.grid, { col: 1, row: 0, depth: 0 })!.state).toBe(CellState.Sunk);
+  });
+});
+
+describe('getShipHealth', () => {
+  it('returns full health for undamaged ship', () => {
+    const grid = createGrid();
+    const result = placeShip(grid, seawolf, { col: 0, row: 0, depth: 0 }, 'col', 0)!;
+    expect(getShipHealth(result.ship)).toBe(3);
+  });
+
+  it('returns reduced health after hits', () => {
+    const grid = createGrid();
+    const result = placeShip(grid, seawolf, { col: 0, row: 0, depth: 0 }, 'col', 0)!;
+    result.ship.hits = 2;
+    expect(getShipHealth(result.ship)).toBe(1);
+  });
+
+  it('returns zero health when fully damaged', () => {
+    const grid = createGrid();
+    const result = placeShip(grid, midget, { col: 0, row: 0, depth: 0 }, 'col', 0)!;
+    result.ship.hits = 2;
+    expect(getShipHealth(result.ship)).toBe(0);
+  });
+});
+
+describe('placeDecoy event', () => {
+  it('emits fleet.decoy_place event', () => {
+    const grid = createGrid();
+    placeDecoy(grid, { col: 3, row: 3, depth: 3 }, 0);
+    const events = getLogger().getBuffer();
+    const decoyEvents = events.filter((e) => e.event === 'fleet.decoy_place');
+    expect(decoyEvents.length).toBe(1);
+    expect(decoyEvents[0]!.data.origin).toBe('D-4-D4');
   });
 });

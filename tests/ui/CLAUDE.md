@@ -3,9 +3,9 @@
 ## Files
 
 - **`slice-grid.test.ts`** — 10 tests: grid rendering, cell state CSS classes, ghost cell preview, click callbacks
-- **`setup-screen.test.ts`** — 10 tests: DOM structure, ship placement flow, reset, full end-to-end placement
+- **`setup-screen.test.ts`** — 10 tests: DOM structure, ship placement flow, reset, full end-to-end placement, depth selector (9 buttons incl. ALL)
 - **`screen-router.test.ts`** — 4 tests: mount/unmount lifecycle, context passing, cleanup callback invocation
-- **`combat-screen.test.ts`** — 14 tests: header/grid/HUD rendering, fire torpedo flow, board toggle, end turn navigation, game log, victory auto-navigation
+- **`combat-screen.test.ts`** — 14 tests: header/grid/HUD rendering (DEPTH/VIEW/CELLS metrics), fire torpedo flow, board toggle, end turn navigation, game log, victory auto-navigation, depth selector (9 buttons incl. ALL)
 - **`victory-screen.test.ts`** — 4 tests: winner designation, stats display, export session trigger, new engagement restart
 
 ## Architecture

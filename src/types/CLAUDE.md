@@ -4,9 +4,9 @@
 
 - **`grid.ts`** — `Grid3D`, `Cell`, `Coordinate` types; `CellState` enum; column/row/depth label constants
 - **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant
-- **`game.ts`** — `GamePhase` enum, `PlayerState`, `GameState` interfaces; `PlayerIndex = 0 | 1`
+- **`game.ts`** — `GamePhase` enum, `PlayerState`, `GameState` interfaces; `PlayerIndex = 0 | 1`. No dead code (`GameEvent` removed).
 - **`abilities.ts`** — `AbilityId` union, `AbilityState` interface, `ABILITY_DEFINITIONS` constant
-- **`events.ts`** — `LogEventType` string literal union (includes `view.board_toggle`), `LogEvent` interface, payload interfaces per event category
+- **`events.ts`** — `LogEventType` string literal union (includes `fleet.decoy_place`, `view.depth_change`, `view.mode_change`, `view.board_toggle`), `LogEvent` interface, payload interfaces per event category
 
 ## Architecture
 

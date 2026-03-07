@@ -92,9 +92,9 @@ describe('Combat Screen', () => {
     expect(cells.length).toBe(64);
   });
 
-  it('renders depth selector with 8 buttons', () => {
+  it('renders depth selector with 9 buttons', () => {
     const buttons = container.querySelectorAll('.depth-selector__btn');
-    expect(buttons.length).toBe(8);
+    expect(buttons.length).toBe(9);
   });
 
   it('renders board toggle with TARGETING active', () => {
@@ -106,14 +106,27 @@ describe('Combat Screen', () => {
     expect(firstBtn.textContent).toBe('TARGETING');
   });
 
-  it('renders HUD with initial zero stats', () => {
+  it('renders HUD with initial stats including DEPTH, VIEW, CELLS', () => {
+    const statLabels = container.querySelectorAll('.combat-screen__stat-label');
     const statValues = container.querySelectorAll('.combat-screen__stat-value');
-    expect(statValues.length).toBeGreaterThan(0);
+    expect(statValues.length).toBeGreaterThanOrEqual(7);
 
+    const labels = Array.from(statLabels).map((el) => el.textContent);
     const values = Array.from(statValues).map((el) => el.textContent);
-    // SHOTS and HITS should be '0'; RATE should be '---' before any shots
-    expect(values).toContain('0');
-    expect(values).toContain('---');
+
+    expect(labels).toContain('DEPTH');
+    expect(labels).toContain('VIEW');
+    expect(labels).toContain('CELLS');
+
+    // DEPTH should show D1 (initial depth 0)
+    const depthIdx = labels.indexOf('DEPTH');
+    expect(values[depthIdx]).toBe('D1');
+    // VIEW should show SLICE
+    const viewIdx = labels.indexOf('VIEW');
+    expect(values[viewIdx]).toBe('SLICE');
+    // CELLS should show 64
+    const cellsIdx = labels.indexOf('CELLS');
+    expect(values[cellsIdx]).toBe('64');
   });
 
   it('renders 5 enemy fleet entries', () => {

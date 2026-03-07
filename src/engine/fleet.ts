@@ -103,9 +103,8 @@ export function placeDecoy(
 
   const newGrid = setCell(grid, coord, { state: CellState.Decoy, shipId: null });
 
-  getLogger().emit('fleet.place', {
+  getLogger().emit('fleet.decoy_place', {
     player: playerIndex,
-    type: 'decoy',
     origin: formatCoordinate(coord),
   });
 
@@ -138,4 +137,8 @@ export function checkSunk(
     ship: { ...ship, sunk: true },
     grid: newGrid,
   };
+}
+
+export function getShipHealth(ship: Ship): number {
+  return ship.size - ship.hits;
 }

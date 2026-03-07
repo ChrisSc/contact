@@ -3,7 +3,7 @@
 ## Files
 
 - **`grid.ts`** — 6 pure functions: `createGrid`, `getCell`, `setCell`, `parseCoordinate`, `formatCoordinate`, `isValidCoordinate`
-- **`fleet.ts`** — 7 functions: `calculateShipCells`, `validatePlacement`, `placeShip`, `removeShip`, `placeDecoy`, `removeDecoyForCurrentPlayer`, `isFleetComplete`, `checkSunk`
+- **`fleet.ts`** — 8 functions: `calculateShipCells`, `validatePlacement`, `placeShip`, `removeShip`, `placeDecoy`, `isFleetComplete`, `checkSunk`, `getShipHealth`
 - **`game.ts`** — `GameController` class: setup flow, combat turns, victory detection, turn management
 
 ## Architecture
@@ -24,4 +24,6 @@
 - **Every state mutation emits a Logger event.** No exceptions. If it changes game state, it logs.
 - Validation happens before mutation — check first, apply second.
 - `GameController.fireTorpedo()` and ability methods follow: validate -> mutate -> log -> check win -> advance turn.
+- `combat.fire` on hit includes `ship` and `remaining` (via `getShipHealth`); `combat.sunk` includes `remaining: 0`.
+- Decoy placement emits `fleet.decoy_place` (not `fleet.place`).
 - Ship placement validates: axis alignment, no overlap, in-bounds, correct size.

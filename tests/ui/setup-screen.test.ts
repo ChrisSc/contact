@@ -53,7 +53,7 @@ describe('Setup Screen', () => {
   it('renders depth selector with 8 buttons', () => {
     mountScreen();
     const buttons = container.querySelectorAll('.depth-selector__btn');
-    expect(buttons.length).toBe(8);
+    expect(buttons.length).toBe(9);
   });
 
   it('renders axis selector with 3 buttons', () => {

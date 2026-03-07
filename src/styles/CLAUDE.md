@@ -5,7 +5,7 @@
 - **`variables.css`** — Design tokens (colors, spacing, fonts) + CSS reset. Single source of truth for theming.
 - **`crt.css`** — Scanline overlay, vignette effect, subtle flicker animation. CRT terminal aesthetic.
 - **`grid.css`** — Slice grid layout, cell state classes, ghost cell preview, hover effects.
-- **`ui.css`** — Screen layouts (setup, combat, victory, handoff), buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status, game log.
+- **`ui.css`** — Screen layouts (setup, combat, victory, handoff), buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status (with ACTIVE/SUNK labels), game log.
 
 ## Architecture
 
@@ -24,5 +24,5 @@
 
 - Animations via `@keyframes` (flicker, scanline scroll, glow pulse).
 - Glow effects via `text-shadow` / `box-shadow` with rgba green values.
-- Green phosphor palette: dark backgrounds (`#0a0a0a`), green text/borders (`#00ff41`, `#003b00`).
+- Green phosphor palette: dark backgrounds (`#0a0a0a`), green text/borders (`#00ff41`, `#003b00`). Extended palette: `--crt-green-dark`, `--crt-orange`, `--crt-yellow`.
 - Grid uses CSS Grid layout; responsive sizing via `clamp()` or viewport units.

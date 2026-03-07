@@ -10,6 +10,7 @@ import {
   removeShip,
   isFleetComplete,
   checkSunk,
+  getShipHealth,
 } from './fleet';
 import { initLogger } from '../observability/logger';
 import type { Logger } from '../observability/logger';
@@ -61,7 +62,6 @@ export class GameController {
       players: [createPlayerState(0), createPlayerState(1)],
       winner: null,
       sessionId: this.logger.getSessionId(),
-      log: [],
     };
 
     this.logger.emit('game.start', {
@@ -206,12 +206,13 @@ export class GameController {
       });
       attacker.shotsHit++;
 
-      this.logger.emit('combat.fire', { player: attacker.index, target: coordStr, result: 'hit' });
-      this.logger.emit('combat.hit', { player: attacker.index, target: coordStr, ship: shipId });
-
       // Check if ship is sunk
       const ship = defender.ships.find((s) => s.id === shipId)!;
       ship.hits++;
+
+      this.logger.emit('combat.fire', { player: attacker.index, target: coordStr, result: 'hit', ship: shipId, remaining: getShipHealth(ship) });
+      this.logger.emit('combat.hit', { player: attacker.index, target: coordStr, ship: shipId });
+
       const sunkResult = checkSunk(ship, defender.ownGrid);
       if (sunkResult.sunk) {
         defender.ownGrid = sunkResult.grid;
@@ -222,6 +223,7 @@ export class GameController {
         this.logger.emit('combat.sunk', {
           player: attacker.index,
           ship: shipId,
+          remaining: 0,
         });
 
         this.checkVictory();

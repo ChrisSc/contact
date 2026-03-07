@@ -462,6 +462,17 @@
   color: var(--crt-amber);
 }
 
+.combat-screen__fleet-entry-status {
+  font-family: var(--font-display);
+  font-size: 8px;
+  margin-left: var(--spacing-sm);
+  color: var(--crt-green-dim);
+}
+
+.combat-screen__fleet-entry--sunk .combat-screen__fleet-entry-status {
+  color: var(--crt-amber);
+}
+
 /* Game Log */
 .combat-screen__log {
   display: flex;

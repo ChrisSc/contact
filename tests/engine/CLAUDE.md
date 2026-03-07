@@ -3,8 +3,8 @@
 ## Files
 
 - **`grid.test.ts`** — 18 tests: grid creation, coordinate validation, get/set cell, coordinate parsing and formatting
-- **`fleet.test.ts`** — 16 tests: ship placement, validation (overlap, OOB, axis), removal, decoy, sunk detection
-- **`game.test.ts`** — 23 tests: setup flow (both players), combat turns, torpedo firing, victory detection, full game integration
+- **`fleet.test.ts`** — 20 tests: ship placement, validation (overlap, OOB, axis), removal, decoy, sunk detection, `getShipHealth`, `fleet.decoy_place` event
+- **`game.test.ts`** — 25 tests: setup flow (both players), combat turns, torpedo firing, victory detection, full game integration, `combat.fire` payload (ship/remaining), `combat.sunk` payload (remaining: 0)
 
 ## Architecture
 

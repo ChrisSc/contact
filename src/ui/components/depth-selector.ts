@@ -21,6 +21,14 @@ export class DepthSelector {
   }
 
   private buildButtons(): void {
+    const allBtn = document.createElement('button');
+    allBtn.className = 'depth-selector__btn';
+    allBtn.textContent = 'ALL';
+    allBtn.dataset.depth = '-1';
+    if (this.activeDepth === -1) allBtn.classList.add('depth-selector__btn--active');
+    this.buttons.push(allBtn);
+    this.el.appendChild(allBtn);
+
     for (let i = 0; i < DEPTH_LABELS.length; i++) {
       const btn = document.createElement('button');
       btn.className = 'depth-selector__btn';
@@ -49,7 +57,7 @@ export class DepthSelector {
         Number(btn.dataset.depth) === depth,
       );
     }
-    getLogger().emit('view.slice', { depth });
+    getLogger().emit('view.depth_change', { depth });
     this.onDepthChange(depth);
   }
 

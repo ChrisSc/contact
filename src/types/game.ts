@@ -1,4 +1,4 @@
-import type { Grid, Coordinate } from './grid';
+import type { Grid } from './grid';
 import type { Ship } from './fleet';
 import type { AbilityId, AbilityState } from './abilities';
 
@@ -30,14 +30,6 @@ export interface PlayerState {
   shotsHit: number;
 }
 
-export interface GameEvent {
-  turn: number;
-  player: PlayerIndex;
-  action: string;
-  result: string;
-  coordinate?: Coordinate;
-}
-
 export interface GameState {
   phase: GamePhase;
   currentPlayer: PlayerIndex;
@@ -45,5 +37,4 @@ export interface GameState {
   players: [PlayerState, PlayerState];
   winner: PlayerIndex | null;
   sessionId: string;
-  log: GameEvent[];
 }

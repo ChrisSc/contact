@@ -1,5 +1,6 @@
 import type { ScreenContext, ScreenCleanup } from '../screen-router';
 import type { Coordinate } from '../../types/grid';
+import { DEPTH_LABELS } from '../../types/grid';
 import type { FireResult } from '../../engine/game';
 import { GamePhase, PLAYER_DESIGNATIONS } from '../../types/game';
 import { FLEET_ROSTER } from '../../types/fleet';
@@ -99,8 +100,9 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   const depthSelector = new DepthSelector({
     initialDepth: uiState.currentDepth,
     onDepthChange(depth) {
-      uiState.currentDepth = depth;
+      uiState.currentDepth = depth === -1 ? 0 : depth;
       rebuildSliceGrid();
+      refreshHud();
     },
   });
   controls.appendChild(depthSelector.render());
@@ -281,6 +283,9 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     hud.innerHTML = '';
 
     const stats: Array<{ label: string; value: string }> = [
+      { label: 'DEPTH', value: DEPTH_LABELS[uiState.currentDepth] ?? 'ALL' },
+      { label: 'VIEW', value: 'SLICE' },
+      { label: 'CELLS', value: '64' },
       { label: 'TURN', value: String(state.turnCount) },
       { label: 'SHOTS', value: String(shotsFired) },
       { label: 'HITS', value: String(shotsHit) },
@@ -329,8 +334,12 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       sizeEl.className = 'combat-screen__fleet-entry-size';
       sizeEl.textContent = `[${rosterEntry.size}]`;
 
+      const statusEl = document.createElement('span');
+      statusEl.className = 'combat-screen__fleet-entry-status';
+      statusEl.textContent = isSunk ? 'SUNK' : 'ACTIVE';
       entryEl.appendChild(nameEl);
       entryEl.appendChild(sizeEl);
+      entryEl.appendChild(statusEl);
       fleetStatus.appendChild(entryEl);
     }
   }

@@ -12,6 +12,7 @@ export type LogEventType =
   // Fleet management
   | 'fleet.place'
   | 'fleet.remove'
+  | 'fleet.decoy_place'
   | 'fleet.confirm'
   | 'fleet.reset'
   // Combat
@@ -26,7 +27,8 @@ export type LogEventType =
   | 'ability.expire'
   // View/UI
   | 'view.change'
-  | 'view.slice'
+  | 'view.depth_change'
+  | 'view.mode_change'
   | 'view.rotate'
   | 'view.board_toggle'
   // Audio

@@ -82,7 +82,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   const depthSelector = new DepthSelector({
     initialDepth: uiState.currentDepth,
     onDepthChange(depth) {
-      uiState.currentDepth = depth;
+      uiState.currentDepth = depth === -1 ? 0 : depth;
       rebuildSliceGrid();
     },
   });
