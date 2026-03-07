@@ -1,1 +1,287 @@
-/* UI styles — populated in later sprints */
+/* Setup Screen Layout */
+.setup-screen {
+  display: grid;
+  grid-template-columns: 1fr auto 220px;
+  grid-template-rows: auto 1fr auto;
+  gap: var(--spacing-md);
+  height: 100%;
+  padding: var(--spacing-md);
+}
+
+.setup-screen__header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.setup-screen__header-title {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--crt-green);
+  letter-spacing: 2px;
+}
+
+.setup-screen__header-player {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--crt-green-dim);
+}
+
+.setup-screen__grid-area {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-md);
+}
+
+.setup-screen__controls {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  min-width: 120px;
+}
+
+.setup-screen__sidebar {
+  grid-column: 3;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.setup-screen__footer {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-md);
+}
+
+/* Depth Selector */
+.depth-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.depth-selector__btn {
+  font-family: var(--font-display);
+  font-size: 10px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: transparent;
+  border: 1px solid rgba(0, 255, 65, 0.2);
+  color: var(--crt-green-dim);
+  cursor: pointer;
+  transition: all 0.1s;
+  text-align: center;
+}
+
+.depth-selector__btn:hover {
+  border-color: var(--crt-green);
+  color: var(--crt-green);
+}
+
+.depth-selector__btn--active {
+  border-color: var(--crt-green);
+  color: var(--crt-green);
+  background: rgba(0, 255, 65, 0.1);
+  text-shadow: 0 0 6px var(--crt-green-glow);
+}
+
+/* Axis Selector */
+.axis-selector {
+  display: flex;
+  gap: 2px;
+}
+
+.axis-selector__btn {
+  font-family: var(--font-display);
+  font-size: 10px;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  background: transparent;
+  border: 1px solid rgba(0, 255, 65, 0.2);
+  color: var(--crt-green-dim);
+  cursor: pointer;
+  transition: all 0.1s;
+  flex: 1;
+  text-align: center;
+}
+
+.axis-selector__btn:hover {
+  border-color: var(--crt-green);
+  color: var(--crt-green);
+}
+
+.axis-selector__btn--active {
+  border-color: var(--crt-green);
+  color: var(--crt-green);
+  background: rgba(0, 255, 65, 0.1);
+}
+
+/* Ship Roster */
+.ship-roster {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ship-roster__title {
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--crt-green-dim);
+  margin-bottom: var(--spacing-xs);
+  letter-spacing: 1px;
+}
+
+.ship-roster__entry {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1px solid rgba(0, 255, 65, 0.15);
+  cursor: pointer;
+  transition: all 0.1s;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--crt-green-dim);
+}
+
+.ship-roster__entry:hover {
+  border-color: var(--crt-green);
+  color: var(--crt-green);
+}
+
+.ship-roster__entry--selected {
+  border-color: var(--crt-green);
+  color: var(--crt-green);
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.ship-roster__entry--placed {
+  border-color: var(--crt-green-dim);
+  color: var(--crt-green-dim);
+  opacity: 0.6;
+}
+
+.ship-roster__entry--placed:hover {
+  opacity: 1;
+  border-color: var(--crt-red);
+  color: var(--crt-red);
+}
+
+.ship-roster__name {
+  flex: 1;
+}
+
+.ship-roster__size {
+  font-family: var(--font-display);
+  font-size: 10px;
+  opacity: 0.7;
+}
+
+.ship-roster__status {
+  font-family: var(--font-display);
+  font-size: 8px;
+  margin-left: var(--spacing-sm);
+}
+
+/* Coordinate Display */
+.coordinate-display {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--crt-green);
+  height: 20px;
+  text-shadow: 0 0 6px var(--crt-green-glow);
+}
+
+/* Status Message */
+.setup-screen__status {
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--crt-green-dim);
+}
+
+/* CRT Buttons */
+.crt-button {
+  font-family: var(--font-display);
+  font-size: 12px;
+  padding: var(--spacing-sm) var(--spacing-md);
+  background: transparent;
+  border: 2px solid var(--crt-green);
+  color: var(--crt-green);
+  cursor: pointer;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  text-shadow: 0 0 6px var(--crt-green-glow);
+}
+
+.crt-button:hover {
+  background: rgba(0, 255, 65, 0.1);
+  box-shadow: 0 0 12px var(--crt-green-glow);
+}
+
+.crt-button:active {
+  background: rgba(0, 255, 65, 0.2);
+}
+
+.crt-button--danger {
+  border-color: var(--crt-red);
+  color: var(--crt-red);
+  text-shadow: 0 0 6px rgba(255, 0, 64, 0.3);
+}
+
+.crt-button--danger:hover {
+  background: rgba(255, 0, 64, 0.1);
+  box-shadow: 0 0 12px rgba(255, 0, 64, 0.3);
+}
+
+.crt-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.crt-button:disabled:hover {
+  background: transparent;
+  box-shadow: none;
+}
+
+/* Handoff Screen */
+.handoff-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--spacing-xl);
+  text-align: center;
+}
+
+.handoff-screen__label {
+  font-family: var(--font-display);
+  font-size: 12px;
+  color: var(--crt-green-dim);
+  letter-spacing: 3px;
+}
+
+.handoff-screen__player {
+  font-family: var(--font-display);
+  font-size: 36px;
+  color: var(--crt-green);
+  letter-spacing: 6px;
+  text-shadow:
+    0 0 10px var(--crt-green-glow),
+    0 0 20px var(--crt-green-glow);
+}
+
+.handoff-screen__instruction {
+  font-family: var(--font-body);
+  font-size: 16px;
+  color: var(--crt-green-dim);
+}

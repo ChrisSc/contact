@@ -11,6 +11,7 @@ export type LogEventType =
   | 'game.victory'
   // Fleet management
   | 'fleet.place'
+  | 'fleet.remove'
   | 'fleet.confirm'
   | 'fleet.reset'
   // Combat

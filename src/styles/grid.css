@@ -1,1 +1,123 @@
-/* Grid styles — populated in Phase 2 */
+/* Slice Grid Layout */
+.slice-grid {
+  display: inline-grid;
+  grid-template-columns: 28px repeat(8, 40px);
+  grid-template-rows: 28px repeat(8, 40px);
+  gap: 1px;
+  background: var(--crt-bg);
+  user-select: none;
+}
+
+/* Column headers */
+.slice-grid__col-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--crt-green-dim);
+}
+
+/* Row labels */
+.slice-grid__row-label {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--crt-green-dim);
+}
+
+/* Corner spacer */
+.slice-grid__corner {
+  /* empty top-left corner */
+}
+
+/* Cell base */
+.slice-grid__cell {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 14px;
+  cursor: pointer;
+  transition: border-color 0.1s;
+}
+
+/* Cell states */
+.cell-empty {
+  border: 1px solid rgba(0, 255, 65, 0.15);
+  background: transparent;
+}
+
+.cell-ship {
+  border: 1px solid var(--crt-green-dim);
+  background: rgba(0, 255, 65, 0.3);
+}
+
+.cell-hit {
+  border: 1px solid var(--crt-red);
+  background: rgba(255, 0, 64, 0.3);
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+.cell-hit::after {
+  content: '\00d7';
+  color: var(--crt-red);
+  font-size: 18px;
+}
+
+.cell-miss {
+  border: 1px solid rgba(0, 255, 65, 0.15);
+  background: transparent;
+}
+
+.cell-miss::after {
+  content: '\2022';
+  color: var(--crt-green-dim);
+  opacity: 0.5;
+  font-size: 10px;
+}
+
+.cell-sunk {
+  border: 1px solid var(--crt-amber);
+  background: rgba(255, 176, 0, 0.3);
+}
+
+.cell-sunk::after {
+  content: '\00d7';
+  color: var(--crt-amber);
+  font-size: 18px;
+}
+
+.cell-decoy {
+  border: 1px solid var(--crt-amber);
+  background: rgba(255, 176, 0, 0.2);
+  animation: decoy-blink 1s step-end infinite;
+}
+
+.cell-ghost {
+  border: 1px solid var(--crt-green);
+  background: rgba(0, 255, 65, 0.15);
+}
+
+.cell-ghost-invalid {
+  border: 1px solid var(--crt-red);
+  background: rgba(255, 0, 64, 0.15);
+}
+
+.cell-hover {
+  border-color: var(--crt-green-bright) !important;
+  box-shadow: 0 0 6px var(--crt-green-glow);
+}
+
+/* Animations */
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 4px rgba(255, 0, 64, 0.3); }
+  50% { box-shadow: 0 0 12px rgba(255, 0, 64, 0.6); }
+}
+
+@keyframes decoy-blink {
+  50% { opacity: 0.4; }
+}

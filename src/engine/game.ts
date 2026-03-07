@@ -107,7 +107,7 @@ export class GameController {
 
     const player = this.getCurrentPlayer();
     const result = placeDecoy(player.ownGrid, coord, player.index);
-    if (!result) return null as unknown as boolean;
+    if (!result) return false;
 
     player.ownGrid = result;
     return true;
@@ -121,6 +121,21 @@ export class GameController {
     const ship = player.ships[shipIndex]!;
     player.ownGrid = removeShip(player.ownGrid, ship);
     player.ships.splice(shipIndex, 1);
+    this.logger.emit('fleet.remove', { player: player.index, shipId });
+    return true;
+  }
+
+  removeDecoyForCurrentPlayer(coord: Coordinate): boolean {
+    if (this.state.phase !== GamePhase.SetupP1 && this.state.phase !== GamePhase.SetupP2) {
+      return false;
+    }
+
+    const player = this.getCurrentPlayer();
+    const cell = getCell(player.ownGrid, coord);
+    if (!cell || cell.state !== CellState.Decoy) return false;
+
+    player.ownGrid = setCell(player.ownGrid, coord, { state: CellState.Empty, shipId: null });
+    this.logger.emit('fleet.remove', { player: player.index, type: 'decoy', coord: formatCoordinate(coord) });
     return true;
   }
 

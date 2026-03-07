@@ -1,28 +1,13 @@
-import { initLogger, getLogger } from './observability/logger';
+import { getLogger } from './observability/logger';
+import { GameController } from './engine/game';
+import { ScreenRouter } from './ui/screen-router';
+import { mountSetupScreen } from './ui/screens/setup-screen';
+import { mountHandoffScreen } from './ui/screens/handoff-screen';
+import { startFlicker } from './ui/flicker';
 import './styles/variables.css';
 import './styles/crt.css';
 import './styles/grid.css';
 import './styles/ui.css';
-
-type Screen = 'title' | 'setup' | 'handoff' | 'combat' | 'victory';
-
-let currentScreen: Screen = 'title';
-
-function renderPlaceholder(app: HTMLElement): void {
-  app.innerHTML = `
-    <div class="crt-overlay"></div>
-    <div class="screen-container">
-      <h1 class="title-text">CONTACT</h1>
-      <p class="subtitle-text">3D NAVAL COMBAT</p>
-      <p class="status-text">SYSTEM INITIALIZING...</p>
-      <p class="version-text">v0.1.0 // SPRINT 1.0</p>
-    </div>
-  `;
-}
-
-function setScreen(_screen: Screen): void {
-  currentScreen = _screen;
-}
 
 function initApp(): void {
   const app = document.getElementById('app');
@@ -30,17 +15,24 @@ function initApp(): void {
     throw new Error('Fatal: #app element not found');
   }
 
-  const logger = initLogger();
-  renderPlaceholder(app);
+  const game = new GameController();
+  const router = new ScreenRouter(app, game);
 
-  logger.emit('system.init', {
-    version: '0.1.0',
-    screen: currentScreen,
+  // Register screens
+  router.register('setup', mountSetupScreen);
+  router.register('handoff', mountHandoffScreen);
+
+  // CRT flicker effect
+  startFlicker(app);
+
+  // Navigate to first setup screen
+  router.navigate('setup');
+
+  getLogger().emit('system.init', {
+    version: '0.2.0',
+    screen: 'setup',
     userAgent: navigator.userAgent,
   });
-
-  // Expose for future screen routing
-  void setScreen;
 }
 
 window.addEventListener('error', (event) => {
