@@ -1,7 +1,7 @@
 # CONTACT — Project Delivery Plan
 
-**Version 1.2 | March 2026**
-**Reference: CONTACT GDD v1.0**
+**Version 1.3 | March 2026**
+**Reference: CONTACT GDD v1.1**
 
 ---
 
@@ -11,9 +11,9 @@ CONTACT is a browser-based 3D naval combat game — Battleship reimagined in a v
 
 This delivery plan breaks the project into 7 sequential phases, each producing a shippable increment. The arc follows a deliberate layering strategy:
 
-**Phase 1 (Foundation)** stands up the project scaffolding, game state engine, and a fully playable 2D game loop using slice-view grids. At the end of this phase, two players can sit down, place ships, take turns firing, and play to victory — no 3D rendering, no abilities, no audio. This is the structural proof that the core mechanics work. Critically, Phase 1 also establishes the observability layer: a structured JSONL event logger that instruments every state mutation from day one. Every subsequent phase emits events through this logger, meaning the game is fully auditable before a single line of rendering code exists.
+**Phase 1 (Foundation)** stands up the project scaffolding, game state engine, and a fully playable game loop using slice-view grids. At the end of this phase, two players can sit down, place ships (using 6 placement axes — no purely vertical), take turns firing, and play to victory — no 3D rendering, no abilities, no audio. This is the structural proof that the core mechanics work. Critically, Phase 1 also establishes the observability layer: a structured JSONL event logger that instruments every state mutation from day one. Every subsequent phase emits events through this logger, meaning the game is fully auditable before a single line of rendering code exists.
 
-**Phase 2 (3D Rendering)** replaces the flat slice grid with a production Three.js volumetric cube. All three GDD view modes (Cube, Slice, X-Ray) are implemented with custom orbit controls, raycasting for cell selection, and state-driven materials. This is the visual identity moment — the game starts looking like a Cold War sonar terminal.
+**Phase 2 (3D Rendering)** replaces the flat slice grid with a production Three.js volumetric cube on both the setup and combat screens. All three GDD view modes (Cube, Slice, X-Ray) are implemented with custom orbit controls, raycasting for cell selection, state-driven materials with three opacity tiers, and a ghost cell overlay for 3D placement preview. This is the visual identity moment — the game starts looking like a Cold War sonar terminal.
 
 **Phase 3 (Ability System)** layers in the full 8-ability matrix. Each of the 4 offensive/defensive pairs is delivered as its own sprint, with the ability framework (earn conditions, turn costs, state tracking) built first. This is the mechanical depth layer — the thing that separates CONTACT from a Battleship skin.
 
@@ -85,7 +85,7 @@ Every log entry is a single JSON object on one line, with a consistent envelope:
 
 ```jsonl
 {"ts":"2026-03-15T20:14:03.412Z","seq":1,"event":"game.start","session":"a1b2c3","data":{}}
-{"ts":"2026-03-15T20:14:12.887Z","seq":2,"event":"fleet.place","session":"a1b2c3","data":{"player":0,"ship":"typhoon","origin":"C-2-D4","axis":"depth"}}
+{"ts":"2026-03-15T20:14:12.887Z","seq":2,"event":"fleet.place","session":"a1b2c3","data":{"player":0,"ship":"typhoon","origin":"C-2-D4","axis":"col-depth"}}
 {"ts":"2026-03-15T20:15:44.201Z","seq":3,"event":"combat.fire","session":"a1b2c3","data":{"player":0,"target":"E-5-D3","result":"miss"}}
 {"ts":"2026-03-15T20:16:01.558Z","seq":4,"event":"combat.fire","session":"a1b2c3","data":{"player":1,"target":"C-2-D4","result":"hit","ship":"typhoon","remaining":4}}
 {"ts":"2026-03-15T20:18:33.742Z","seq":5,"event":"ability.unlock","session":"a1b2c3","data":{"player":1,"ability":"sonar_ping","trigger":"first_hit"}}
@@ -243,7 +243,8 @@ Establish the project scaffolding, core engine, game state model, and minimum pl
 - Define `Coordinate` interface: `{ col: number, row: number, depth: number }`
 - Define `Grid` type: three-dimensional `Cell` array (8×8×8)
 - Define `Ship` interface: `{ id: string, name: string, size: number }`
-- Define `ShipPlacement` interface: `{ shipId: string, origin: Coordinate, axis: 'col' | 'row' | 'depth', cells: Coordinate[] }`
+- Define `ShipPlacement` interface: `{ shipId: string, origin: Coordinate, axis: PlacementAxis, cells: Coordinate[] }`
+- Define `PlacementAxis` type: `'col' | 'row' | 'diag+' | 'diag-' | 'col-depth' | 'row-depth'` (6 axes, no purely vertical)
 - Define `PlayerState` interface: `{ ownGrid: Grid, targetingGrid: Grid, placements: ShipPlacement[], shipHealth: Record<string, number> }`
 - Define `GamePhase` enum: `setup_p1`, `setup_p2`, `combat`, `victory`
 - Define `GameState` interface: `{ phase: GamePhase, currentPlayer: 0 | 1, turnCount: number, players: [PlayerState, PlayerState], log: GameEvent[] }`
@@ -281,13 +282,15 @@ Establish the project scaffolding, core engine, game state model, and minimum pl
 
 **Component: Fleet Model**
 - Define ship roster constant: Typhoon (5), Akula (4), Seawolf (3), Virginia (3), Midget Sub (2)
-- Implement `validatePlacement(grid, ship, origin, axis)`: single-axis constraint, boundary check, overlap detection (ships and decoy)
+- Implement `AXIS_DELTAS` lookup table: maps each `PlacementAxis` to `[dCol, dRow, dDepth]` per step
+- Implement `calculateShipCells(origin, axis, size)`: compute cell coordinates using `AXIS_DELTAS`
+- Implement `validatePlacement(grid, ship, origin, axis)`: 6-axis constraint, boundary check, overlap detection (ships and decoy). Diagonal axes must validate both col/row bounds; cross-slice axes must validate depth bounds.
 - Implement `placeShip(grid, ship, origin, axis)`: returns new grid with ship cells marked
 - Implement `removeShip(grid, shipId)`: returns new grid with ship cells cleared (for repositioning)
 - Implement `placeDecoy(grid, coord)`: validates no overlap, marks cell as decoy
 - Implement `getShipHealth(grid, shipId)`: count non-hit cells for a given ship
 - Implement `checkSunk(grid, shipId)`: returns true if all cells hit → mark entire ship `sunk`
-- Write unit tests for placement validation, overlap rejection, boundary cases, sunk detection
+- Write unit tests for placement validation on all 6 axes, overlap rejection, boundary cases (diag- row underflow, cross-slice depth overflow), consistent depth for within-slice axes, sunk detection
 - Instrument all fleet mutations: emit `fleet.place`, `fleet.remove`, `fleet.decoy_place`, `fleet.confirm` events via Logger
 
 **Component: Turn & Session Controller**
@@ -320,7 +323,7 @@ Establish the project scaffolding, core engine, game state model, and minimum pl
 
 **Component: Ship Placement Screen**
 - Render depth layer selector (ALL + D1–D8 buttons)
-- Render axis selector (Column/Row/Depth toggle)
+- Render 6-axis selector (COL / ROW / DIAG↗ / DIAG↘ / COL+D / ROW+D)
 - Render ship roster with placed/unplaced status indicators
 - Implement placement preview: ghost cells showing proposed ship position on hover
 - Implement placement confirmation: click to commit, call `placeShip()`, update grid
@@ -329,6 +332,7 @@ Establish the project scaffolding, core engine, game state model, and minimum pl
 - Implement free-order placement: allow ships to be placed in any sequence (no enforced order per GDD §3.2)
 - Implement ship removal/repositioning: allow clicking a placed ship to remove it and re-place before confirmation
 - Implement undo/reset: allow clearing all placements to start over
+- **Note:** Initially built with 2D SliceGrid; upgraded to full 3D SceneManager in Sprint 2.2 (see below)
 
 **Component: Handoff Screen**
 - Render neutral CRT screen with player designation (ALPHA/BRAVO)
@@ -371,7 +375,7 @@ Establish the project scaffolding, core engine, game state model, and minimum pl
 
 ## Phase 2: Three.js 3D Rendering
 
-Replace the flat slice grid with production Three.js rendering. Implement all three GDD view modes. At the end of this phase, the cube is rotatable, zoomable, and all view modes function per spec.
+Replace the flat slice grid with production Three.js rendering. Implement all three GDD view modes. Both the setup and combat screens use a canvas-dominant overlay layout with the 3D sonar cube as the primary interface. At the end of this phase, the cube is rotatable, zoomable, all view modes function per spec, and ship placement uses 3D ghost cell preview.
 
 ### Sprint 2.1 — Three.js Scene Setup
 
@@ -392,7 +396,8 @@ Replace the flat slice grid with production Three.js rendering. Implement all th
 **Component: Grid Mesh Generation**
 - Generate 512 `BoxGeometry` meshes (one per cell) with `EdgesGeometry` wireframe overlay in `cube.ts`
 - Position meshes in 8×8×8 volumetric layout with consistent spacing
-- Implement material pool in `materials.ts`: reusable materials per cell state (empty, ship, hit, miss, sunk, hover)
+- Implement `MaterialPool` in `materials.ts`: three tiers per cell state — normal, dimmed (30% opacity), ghost (15% opacity). `setDimOpacity(t)` / `setGhostOpacity(t)` for animated transitions. Hover material set. Dispose pattern for all materials.
+- Implement `GridCube` with shared geometry, O(1) coord↔mesh lookups, layer helpers (`getCellMeshesAtDepth`, `setLayerVisible`)
 - Implement material swap on cell state change (no mesh recreation)
 
 ### Sprint 2.2 — View Modes
@@ -419,6 +424,28 @@ Replace the flat slice grid with production Three.js rendering. Implement all th
 - Wire view mode selector (CUBE / SLICE / X-RAY) to renderer in `views.ts`
 - Ensure Raycaster cell picking works correctly in all three modes
 - Ensure depth layer selector interacts correctly with each view mode
+
+**Component: Ghost Cell Overlay**
+- Implement `SceneManager.setGhostCells(coords, valid)`: temporarily swap cell materials to green (valid) or red (invalid) for placement preview
+- Implement `SceneManager.clearGhostCells()`: restore original materials
+- Ghost materials (valid/invalid fill + edge) created once in constructor, disposed on cleanup
+
+**Component: Combat Screen 3D Integration**
+- Rewrite combat screen to canvas-dominant overlay layout: full-screen 3D canvas with UI as absolutely positioned overlays
+- Wire SceneManager: view mode selector (CUBE/SLICE/X-RAY), depth panel (ALL+D1-D8), board toggle (targeting/own), coordinate display via raycaster hover, fire torpedo via raycaster cell click
+- HUD stats bar: DEPTH, VISIBLE cells, SHOTS, HITS, SUNK count, MODE
+- Enemy fleet panel with health pips, end turn button, controls hint
+- Mock SceneManager in tests (WebGL unavailable in jsdom)
+
+**Component: Setup Screen 3D Upgrade**
+- Rewrite setup screen from 2D SliceGrid to canvas-dominant overlay layout matching combat screen pattern
+- Wire SceneManager: view mode selector, depth panel, coordinate display via raycaster hover, ship/decoy placement via raycaster cell click
+- 6-axis selector overlay (COL/ROW/DIAG↗/DIAG↘/COL+D/ROW+D)
+- Ship roster as right-side overlay with selection and removal callbacks
+- Ghost cell preview via `SceneManager.setGhostCells()` — green for valid, red for invalid placement
+- Board type fixed to `'own'` (always shows own grid with ships visible)
+- Footer overlay: RESET ALL and CONFIRM DEPLOYMENT buttons
+- Mock SceneManager in tests (same pattern as combat screen tests)
 
 ### Sprint 2.3 — Cell State Visuals (3D)
 
@@ -496,8 +523,8 @@ Implement all 4 ability pairs from GDD §5.2 with full game logic, UI integratio
 
 **Component: Depth Charge (Offensive)**
 - Implement column selector UI: player picks one Column-Row coordinate (fires through all 8 depth layers)
-- Render column strike preview (8 cells highlighted vertically)
-- Implement strike logic: resolve hit/miss on every occupied cell in the column
+- Render column strike preview (8 cells highlighted through all depth layers)
+- Implement strike logic: resolve hit/miss on every occupied cell in the column (effective against cross-slice ships using col-depth or row-depth axes)
 - Handle multiple hits in a single action (partial ship damage, possible multi-sink)
 - Render column strike animation: sequential flash from D1→D8
 - Mark ability consumed; consumes attack turn
@@ -682,7 +709,7 @@ Production build, containerized deployment, comprehensive testing, and release p
 
 **Component: Unit Tests (Engine)**
 - Test grid operations: create, get, set, coordinate round-trip
-- Test fleet placement: all 5 ships on each axis (X, Y, Z), boundary cases, overlap rejection
+- Test fleet placement: all 5 ships on each of 6 axes (col, row, diag+, diag-, col-depth, row-depth), boundary cases (diag- row underflow, cross-slice depth overflow), overlap rejection
 - Test decoy: placement, hit → false confirmation, next-turn retraction, drone interaction
 - Test all 8 abilities: earn conditions, activation, effect resolution, consumption
 - Test ability interactions: Sonar Ping vs. Radar Jammer, Recon Drone vs. Decoy, G-SONAR vs. Acoustic Cloak, Silent Running delayed reveal
