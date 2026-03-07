@@ -1,0 +1,736 @@
+# CONTACT — Project Delivery Plan
+
+**Version 1.2 | March 2026**
+**Reference: CONTACT GDD v1.0**
+
+---
+
+## Overview
+
+CONTACT is a browser-based 3D naval combat game — Battleship reimagined in a volumetric 8×8×8 sonar cube. Two players take turns placing submarine fleets and firing torpedoes across 512 cells of three-dimensional space. An earned ability system (4 offensive/defensive pairs) compresses the search space as the game progresses, creating an arc that moves from blind searching to informed hunting to psychological warfare.
+
+This delivery plan breaks the project into 7 sequential phases, each producing a shippable increment. The arc follows a deliberate layering strategy:
+
+**Phase 1 (Foundation)** stands up the project scaffolding, game state engine, and a fully playable 2D game loop using slice-view grids. At the end of this phase, two players can sit down, place ships, take turns firing, and play to victory — no 3D rendering, no abilities, no audio. This is the structural proof that the core mechanics work. Critically, Phase 1 also establishes the observability layer: a structured JSONL event logger that instruments every state mutation from day one. Every subsequent phase emits events through this logger, meaning the game is fully auditable before a single line of rendering code exists.
+
+**Phase 2 (3D Rendering)** replaces the flat slice grid with a production Three.js volumetric cube. All three GDD view modes (Cube, Slice, X-Ray) are implemented with custom orbit controls, raycasting for cell selection, and state-driven materials. This is the visual identity moment — the game starts looking like a Cold War sonar terminal.
+
+**Phase 3 (Ability System)** layers in the full 8-ability matrix. Each of the 4 offensive/defensive pairs is delivered as its own sprint, with the ability framework (earn conditions, turn costs, state tracking) built first. This is the mechanical depth layer — the thing that separates CONTACT from a Battleship skin.
+
+**Phase 4 (Audio)** adds the Tone.js synthesized soundscape: action effects, ambient submarine hum, and phase-responsive tension scaling. Audio is deferred to this point because it has zero dependencies on prior phases and can be developed in parallel once the ability system is stable.
+
+**Phase 5 (Visual Polish)** implements the GDD's player feedback systems — screen shake, hit pulses, sunk cascades, ability deployment animations — and finalizes the CRT aesthetic with noise layers, barrel distortion, and phosphor bloom.
+
+**Phase 6 (Mobile & Responsive)** ensures the game plays well on tablets and phones, with touch orbit controls, responsive breakpoints, and mobile-optimized UI layouts. This is deferred because responsive design is most efficient when applied to a stable UI, not a moving target.
+
+**Phase 7 (Integration & Release)** handles Docker containerization, production builds, comprehensive testing against the GDD spec, and release preparation. The game ships as a containerized static site playable on local WiFi.
+
+The phases are sequential by design — each builds on the prior — but Phases 4 and 5 can run in parallel once Phase 3 stabilizes. Total scope: 20 sprints, 57 components, 311 tasks.
+
+---
+
+## Technology Stack
+
+### Design Rationale
+
+A 3,000–5,000 line single file with Three.js rendering, Tone.js audio, an 8-ability state machine, and CRT visual effects is unmaintainable and untestable. The modular approach uses a build tool to produce clean output from readable source, and a Docker container to serve the game on local WiFi.
+
+### Language & Runtime
+
+| Layer | Choice | Rationale |
+|---|---|---|
+| Language | **TypeScript 5.x** | The game state model (dual 8×8×8 grids per player, 8 abilities with cross-referencing interactions, ship health tracking, turn counters with delayed reveals) demands type safety. Silent state corruption from a mistyped property would surface as invisible gameplay bugs. |
+| Runtime | **Browser (ES2022+)** | No server-side logic. All game state lives in-memory in the browser. |
+| Module System | **ES Modules** | Native browser module support. Vite handles bundling for production. |
+
+### Build Toolchain
+
+| Tool | Role | Rationale |
+|---|---|---|
+| **Vite 6.x** | Dev server + bundler | Near-zero config. Sub-second HMR during development. `vite build` produces optimized static output. Tree-shakes Three.js and Tone.js imports. |
+| **vite-plugin-singlefile** | Optional single-file output | If portable distribution is ever desired, this plugin inlines all assets into one HTML file as a build target — preserving the GDD's original intent as an optional output mode. |
+| **TypeScript (via Vite)** | Type checking | Vite transpiles TS natively via esbuild. `tsc --noEmit` for strict type checking in CI or pre-commit. |
+
+### Core Libraries
+
+| Library | Version | Role |
+|---|---|---|
+| **Three.js** | r128+ | 3D volumetric cube rendering. BoxGeometry + EdgesGeometry per cell. Custom orbit controls (no OrbitControls import per GDD §8.3). Raycaster for cell picking. Imported as npm module; Vite tree-shakes unused exports. |
+| **Tone.js** | 14.x | Synthesized audio engine. All sounds generated programmatically (no sample files). Ambient soundscape, action effects, ability deployment sounds. Lazy-initialized on first user gesture to comply with browser autoplay policy. |
+| **Google Fonts** | — | Press Start 2P (headings), Silkscreen (body). Loaded via CSS `@import`. Fallback to system monospace if CDN unavailable. |
+
+### No Framework (Vanilla DOM)
+
+The UI layer (menus, HUD, ability tray, handoff screens) is built with vanilla TypeScript and DOM manipulation — no React, no Vue, no Svelte. Rationale:
+
+- The UI is simple: buttons, labels, overlays, and a Three.js canvas. No component tree complexity that justifies a framework.
+- Framework overhead (virtual DOM diffing, hydration, reactivity systems) adds bundle size and cognitive load with no corresponding benefit for a game with ~10 UI screens.
+- Three.js manages its own render loop; a framework's rendering model would fight it rather than help.
+- Keeps the dependency tree minimal: TypeScript + Three.js + Tone.js + Vite. That's it.
+
+### Observability (JSONL Structured Logging)
+
+Every state mutation, player action, ability resolution, and system event is logged as a structured JSONL (JSON Lines) record. This is not an afterthought bolted on in Phase 7 — the logger is scaffolded in Sprint 1.0 and instrumented into every engine function from Sprint 1.1 forward. The principle: if it changes game state, it emits a log event.
+
+**Why observability-first in a client-side game:**
+
+- **Debugging ability interactions.** The 8-ability matrix creates complex interaction chains (Sonar Ping → Radar Jammer inversion → Acoustic Cloak masking). When a player reports "that result looked wrong," the log provides a complete, ordered event trace to reconstruct exactly what happened.
+- **Playtesting analytics.** Session logs reveal game balance issues: average turns to first hit, ability usage rates, comeback frequency, which ships survive longest, whether the 3.3% density feels right. This data shapes GDD tuning without requiring the player to fill out a survey.
+- **Replay capability.** A complete JSONL log is a deterministic replay file. Feed it back into the engine and you can reconstruct any game state at any turn — useful for debugging, but also a foundation for a future replay viewer.
+- **Test forensics.** When a unit test fails, the log shows the exact sequence of state mutations that led to the failure, not just the final assertion mismatch.
+
+**Log record structure:**
+
+Every log entry is a single JSON object on one line, with a consistent envelope:
+
+```jsonl
+{"ts":"2026-03-15T20:14:03.412Z","seq":1,"event":"game.start","session":"a1b2c3","data":{}}
+{"ts":"2026-03-15T20:14:12.887Z","seq":2,"event":"fleet.place","session":"a1b2c3","data":{"player":0,"ship":"typhoon","origin":"C-2-D4","axis":"depth"}}
+{"ts":"2026-03-15T20:15:44.201Z","seq":3,"event":"combat.fire","session":"a1b2c3","data":{"player":0,"target":"E-5-D3","result":"miss"}}
+{"ts":"2026-03-15T20:16:01.558Z","seq":4,"event":"combat.fire","session":"a1b2c3","data":{"player":1,"target":"C-2-D4","result":"hit","ship":"typhoon","remaining":4}}
+{"ts":"2026-03-15T20:18:33.742Z","seq":5,"event":"ability.unlock","session":"a1b2c3","data":{"player":1,"ability":"sonar_ping","trigger":"first_hit"}}
+{"ts":"2026-03-15T20:18:40.109Z","seq":6,"event":"ability.use","session":"a1b2c3","data":{"player":1,"ability":"sonar_ping","quadrant":"Q5","result":"positive","jammed":false}}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `ts` | ISO 8601 string | Timestamp of event emission |
+| `seq` | number | Monotonically increasing sequence number (per session) |
+| `event` | string | Dot-namespaced event type (see event taxonomy below) |
+| `session` | string | Unique session identifier (generated on game start) |
+| `data` | object | Event-specific payload (strongly typed per event type) |
+
+**Event taxonomy:**
+
+| Namespace | Events | Emitted By |
+|---|---|---|
+| `game.*` | `game.start`, `game.phase_change`, `game.turn_start`, `game.turn_end`, `game.victory` | Turn & Session Controller |
+| `fleet.*` | `fleet.place`, `fleet.remove`, `fleet.decoy_place`, `fleet.confirm` | Fleet Model |
+| `combat.*` | `combat.fire`, `combat.hit`, `combat.miss`, `combat.sunk`, `combat.decoy_hit`, `combat.decoy_retract` | Combat Engine |
+| `ability.*` | `ability.unlock`, `ability.use`, `ability.effect`, `ability.expire` | Ability State Manager |
+| `view.*` | `view.mode_change`, `view.depth_change`, `view.board_toggle` | UI Controllers |
+| `audio.*` | `audio.init`, `audio.mute`, `audio.phase_change` | Audio Manager |
+| `system.*` | `system.error`, `system.perf` | Global error handler, perf monitors |
+
+**Storage & export:**
+
+Logs accumulate in an in-memory ring buffer (capped at 10,000 events to bound memory). The player can export the full session log as a `.jsonl` file via a debug menu or end-of-game option. During development, logs are also mirrored to `console.debug` with structured formatting for browser DevTools inspection.
+
+### Project Structure
+
+```
+contact/
+├── src/
+│   ├── main.ts                 # Entry point, screen router
+│   ├── types/
+│   │   ├── grid.ts             # Cell, CellState, Coordinate, Grid types
+│   │   ├── fleet.ts            # Ship, ShipPlacement, Decoy types
+│   │   ├── abilities.ts        # Ability, AbilityId, AbilityState types
+│   │   └── game.ts             # GameState, PlayerState, TurnAction types
+│   ├── engine/
+│   │   ├── grid.ts             # Grid creation, cell resolution, coordinate utils
+│   │   ├── fleet.ts            # Placement validation, health tracking, sunk detection
+│   │   ├── combat.ts           # Fire resolution, hit/miss/sunk logic
+│   │   ├── abilities.ts        # Ability earn conditions, activation, effect resolution
+│   │   ├── turn.ts             # Turn state machine, action validation, no-pass enforcement
+│   │   └── game.ts             # Top-level game controller, phase transitions, win condition
+│   ├── observability/
+│   │   ├── logger.ts           # JSONL structured logger (ring buffer, console mirror)
+│   │   ├── events.ts           # Typed event definitions (game.*, fleet.*, combat.*, etc.)
+│   │   ├── session.ts          # Session ID generation, sequence counter
+│   │   └── export.ts           # JSONL file export (download trigger)
+│   ├── renderer/
+│   │   ├── scene.ts            # Three.js scene, camera, renderer setup
+│   │   ├── orbit.ts            # Custom drag/scroll/touch orbit controls
+│   │   ├── cube.ts             # 512-cell mesh generation, material pool
+│   │   ├── materials.ts        # State-driven material definitions and swap logic
+│   │   ├── views.ts            # Cube/Slice/X-Ray view mode controllers
+│   │   ├── raycaster.ts        # Mouse/touch cell picking
+│   │   └── animations.ts       # Hit flash, sunk cascade, ability deployment VFX
+│   ├── audio/
+│   │   ├── manager.ts          # Tone.js context, master volume, mute
+│   │   ├── effects.ts          # Action sounds (fire, hit, miss, sink)
+│   │   ├── abilities.ts        # Ability deployment sounds
+│   │   └── ambient.ts          # Submarine hum, sonar sweep, phase-scaled tension
+│   ├── ui/
+│   │   ├── screens/
+│   │   │   ├── title.ts        # Title screen
+│   │   │   ├── setup.ts        # Ship placement screen
+│   │   │   ├── handoff.ts      # Player handoff screen
+│   │   │   ├── combat.ts       # Combat screen (HUD, controls, log)
+│   │   │   └── victory.ts      # Victory screen
+│   │   ├── components/
+│   │   │   ├── slice-grid.ts   # 2D depth-layer grid (used in setup + fallback)
+│   │   │   ├── depth-selector.ts
+│   │   │   ├── ability-tray.ts
+│   │   │   ├── hud-bar.ts
+│   │   │   └── game-log.ts
+│   │   └── crt/
+│   │       ├── scanlines.ts    # Scanline overlay
+│   │       ├── vignette.ts     # CRT vignette
+│   │       ├── flicker.ts      # Subtle flicker effect
+│   │       └── noise.ts        # Static noise layer
+│   └── styles/
+│       ├── variables.css       # CRT color palette, font stacks
+│       ├── crt.css             # Scanlines, vignette, barrel distortion
+│       ├── grid.css            # Slice grid cell styles
+│       └── ui.css              # Buttons, panels, HUD, overlays
+├── public/
+│   └── index.html              # Shell HTML (minimal, loads main.ts)
+├── tests/
+│   ├── engine/
+│   │   ├── grid.test.ts        # Grid operations, coordinate parsing
+│   │   ├── fleet.test.ts       # Placement validation, overlap, boundary
+│   │   ├── combat.test.ts      # Fire resolution, sunk detection
+│   │   ├── abilities.test.ts   # Earn conditions, interactions, edge cases
+│   │   └── turn.test.ts        # Turn flow, no-pass, action validation
+│   ├── observability/
+│   │   └── logger.test.ts      # Ring buffer, event emission, export format
+│   └── setup.ts                # Test utilities, mock state factories
+├── Dockerfile                  # nginx:alpine + dist/ copy
+├── docker-compose.yml          # Single-command startup, port mapping
+├── vite.config.ts              # Vite configuration
+├── tsconfig.json               # TypeScript strict mode config
+├── package.json
+└── README.md
+```
+
+### Containerization & Local Network Play
+
+| Component | Implementation |
+|---|---|
+| **Dockerfile** | `FROM nginx:alpine` → copy `dist/` to `/usr/share/nginx/html` → expose port 8080. Three lines. |
+| **docker-compose.yml** | Maps port 8080, sets restart policy. One-command startup: `docker compose up -d`. |
+| **Local WiFi play** | Host machine runs the container. Second player connects via `http://<host-IP>:8080` on any device on the same network. Both devices run independent hot-seat sessions (no shared state — the game is still local two-player per device). |
+| **Dev mode** | `npm run dev` launches Vite dev server with HMR on `localhost:5173`. No Docker needed during development. |
+
+### Build Outputs
+
+| Command | Output | Use Case |
+|---|---|---|
+| `npm run dev` | Vite dev server (HMR) | Development |
+| `npm run build` | `dist/` folder (optimized static files) | Production deployment |
+| `npm run build:single` | Single HTML file (via vite-plugin-singlefile) | Portable distribution |
+| `docker compose up` | Containerized nginx serving `dist/` | Local WiFi hosting |
+
+---
+
+## Phase 1: Foundation
+
+Establish the project scaffolding, core engine, game state model, and minimum playable loop. At the end of this phase, two players can place ships and fire torpedoes on a 2D slice grid with correct hit/miss/sunk resolution. No 3D rendering, no abilities, no audio.
+
+### Sprint 1.0 — Project Scaffolding
+
+**Component: Repository & Build Setup**
+- Initialize npm project with `package.json` (name, version, scripts)
+- Install and configure Vite with TypeScript support (`vite.config.ts`)
+- Configure TypeScript in strict mode (`tsconfig.json`: `strict: true`, `noUncheckedIndexedAccess: true`)
+- Install Three.js and Tone.js as npm dependencies
+- Create `public/index.html` shell with font imports and root mount point
+- Create `src/main.ts` entry point with screen router skeleton
+- Verify `npm run dev` launches Vite dev server successfully
+
+**Component: Docker Configuration**
+- Create `Dockerfile`: `nginx:alpine` base, copy `dist/` to serve root, expose port 8080
+- Create `docker-compose.yml`: port mapping (8080:80), restart policy
+- Create `npm run build` script and verify `dist/` output
+- Verify `docker compose up` serves the game on `http://localhost:8080`
+- Verify second device on local WiFi can access `http://<host-IP>:8080`
+
+**Component: Type Definitions**
+- Define `CellState` enum: `empty`, `ship`, `decoy`, `hit`, `miss`, `sunk`, `decoy_hit`
+- Define `Cell` interface: `{ state: CellState, shipId: string | null }`
+- Define `Coordinate` interface: `{ col: number, row: number, depth: number }`
+- Define `Grid` type: three-dimensional `Cell` array (8×8×8)
+- Define `Ship` interface: `{ id: string, name: string, size: number }`
+- Define `ShipPlacement` interface: `{ shipId: string, origin: Coordinate, axis: 'col' | 'row' | 'depth', cells: Coordinate[] }`
+- Define `PlayerState` interface: `{ ownGrid: Grid, targetingGrid: Grid, placements: ShipPlacement[], shipHealth: Record<string, number> }`
+- Define `GamePhase` enum: `setup_p1`, `setup_p2`, `combat`, `victory`
+- Define `GameState` interface: `{ phase: GamePhase, currentPlayer: 0 | 1, turnCount: number, players: [PlayerState, PlayerState], log: GameEvent[] }`
+- Define `GameEvent` interface: `{ turn: number, player: 0 | 1, action: string, result: string, coordinate?: Coordinate }`
+- Define `LogEvent` interface: `{ ts: string, seq: number, event: string, session: string, data: Record<string, unknown> }`
+- Define event type string literals for each namespace: `game.*`, `fleet.*`, `combat.*`, `ability.*`, `view.*`, `audio.*`, `system.*`
+- Define typed payload interfaces for each event (e.g., `CombatFirePayload`, `AbilityUsePayload`, `FleetPlacePayload`)
+
+**Component: Test Harness**
+- Install Vitest as dev dependency
+- Configure Vitest in `vite.config.ts`
+- Create `tests/setup.ts` with mock state factories (empty grid, pre-placed fleets, mid-game states)
+- Create first passing test: grid creation returns 512 empty cells
+- Add `npm run test` script
+
+**Component: Structured Logger**
+- Implement `Logger` class in `observability/logger.ts`: accepts typed events, serializes to JSONL
+- Implement session ID generator in `observability/session.ts`: random hex string, created on game start
+- Implement monotonic sequence counter: increments per `emit()` call within a session
+- Implement in-memory ring buffer: capped at 10,000 events, oldest evicted on overflow
+- Implement `console.debug` mirror: structured log output in browser DevTools during development (gated by `import.meta.env.DEV`)
+- Implement `exportSession()` in `observability/export.ts`: serialize ring buffer to `.jsonl` blob and trigger browser download
+- Implement global error handler: catch unhandled errors/rejections → emit `system.error` event with stack trace
+- Write unit tests for logger: event serialization, sequence ordering, ring buffer eviction, export format validation
+
+### Sprint 1.1 — Game State Engine
+
+**Component: Grid Data Model**
+- Implement `createGrid()`: returns 8×8×8 array of empty cells
+- Implement `getCell(grid, coord)`: safe accessor with bounds checking
+- Implement `setCell(grid, coord, cell)`: immutable update returning new grid
+- Implement coordinate parser: `"C-4-D3"` → `{ col: 2, row: 3, depth: 2 }`
+- Implement coordinate formatter: `{ col: 2, row: 3, depth: 2 }` → `"C-4-D3"`
+- Write unit tests for grid operations and coordinate round-tripping
+
+**Component: Fleet Model**
+- Define ship roster constant: Typhoon (5), Akula (4), Seawolf (3), Virginia (3), Midget Sub (2)
+- Implement `validatePlacement(grid, ship, origin, axis)`: single-axis constraint, boundary check, overlap detection (ships and decoy)
+- Implement `placeShip(grid, ship, origin, axis)`: returns new grid with ship cells marked
+- Implement `removeShip(grid, shipId)`: returns new grid with ship cells cleared (for repositioning)
+- Implement `placeDecoy(grid, coord)`: validates no overlap, marks cell as decoy
+- Implement `getShipHealth(grid, shipId)`: count non-hit cells for a given ship
+- Implement `checkSunk(grid, shipId)`: returns true if all cells hit → mark entire ship `sunk`
+- Write unit tests for placement validation, overlap rejection, boundary cases, sunk detection
+- Instrument all fleet mutations: emit `fleet.place`, `fleet.remove`, `fleet.decoy_place`, `fleet.confirm` events via Logger
+
+**Component: Turn & Session Controller**
+- Implement `GameController` class: manages `GameState` transitions
+- Implement phase transitions: `setup_p1` → `setup_p2` → `combat` → `victory`
+- Implement turn alternation: player 0 (ALPHA) ↔ player 1 (BRAVO)
+- Implement `fireTorpedo(state, coord)`: resolve cell against opponent's own grid, update both grids, return result
+- Implement win condition check: all 5 opponent ships sunk → transition to `victory`
+- Implement action log: append `GameEvent` on every action
+- Instrument all state transitions: emit `game.start`, `game.phase_change`, `game.turn_start`, `game.turn_end`, `game.victory` events via Logger
+- Instrument fire resolution: emit `combat.fire` with target coordinate, result (hit/miss/sunk), ship ID and remaining health on hit
+- Write unit tests for full game loop: setup → fire → hit → sunk → victory
+- Write unit tests verifying log output: correct event sequence, payload completeness, no missing events
+
+### Sprint 1.2 — Slice View & Setup UI
+
+**Component: CRT Visual Foundation**
+- Import Press Start 2P and Silkscreen via CSS `@import` from Google Fonts
+- Define CSS custom properties in `variables.css`: `--crt-green`, `--crt-green-dim`, `--crt-green-dark`, `--crt-red`, `--crt-orange`, `--crt-yellow`, `--crt-bg`
+- Implement scanline overlay in `crt.css` (CSS `repeating-linear-gradient`)
+- Implement CRT vignette in `crt.css` (CSS `radial-gradient`)
+- Implement subtle flicker module (`flicker.ts`): randomized opacity on `requestAnimationFrame`
+
+**Component: Slice Grid Renderer**
+- Implement `SliceGrid` class: renders single depth layer as 8×8 DOM grid
+- Render column headers (A–H) and row labels (1–8)
+- Implement cell state visual mapping per GDD §2.3 (wireframe, solid, dot, ×, pulse, blink)
+- Implement hover state: highlight cell, update coordinate display
+- Implement click handler: emit cell coordinate on click
+
+**Component: Ship Placement Screen**
+- Render depth layer selector (ALL + D1–D8 buttons)
+- Render axis selector (Column/Row/Depth toggle)
+- Render ship roster with placed/unplaced status indicators
+- Implement placement preview: ghost cells showing proposed ship position on hover
+- Implement placement confirmation: click to commit, call `placeShip()`, update grid
+- Implement decoy placement step after all ships placed
+- Implement "Confirm Deployment" action to finalize setup
+- Implement free-order placement: allow ships to be placed in any sequence (no enforced order per GDD §3.2)
+- Implement ship removal/repositioning: allow clicking a placed ship to remove it and re-place before confirmation
+- Implement undo/reset: allow clearing all placements to start over
+
+**Component: Handoff Screen**
+- Render neutral CRT screen with player designation (ALPHA/BRAVO)
+- Implement "Ready" confirmation button
+- Ensure no board data is visible during handoff
+
+### Sprint 1.3 — Combat Loop (Slice Only)
+
+**Component: Combat Screen Layout**
+- Render top bar: player designation, phase label, turn counter
+- Render coordinate display: live hover target in Column-Row-Depth format
+- Render depth layer selector for slice navigation (ALL + D1–D8 per GDD §7.2)
+- Render board toggle: targeting grid vs. own fleet view
+- Implement targeting grid: hide ship positions, show hits/misses/sunk
+- Implement own fleet view: show ship positions, show incoming damage
+- Instrument UI state changes: emit `view.mode_change`, `view.depth_change`, `view.board_toggle` events via Logger
+
+**Component: Fire Action**
+- Implement cell click on targeting grid → call `fireTorpedo()`, render result
+- Prevent firing on already-resolved cells
+- Display immediate result feedback (inline result badge: HIT / MISS / SUNK)
+- Trigger sunk detection → mark all ship cells orange on both grids
+- Trigger win condition check after each fire
+
+**Component: HUD & Game Log**
+- Render HUD bar: depth layer, view mode, board type, turn count, cells visible, shots fired, hits scored (per GDD §7.2)
+- Render enemy fleet status: per-ship health bars with sunk strikethrough
+- Render scrollable game log (last N events)
+- Implement turn-end action: "End Turn" button → handoff to next player
+- Implement no-pass enforcement: disable "End Turn" until player has performed an action (fire or ability per GDD §4.2)
+
+**Component: Victory Screen**
+- Render winner designation (ALPHA/BRAVO)
+- Display turn count at resolution
+- Display session summary stats: total shots fired, hit rate, abilities used, turns elapsed
+- Implement "Export Session Log" button: triggers `.jsonl` file download via `exportSession()`
+- Implement "New Engagement" restart action
+
+---
+
+## Phase 2: Three.js 3D Rendering
+
+Replace the flat slice grid with production Three.js rendering. Implement all three GDD view modes. At the end of this phase, the cube is rotatable, zoomable, and all view modes function per spec.
+
+### Sprint 2.1 — Three.js Scene Setup
+
+**Component: Scene Infrastructure**
+- Initialize Three.js scene, camera (perspective), and WebGL renderer in `scene.ts`
+- Configure renderer for CRT-compatible output (dark background, green-tinted fog)
+- Implement responsive canvas sizing (fill viewport section, handle window resize)
+- Implement render loop with `requestAnimationFrame`
+- Implement cleanup/disposal on screen transition
+
+**Component: Custom Orbit Controls**
+- Implement mouse drag rotation in `orbit.ts` (no OrbitControls import per GDD §8.3)
+- Implement scroll-to-zoom with min/max distance constraints
+- Implement touch drag rotation for mobile
+- Implement touch pinch-to-zoom for mobile
+- Implement rotation damping for smooth feel
+
+**Component: Grid Mesh Generation**
+- Generate 512 `BoxGeometry` meshes (one per cell) with `EdgesGeometry` wireframe overlay in `cube.ts`
+- Position meshes in 8×8×8 volumetric layout with consistent spacing
+- Implement material pool in `materials.ts`: reusable materials per cell state (empty, ship, hit, miss, sunk, hover)
+- Implement material swap on cell state change (no mesh recreation)
+
+### Sprint 2.2 — View Modes
+
+**Component: Cube View**
+- Render all 512 cells with wireframe
+- Implement depth layer selection: selected layer full opacity, others dimmed (per GDD §2.2)
+- Implement "ALL" mode: all layers visible at uniform opacity
+- Implement smooth opacity transitions on layer change
+
+**Component: Slice View (3D-backed)**
+- Isolate selected depth layer, hide all others
+- Render ghosted outlines of adjacent layers (±1) for peripheral awareness
+- Implement Raycaster for mouse/touch cell selection on isolated layer
+- Ensure coordinate feedback matches slice cell under cursor
+
+**Component: X-Ray View**
+- Hide all empty cells
+- On own board: show only cells containing ship segments
+- On targeting board: show only action cells (hits, misses, sunk)
+- Implement smooth show/hide transitions
+
+**Component: View Mode Integration**
+- Wire view mode selector (CUBE / SLICE / X-RAY) to renderer in `views.ts`
+- Ensure Raycaster cell picking works correctly in all three modes
+- Ensure depth layer selector interacts correctly with each view mode
+
+### Sprint 2.3 — Cell State Visuals (3D)
+
+**Component: State-Driven Materials**
+- Empty: dim green wireframe (`EdgesGeometry`, low-alpha `LineBasicMaterial`)
+- Ship (own board): solid green block (`MeshBasicMaterial`, green, moderate alpha)
+- Hit: red emissive material with pulse animation (sinusoidal intensity)
+- Miss: dim green dot (small inner mesh or sprite)
+- Sunk: orange emissive material (static glow)
+- Decoy: yellow blinking material (toggling alpha on interval)
+- Hover: brighter wireframe + subtle fill
+
+**Component: Transition Animations**
+- Implement hit flash: brief full-brightness red, then settle to pulse
+- Implement sunk cascade: all cells of ship transition red→orange in sequence
+- Implement miss placement: fade-in dot marker
+
+---
+
+## Phase 3: Ability System
+
+Implement all 4 ability pairs from GDD §5.2 with full game logic, UI integration, and visual feedback. Each pair is one sprint. The ability framework (earn conditions, turn costs, state tracking) is built first.
+
+### Sprint 3.1 — Ability Framework & Pair 1 (Intelligence)
+
+**Component: Ability State Manager**
+- Define ability types in `types/abilities.ts`: id, name, type (offensive/defensive), earned condition, available flag, used flag, uses remaining
+- Implement earn-condition evaluator in `engine/abilities.ts`: map game events (first hit, first hit received, first sink, etc.) to ability unlocks
+- Implement ability unlock notification system
+- Implement turn-cost logic: FREE abilities don't consume attack turn, CONSUMES ATTACK abilities replace fire action
+- Implement ability use → mark consumed, log event
+- Instrument all ability lifecycle events: emit `ability.unlock`, `ability.use`, `ability.effect`, `ability.expire` events via Logger with full context (ability ID, player, trigger condition, affected cells/quadrants)
+- Write unit tests for all 8 earn conditions and turn-cost rules
+
+**Component: Ability Tray UI**
+- Render ability tray in `ui/components/ability-tray.ts`: all 8 abilities with earned/available/used states
+- Visual distinction: offensive (red accent) vs. defensive (green accent)
+- Disabled state for locked/used abilities
+- Implement click-to-activate with confirmation for attack-consuming abilities
+- Render "hold or use" decision context (tooltip or info panel)
+
+**Component: Sonar Ping (Offensive)**
+- Implement quadrant selector UI: divide grid into 4×4×4 quadrants (8 possible quadrants), let player choose one
+- Implement scan logic: binary yes/no — does any ship segment exist in the selected 4×4×4 quadrant (64 cells)?
+- Implement result display: full-screen sonar sweep animation, then YES/NO result overlay
+- Check for active Radar Jammer on opponent → invert result if jammed
+- Mark ability consumed after use
+- Write unit tests for scan logic, jammer interaction
+- Emit `ability.use` event with quadrant ID, raw result, jammed flag, and displayed result (for jammer interaction forensics)
+
+**Component: Radar Jammer (Defensive)**
+- Implement activation: toggle jammer active state
+- Implement interaction: when opponent fires Sonar Ping, invert the result
+- Implement visual feedback: static burst animation on activation
+- Mark ability consumed after use
+
+### Sprint 3.2 — Pair 2 (Reconnaissance)
+
+**Component: Recon Drone (Offensive)**
+- Implement target selector UI: let player pick center cell for 3×3×3 scan volume
+- Render scan volume preview (27 cells highlighted) before confirmation
+- Implement scan logic: reveal which cells in the 3×3×3 contain ship segments (not identity/orientation)
+- Handle decoy within scan volume: decoy appears as occupied cell (poisons intel)
+- Render scan results on targeting grid (temporary highlight or permanent markers)
+- Mark ability consumed; consumes attack turn
+- Write unit tests for scan logic, decoy poisoning, edge-of-grid scan volumes
+
+**Component: Decoy (Defensive)**
+- Implement decoy hit logic: return false "hit" confirmation to attacker
+- Implement delayed retraction: on attacker's next turn, decoy evaporates, hit marker removed
+- Implement decoy evaporation visual: yellow blink → fade to empty
+- Implement interaction with Recon Drone: decoy reads as occupied cell in scan results
+
+### Sprint 3.3 — Pair 3 (Heavy Ordnance)
+
+**Component: Depth Charge (Offensive)**
+- Implement column selector UI: player picks one Column-Row coordinate (fires through all 8 depth layers)
+- Render column strike preview (8 cells highlighted vertically)
+- Implement strike logic: resolve hit/miss on every occupied cell in the column
+- Handle multiple hits in a single action (partial ship damage, possible multi-sink)
+- Render column strike animation: sequential flash from D1→D8
+- Mark ability consumed; consumes attack turn
+- Write unit tests for column strike, multi-hit, multi-sink edge cases
+
+**Component: Silent Running (Defensive)**
+- Implement activation trigger: can only activate in response to receiving a hit
+- Implement hit masking: replace "hit" result with "miss" on opponent's targeting grid for 2 turns
+- Implement turn countdown: after 2 turns, reveal the true hit to opponent
+- Implement visual state: masked cell shows as miss, then transitions to hit on expiry
+- Implement interaction with follow-up shots: opponent sees miss and may waste shots
+- Mark ability consumed after use
+- Emit `ability.effect` on activation (masked cell, turns remaining) and `ability.expire` on reveal (true hit exposed to opponent)
+
+### Sprint 3.4 — Pair 4 (Global Intelligence)
+
+**Component: G-SONAR (Offensive)**
+- Implement scan logic: identify all rows (1–8) and columns (A–H) containing at least one live ship segment
+- Implement result display: highlight active rows and columns on targeting grid overlay
+- Check for active Acoustic Cloak → return all-negative if cloaked
+- Implement visual: sonar wash animation, then row/column highlight overlay
+- Mark ability consumed; consumes attack turn
+- Trigger opponent's Acoustic Cloak unlock condition
+- Write unit tests for scan logic, cloak interaction, sunk-ship exclusion from results
+
+**Component: Acoustic Cloak (Defensive)**
+- Implement activation: mask all own ship segments for next 2 opponent turns
+- Implement interaction: any G-SONAR, Sonar Ping, or Recon Drone returns negative/empty during cloak window
+- Implement turn countdown: cloak expires after 2 opponent actions
+- Implement visual feedback: brief fade-to-silence effect on activation
+- Mark ability consumed after use
+
+---
+
+## Phase 4: Audio Engine
+
+Implement full Tone.js audio system per GDD §7.4. All audio synthesized programmatically — no sample files.
+
+### Sprint 4.1 — Audio Framework & Core Effects
+
+**Component: Audio Manager**
+- Initialize Tone.js context with user-gesture activation (browser autoplay policy) in `audio/manager.ts`
+- Implement master volume control with mute toggle
+- Implement audio state: track game phase for dynamic layering
+- Implement audio enable/disable UI control
+- Instrument audio lifecycle: emit `audio.init`, `audio.mute`, `audio.phase_change` events via Logger
+
+**Component: Action Sound Effects**
+- Synthesize torpedo fire sound (percussive transient + low sweep) in `audio/effects.ts`
+- Synthesize hit sound (sharp metallic impact with distortion)
+- Synthesize miss sound (subtle sonar ping, soft decay)
+- Synthesize ship sunk sound (low rumble + cascading tones)
+- Map each action type to its sound trigger
+
+**Component: Ambient Soundscape**
+- Synthesize submarine hum (low-frequency oscillator, continuous) in `audio/ambient.ts`
+- Synthesize periodic sonar sweep (timed ping with reverb tail)
+- Implement phase-responsive layering: add tension layers as game progresses (more frequent pings, deeper hum, subtle noise floor increase)
+
+### Sprint 4.2 — Ability Audio & Phase Scaling
+
+**Component: Ability Sound Effects**
+- Synthesize Sonar Ping deploy sound (full-screen sweep tone) in `audio/abilities.ts`
+- Synthesize Recon Drone scan sound (scanning wash, left-to-right pan)
+- Synthesize Radar Jammer activation (static burst / white noise crack)
+- Synthesize Silent Running activation (fade-to-silence, low pass filter sweep)
+- Synthesize Depth Charge sound (sequential detonation tones, D1→D8)
+- Synthesize G-SONAR sound (broad spectrum sweep)
+- Synthesize Acoustic Cloak sound (reverse reverb / absorption effect)
+
+**Component: Dynamic Audio Scaling**
+- Implement game phase detection (early/mid/escalation/endgame per GDD §6.1)
+- Scale ambient intensity per phase: sparser in early, denser and more urgent in endgame
+- Scale sonar ping frequency: slower early, faster late
+- Add low-frequency tension drone in endgame
+
+---
+
+## Phase 5: Visual Polish & Feedback
+
+Implement all GDD §7.3 player feedback systems and finalize the CRT aesthetic.
+
+### Sprint 5.1 — Hit/Miss/Sunk Feedback
+
+**Component: Hit Feedback**
+- Implement red flash on hit cell (brief full-screen tint or cell flash) in `renderer/animations.ts`
+- Implement screen shake (camera/viewport jitter, 200–300ms duration)
+- Implement cell pulse glow animation (sinusoidal emissive intensity, persistent)
+
+**Component: Miss Feedback**
+- Implement dim marker placement animation (fade-in)
+- Coordinate with miss audio trigger
+
+**Component: Ship Sunk Feedback**
+- Implement red→orange transition cascade across all ship cells (staggered timing)
+- Implement notification banner: "VESSEL DESTROYED: [SHIP NAME]"
+- Implement ability unlock notification: "[ABILITY NAME] AVAILABLE" banner if applicable
+
+### Sprint 5.2 — Ability Feedback & CRT Effects
+
+**Component: Ability Deployment Animations**
+- Sonar Ping: full-screen sonar sweep (rotating radial wipe, green)
+- Recon Drone: scan wash effect (horizontal sweep revealing scan results)
+- Radar Jammer: static burst (screen-wide noise flash, brief)
+- Silent Running: fade-to-silence (darken screen edges, audio dip)
+- Depth Charge: column detonation sequence (sequential red flashes top→bottom)
+- G-SONAR: broad sonar wash (expanding ring effect)
+- Acoustic Cloak: stealth activation (brief screen dim + particle absorption)
+
+**Component: CRT Shader Refinements**
+- Implement static noise layer (animated grain overlay) in `ui/crt/noise.ts`
+- Implement CRT barrel distortion (subtle CSS transform or shader)
+- Implement phosphor bloom on bright elements (CSS glow + blur layers)
+- Implement screen flicker variation (randomized intensity tied to game events)
+
+---
+
+## Phase 6: Mobile & Responsive Design
+
+Ensure the game is fully playable on tablets and phones per GDD §1.5 responsive requirement.
+
+### Sprint 6.1 — Responsive Layout
+
+**Component: Breakpoint System**
+- Define breakpoints: desktop (>1024px), tablet (768–1024px), mobile (<768px)
+- Implement responsive viewport sizing for Three.js canvas
+- Implement collapsible/stacked layout for combat screen panels on mobile
+- Scale grid cell sizes per breakpoint
+- Ensure all text remains legible at each breakpoint
+
+**Component: Mobile Navigation**
+- Implement swipe-based depth layer navigation
+- Implement tap-to-select cell (with touch-friendly hit targets ≥44px)
+- Implement long-press for cell info tooltip
+- Adjust view mode and board toggle buttons for touch (larger, spaced)
+
+### Sprint 6.2 — Touch Controls for 3D
+
+**Component: Touch Orbit Controls**
+- Implement single-finger drag for cube rotation
+- Implement two-finger pinch for zoom
+- Implement touch dead zone to prevent accidental rotation during cell selection
+- Test and tune rotation sensitivity for mobile
+
+**Component: Mobile UI Adjustments**
+- Reposition ability tray for thumb reach (bottom of screen)
+- Implement expandable/collapsible game log
+- Implement compact HUD mode for small screens
+- Test handoff screen usability on mobile (adequate tap target for Ready button)
+
+---
+
+## Phase 7: Integration, Testing & Release
+
+Production build, containerized deployment, comprehensive testing, and release preparation.
+
+### Sprint 7.1 — Build & Containerization
+
+**Component: Production Build**
+- Configure Vite production build: minification, tree-shaking, asset hashing
+- Configure `vite-plugin-singlefile` as optional build target (`npm run build:single`)
+- Verify `dist/` output loads correctly in browser (no console errors, all assets resolve)
+- Verify single-file output is functional (portable distribution option)
+- Profile bundle size; target under 500KB gzipped (excluding font CDN)
+
+**Component: Docker Deployment**
+- Finalize `Dockerfile`: `nginx:alpine`, copy `dist/`, expose 8080, configure MIME types
+- Finalize `docker-compose.yml`: port mapping, restart policy, container naming
+- Write `README.md` deployment section: `docker compose up -d` instructions
+- Test local WiFi access from second device (phone, tablet, laptop)
+- Test that game state is fully independent per browser tab (no shared state leaks)
+
+**Component: Performance Optimization**
+- Profile Three.js render loop: target 60fps on mid-range hardware
+- Implement object pooling for cell meshes (avoid GC pressure)
+- Implement frustum culling for off-screen cells
+- Optimize material count: share materials across cells in same state
+- Lazy-initialize Tone.js context (only on first user interaction)
+- Implement periodic `system.perf` event emission: frame rate, render time, memory usage (sampled every 30s, gated by dev mode)
+
+### Sprint 7.2 — Testing
+
+**Component: Unit Tests (Engine)**
+- Test grid operations: create, get, set, coordinate round-trip
+- Test fleet placement: all 5 ships on each axis (X, Y, Z), boundary cases, overlap rejection
+- Test decoy: placement, hit → false confirmation, next-turn retraction, drone interaction
+- Test all 8 abilities: earn conditions, activation, effect resolution, consumption
+- Test ability interactions: Sonar Ping vs. Radar Jammer, Recon Drone vs. Decoy, G-SONAR vs. Acoustic Cloak, Silent Running delayed reveal
+- Test win condition: verify each possible last-ship-sunk scenario
+- Test edge cases: firing all 512 cells, abilities used on same turn as sink, simultaneous unlock conditions
+- Test logger: ring buffer eviction at 10,000 events, sequence monotonicity, JSONL export format validity
+- Test event completeness: play a full game to victory and verify no state mutation occurs without a corresponding log event
+
+**Component: Integration Tests (UI + Engine)**
+- Test full game loop: setup → combat → victory for both players
+- Test view mode switching mid-combat: state preservation
+- Test handoff screen: no data leakage between turns
+- Test no-pass enforcement: End Turn disabled until action taken
+
+**Component: Cross-Browser & Device Testing**
+- Test on Chrome, Firefox, Safari, Edge (desktop)
+- Test on iOS Safari, Android Chrome (mobile)
+- Test touch controls on iPad, Android tablet
+- Test Docker-served build on local WiFi from multiple devices
+- Test font fallback: graceful degradation if Google Fonts CDN unavailable
+
+### Sprint 7.3 — Release Preparation
+
+**Component: Final Audit**
+- Audit all visual states against GDD §2.3 visual language table
+- Audit all ability behaviors against GDD §5.2 ability matrix
+- Audit game arc pacing against GDD §6.1 phase progression
+- Verify classification markings and branding per GDD §7.2 (title bar, footer)
+
+**Component: Documentation**
+- Write in-game help/rules screen (accessible from title screen)
+- Write keyboard shortcut reference (if applicable)
+- Write `README.md`: project overview, tech stack, dev setup, build commands, Docker deployment, local WiFi play instructions
+- Document JSONL log format: event taxonomy, payload schemas, export instructions, and example `jq` queries for session analysis
+- Add version number and build date to footer
+- Create CHANGELOG for v1.0 release
+
+---
+
+## Summary
+
+| Phase | Sprints | Components | Tasks |
+|---|---|---|---|
+| 1 — Foundation | 4 | 16 | 108 |
+| 2 — Three.js 3D Rendering | 3 | 9 | 39 |
+| 3 — Ability System | 4 | 10 | 60 |
+| 4 — Audio Engine | 2 | 5 | 24 |
+| 5 — Visual Polish & Feedback | 2 | 5 | 19 |
+| 6 — Mobile & Responsive | 2 | 4 | 17 |
+| 7 — Integration & Release | 3 | 8 | 44 |
+| **Total** | **20** | **57** | **311** |
