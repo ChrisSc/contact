@@ -5,7 +5,7 @@
 - **`variables.css`** — Design tokens (colors, spacing, fonts) + CSS reset. Single source of truth for theming.
 - **`crt.css`** — Scanline overlay, vignette effect, subtle flicker animation. CRT terminal aesthetic.
 - **`grid.css`** — Slice grid layout, cell state classes, ghost cell preview, hover effects.
-- **`ui.css`** — Screen layouts, buttons, panels, ship roster, depth/axis selectors.
+- **`ui.css`** — Screen layouts (setup, combat, victory, handoff), buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status, game log.
 
 ## Architecture
 

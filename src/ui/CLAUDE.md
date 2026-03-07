@@ -2,7 +2,7 @@
 
 ## Files
 
-- **`screen-router.ts`** — `ScreenRouter` class: manages screen mount/unmount lifecycle, navigation with context passing
+- **`screen-router.ts`** — `ScreenRouter` class: manages screen mount/unmount lifecycle, navigation with context passing, `setGame()` for restart flow
 - **`flicker.ts`** — CRT flicker effect (persists across screen navigations)
 - **`components/slice-grid.ts`** — `SliceGrid` class: 8x8 grid for one depth layer, cell state rendering, ghost preview, click handling
 - **`components/depth-selector.ts`** — `DepthSelector` class: D1-D8 depth layer navigation
@@ -11,6 +11,8 @@
 - **`components/coordinate-display.ts`** — `CoordinateDisplay` class: shows hovered/selected cell coordinate
 - **`screens/setup-screen.ts`** — `mountSetupScreen()`: ship placement + decoy + confirm flow
 - **`screens/handoff-screen.ts`** — `mountHandoffScreen()`: player transition with ready confirmation
+- **`screens/combat-screen.ts`** — `mountCombatScreen()`: targeting/own grid toggle, fire torpedo, HUD stats, enemy fleet status, game log, end turn
+- **`screens/victory-screen.ts`** — `mountVictoryScreen()`: winner display, stats summary, session export, new engagement restart
 
 ## Architecture
 

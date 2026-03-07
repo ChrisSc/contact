@@ -59,6 +59,10 @@ export class ScreenRouter {
     getLogger().emit('view.change', { screen });
   }
 
+  setGame(game: GameController): void {
+    this.context.game = game;
+  }
+
   getCurrentScreen(): ScreenId | null {
     return this.currentScreen;
   }

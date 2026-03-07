@@ -3,6 +3,8 @@ import { GameController } from './engine/game';
 import { ScreenRouter } from './ui/screen-router';
 import { mountSetupScreen } from './ui/screens/setup-screen';
 import { mountHandoffScreen } from './ui/screens/handoff-screen';
+import { mountCombatScreen } from './ui/screens/combat-screen';
+import { mountVictoryScreen } from './ui/screens/victory-screen';
 import { startFlicker } from './ui/flicker';
 import './styles/variables.css';
 import './styles/crt.css';
@@ -21,6 +23,8 @@ function initApp(): void {
   // Register screens
   router.register('setup', mountSetupScreen);
   router.register('handoff', mountHandoffScreen);
+  router.register('combat', mountCombatScreen);
+  router.register('victory', mountVictoryScreen);
 
   // CRT flicker effect
   startFlicker(app);
@@ -29,7 +33,7 @@ function initApp(): void {
   router.navigate('setup');
 
   getLogger().emit('system.init', {
-    version: '0.2.0',
+    version: '0.3.0',
     screen: 'setup',
     userAgent: navigator.userAgent,
   });

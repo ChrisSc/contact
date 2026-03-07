@@ -6,7 +6,7 @@
 - **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant
 - **`game.ts`** — `GamePhase` enum, `PlayerState`, `GameState` interfaces; `PlayerIndex = 0 | 1`
 - **`abilities.ts`** — `AbilityId` union, `AbilityState` interface, `ABILITY_DEFINITIONS` constant
-- **`events.ts`** — `LogEventType` string literal union, `LogEvent` interface, payload interfaces per event category
+- **`events.ts`** — `LogEventType` string literal union (includes `view.board_toggle`), `LogEvent` interface, payload interfaces per event category
 
 ## Architecture
 

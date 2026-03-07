@@ -28,6 +28,7 @@ export type LogEventType =
   | 'view.change'
   | 'view.slice'
   | 'view.rotate'
+  | 'view.board_toggle'
   // Audio
   | 'audio.init'
   | 'audio.play'
