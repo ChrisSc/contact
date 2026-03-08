@@ -46,6 +46,7 @@ import {
   updateAmbientPhase,
   isAmbientRunning,
 } from '../../audio/ambient';
+import { AbilityOverlayManager } from '../effects/ability-overlays';
 
 interface CombatUIState {
   currentDepth: number | null;
@@ -251,6 +252,10 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     onSelect: handleInventorySelect,
   });
   el.appendChild(inventoryTray.render());
+
+  // --- Ability overlay canvas ---
+  const overlays = new AbilityOverlayManager();
+  el.appendChild(overlays.render());
 
   // --- Enemy fleet (bottom-right overlay) ---
   const fleetPanel = document.createElement('div');
@@ -509,6 +514,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       const deployed = game.useRadarJammer();
       if (deployed) {
         playRadarJammerSound();
+        overlays.play('radar_jammer');
         statusEl.className = 'combat-screen__status';
         statusEl.textContent = 'RADAR JAMMER DEPLOYED';
         statusEl.classList.add('combat-screen__status--sonar-negative');
@@ -525,6 +531,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       const deployed = game.useAcousticCloak();
       if (deployed) {
         playAcousticCloakSound();
+        overlays.play('acoustic_cloak');
         statusEl.className = 'combat-screen__status';
         statusEl.textContent = 'ACOUSTIC CLOAK: ALL SHIPS MASKED (2 TURNS)';
         statusEl.classList.add('combat-screen__status--sonar-negative');
@@ -545,6 +552,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     uiState.pingMode = false;
 
     playSonarPingSound();
+    overlays.play('sonar_ping');
 
     // Play sonar animation
     sceneManager.playSonarAnimation(coord, result.displayedResult);
@@ -580,6 +588,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     sceneManager.clearGhostCells();
 
     playReconDroneSound();
+    overlays.play('recon_drone');
 
     // Update scene grid first so materials are set
     updateSceneGrid();
@@ -624,6 +633,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     uiState.gSonarMode = false;
 
     playGSonarSound();
+    overlays.play('g_sonar');
 
     // Update scene grid first so materials are set
     updateSceneGrid();
@@ -759,6 +769,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
     sceneManager.playDepthChargeAnimation(coord, animResults);
     playDepthChargeSound();
+    overlays.play('depth_charge');
 
     // Screen shake if any hits
     const hasHits = animResults.some(r => r.hit);
@@ -826,6 +837,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     if (!success) return;
 
     playSilentRunningActivate();
+    overlays.play('silent_running');
 
     // Find ship name for status
     const ship = player.ships.find(s => s.id === cell.shipId);
@@ -964,6 +976,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       inventoryTray.destroy();
       actionSlotsComponent.destroy();
       notifications.destroy();
+      overlays.dispose();
       sceneManager.dispose();
       el.remove();
     },

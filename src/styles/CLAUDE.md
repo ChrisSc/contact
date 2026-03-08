@@ -3,9 +3,10 @@
 ## Files
 
 - **`variables.css`** — Design tokens (colors, spacing, fonts) + CSS reset. Single source of truth for theming.
-- **`crt.css`** — Scanline overlay, vignette effect, subtle flicker animation. CRT terminal aesthetic.
+- **`crt.css`** — Scanline overlay, vignette effect, barrel distortion (`#app` border-radius + inset box-shadow). CRT terminal aesthetic.
 - **`grid.css`** — Slice grid layout, cell state classes, ghost cell preview, hover effects.
 - **`ui.css`** — Screen layouts (setup, combat, victory, handoff), buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status, perk store, inventory tray, action slots, credit display, notification banner. Both setup and combat screens use canvas-dominant overlay layout.
+- **`effects.css`** — Phosphor bloom CSS utility. Applies `filter: brightness(1.05) blur(0.3px)` + stacked `text-shadow` (10px/20px/40px at decreasing alpha) to `.notification-banner` and `.combat-screen__status` elements. Amber bloom override for `--sunk`, cyan bloom for `--sonar-positive`.
 
 ## Architecture
 
@@ -40,3 +41,11 @@
 - **Mute button** (`.combat-screen__mute-btn`): Green-bordered toggle next to store button. `--muted` modifier dims the button (opacity 0.6) when audio is muted.
 - **Sonar status** (`.combat-screen__status--sonar-positive/negative`): Cyan for contact, dim green for negative.
 - **Notification banner** (`.notification-banner`): Fixed centered overlay at `z-index: 30`, pointer-events none. Messages use Press Start 2P font with glow. `--sunk` modifier: amber color/border, larger font. `--credits` modifier: green, smaller font. `--dismiss` modifier triggers fade-out animation. Appear/dismiss via `@keyframes notif-appear`/`notif-dismiss` (scale + opacity).
+
+## CRT Effects Layering
+
+- **Z-index convention**: scene=0, UI=10, store=20, banners=30, ability overlays=50, CRT noise=999, CRT scanlines=1000.
+- **Phosphor bloom** (`effects.css`): CSS-only brightness/blur filter + multi-layer text-shadow applied to notification banners and combat status text.
+- **Barrel distortion** (`crt.css`): `#app` gets `border-radius: 12px` + `box-shadow: inset 0 0 80px rgba(0,0,0,0.3)` for curved CRT screen edges.
+- **CRT noise** (`src/ui/effects/crt-noise.ts`): Canvas-based animated grain at z-index 999, tiled 256x256. Pulseable for ability cross-effects.
+- **CRT flicker** (`src/ui/flicker.ts`): RAF-driven opacity oscillation on `#app`. Pulseable via `FlickerController.pulse(intensity, durationMs)` for ability cross-effects.

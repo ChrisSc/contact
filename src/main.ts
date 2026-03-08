@@ -6,10 +6,13 @@ import { mountHandoffScreen } from './ui/screens/handoff-screen';
 import { mountCombatScreen } from './ui/screens/combat-screen';
 import { mountVictoryScreen } from './ui/screens/victory-screen';
 import { startFlicker } from './ui/flicker';
+import { CRTNoise } from './ui/effects/crt-noise';
+import { AbilityOverlayManager } from './ui/effects/ability-overlays';
 import './styles/variables.css';
 import './styles/crt.css';
 import './styles/grid.css';
 import './styles/ui.css';
+import './styles/effects.css';
 
 function initApp(): void {
   const app = document.getElementById('app');
@@ -26,8 +29,17 @@ function initApp(): void {
   router.register('combat', mountCombatScreen);
   router.register('victory', mountVictoryScreen);
 
-  // CRT flicker effect
-  startFlicker(app);
+  // CRT flicker effect — returns FlickerController (singleton stored in module)
+  const _flicker = startFlicker(app);
+  void _flicker; // available via getFlickerController() from other modules
+
+  // CRT noise grain overlay
+  const noise = new CRTNoise();
+  app.appendChild(noise.render());
+  noise.start();
+
+  // Wire noise into ability overlay cross-effects
+  AbilityOverlayManager.setNoiseInstance(noise);
 
   // Navigate to first setup screen
   router.navigate('setup');

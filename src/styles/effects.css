@@ -1,0 +1,43 @@
+/* CRT Bloom — applied to bright UI elements for phosphor glow enhancement */
+
+/* Notification banners */
+.notification-banner {
+  filter: brightness(1.05) blur(0.3px);
+  text-shadow:
+    0 0 10px rgba(0, 255, 65, 0.8),
+    0 0 20px rgba(0, 255, 65, 0.5),
+    0 0 40px rgba(0, 255, 65, 0.2);
+}
+
+/* Amber sunk variant — override glow color to match amber palette */
+.notification-banner--sunk {
+  text-shadow:
+    0 0 10px rgba(255, 176, 0, 0.8),
+    0 0 20px rgba(255, 176, 0, 0.5),
+    0 0 40px rgba(255, 176, 0, 0.2);
+}
+
+/* Green credits variant */
+.notification-banner--credits {
+  text-shadow:
+    0 0 10px rgba(0, 255, 65, 0.8),
+    0 0 20px rgba(0, 255, 65, 0.5),
+    0 0 40px rgba(0, 255, 65, 0.2);
+}
+
+/* Active combat status line */
+.combat-screen__status {
+  filter: brightness(1.05) blur(0.3px);
+  text-shadow:
+    0 0 10px rgba(0, 255, 65, 0.8),
+    0 0 20px rgba(0, 255, 65, 0.5),
+    0 0 40px rgba(0, 255, 65, 0.2);
+}
+
+/* Sonar contact variant — cyan bloom */
+.combat-screen__status--sonar-positive {
+  text-shadow:
+    0 0 10px rgba(0, 255, 255, 0.8),
+    0 0 20px rgba(0, 255, 255, 0.5),
+    0 0 40px rgba(0, 255, 255, 0.2);
+}
