@@ -2,7 +2,7 @@
 
 ## Files
 
-- **`logger.test.ts`** — 10 tests: event structure, sequence numbering, buffer management, FIFO eviction, clear, JSONL serialization
+- **`logger.test.ts`** — event structure, sequence numbering, buffer management, FIFO eviction, clear, JSONL serialization
 
 ## Architecture
 

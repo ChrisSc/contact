@@ -2,11 +2,11 @@
 
 ## Files
 
-- **`slice-grid.test.ts`** — 10 tests: grid rendering, cell state CSS classes, ghost cell preview, click callbacks
-- **`setup-screen.test.ts`** — 16 tests: mocked SceneManager (no WebGL), 3D canvas container, view mode selector (CUBE/SLICE/X-RAY), depth buttons (ALL+1-8), 6-axis selector (COL/ROW/DIAG↗/DIAG↘/COL+D/ROW+D), ship roster, raycaster cell click placement, raycaster hover coordinate display, ghost cell preview via setGhostCells, full placement flow (ships+decoy+confirm), reset, dispose on unmount
-- **`screen-router.test.ts`** — 4 tests: mount/unmount lifecycle, context passing, cleanup callback invocation
-- **`combat-screen.test.ts`** — 16 tests: mocked SceneManager (no WebGL, includes animation method mocks), header/HUD rendering (DEPTH/VISIBLE/SHOTS/HITS/SUNK/MODE), 3D canvas container, view mode selector (CUBE/SLICE/X-RAY), fire torpedo via raycaster callback, coordinate hover feedback, board toggle → setBoardType, end turn navigation, victory auto-navigation, dispose on unmount
-- **`victory-screen.test.ts`** — 4 tests: winner designation, stats display, export session trigger, new engagement restart
+- **`slice-grid.test.ts`** — grid rendering, cell state CSS classes, ghost cell preview, click callbacks
+- **`setup-screen.test.ts`** — mocked SceneManager (no WebGL), 3D canvas container, view mode selector (CUBE/SLICE/X-RAY), depth buttons (ALL+1-8), 6-axis selector (COL/ROW/DIAG↗/DIAG↘/COL+D/ROW+D), ship roster, raycaster cell click placement, raycaster hover coordinate display, ghost cell preview via setGhostCells, full placement flow (ships+decoy+confirm), reset, dispose on unmount
+- **`screen-router.test.ts`** — mount/unmount lifecycle, context passing, cleanup callback invocation
+- **`combat-screen.test.ts`** — mocked SceneManager (no WebGL, includes animation method mocks), header/HUD rendering (DEPTH/VISIBLE/SHOTS/HITS/SUNK/MODE), 3D canvas container, view mode selector (CUBE/SLICE/X-RAY), fire torpedo via raycaster callback, coordinate hover feedback, board toggle → setBoardType, end turn navigation, victory auto-navigation, dispose on unmount
+- **`victory-screen.test.ts`** — winner designation, stats display, export session trigger, new engagement restart
 
 ## Architecture
 

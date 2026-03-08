@@ -28,15 +28,6 @@ CONTACT is a browser-based 3D Battleship variant. Two players command submarine 
 | **Testing** | Vitest | Unit + integration tests, co-located with Vite config |
 | **UI** | Vanilla TypeScript + DOM | No framework. Three.js manages its own render loop. |
 
-### What NOT to use
-
-| Constraint | Detail |
-|---|---|
-| **OrbitControls** | DO NOT import `THREE.OrbitControls`. Implement custom drag/scroll camera controls. |
-| **CapsuleGeometry** | Does NOT exist in Three.js r128. Use Box, Sphere, or Cylinder. |
-| **localStorage/sessionStorage** | DO NOT use. All state lives in JS variables. |
-| **UI Frameworks** | No React, Vue, Svelte. Vanilla DOM only. |
-
 ---
 
 ## Observability (First-Class)
@@ -90,12 +81,6 @@ Top-level state tracks:
 - `phase` (setup_p1 | setup_p2 | combat | victory)
 - Per-player: `abilities` (earned/used), `ships[]` (health, cells, sunk flag)
 - Win condition: all 5 ships of one player sunk
-
-### Coordinate System
-
-- **Axes:** Column (A-H), Row (1-8), Depth (D1-D8)
-- **Format:** `Column-Row-Depth` (e.g., `C-4-D3`)
-- **Array indexing:** `grid[col][row][depth]` — 0-indexed internally, 1-indexed for display
 
 ---
 
@@ -161,29 +146,17 @@ See GDD Section 5.2 for full ability rules and interactions.
 
 ---
 
+## Constraints
+
+- **No `THREE.OrbitControls`** — custom drag/zoom implementation per GDD.
+- **No `THREE.CapsuleGeometry`** — does not exist in r128. Use Box, Sphere, or Cylinder.
+- **No `localStorage`/`sessionStorage`** — all state in JS variables.
+- **No UI frameworks** — vanilla DOM only.
+- **Observability** — if it changes game state, it emits a log event. No exceptions.
+
 ## Critical Gotchas
 
-1. **THREE.OrbitControls unavailable** in r128 CDN builds. Custom drag/zoom required even with npm import — keep it custom per GDD.
-2. **THREE.CapsuleGeometry does not exist** in r128.
-3. **No localStorage/sessionStorage** — all state in JS variables.
-4. **Decoy interaction complexity** — false positive across fire, drone, sonar. Test each path.
-5. **Silent Running timing** — track turns since activation, auto-reveal after 2 opponent turns.
-6. **Acoustic Cloak trigger** — earned reactively when enemy uses G-SONAR, not proactively.
-7. **Radar Jammer** — inverts result (yes<->no), does not simply return "no."
-8. **Observability** — if it changes game state, it emits a log event. No exceptions.
-
----
-
-## Rendering
-
-- Each cell = `THREE.BoxGeometry` + `THREE.EdgesGeometry` wireframe overlay
-- Material swap by cell state (see GDD Section 2.3)
-- Raycaster for mouse/touch cell picking
-- Custom orbit: drag-to-rotate, scroll-to-zoom (no OrbitControls)
-- View modes: CUBE, SLICE, X-RAY (see GDD Section 2.2)
-
----
-
-## CRT Aesthetic
-
-Cold War sonar terminal — green phosphor on dark background. Scanline overlay, CRT vignette, subtle flicker, static noise. Monospace pixel fonts only.
+1. **Decoy interaction complexity** — false positive across fire, drone, sonar. Test each path.
+2. **Silent Running timing** — track turns since activation, auto-reveal after 2 opponent turns.
+3. **Acoustic Cloak trigger** — earned reactively when enemy uses G-SONAR, not proactively.
+4. **Radar Jammer** — inverts result (yes<->no), does not simply return "no."
