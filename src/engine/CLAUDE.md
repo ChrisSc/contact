@@ -56,6 +56,6 @@
 
 ## Placement Axes
 
-6 axes via `AXIS_DELTAS` table — no purely vertical (depth-only) placement:
+8 axes via `AXIS_DELTAS` table — no purely vertical (depth-only) placement:
 - **Within-slice** (constant depth): `col`, `row`, `diag+` (col+row increase), `diag-` (col increases, row decreases)
-- **Cross-slice** (spans depth layers): `col-depth` (col+depth increase), `row-depth` (row+depth increase)
+- **Cross-slice** (spans depth layers): `col-depth` (col+depth increase), `col-depth-` (col increases, depth decreases), `row-depth` (row+depth increase), `row-depth-` (row increases, depth decreases)

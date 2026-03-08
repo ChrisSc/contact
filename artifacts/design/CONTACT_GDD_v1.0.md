@@ -54,7 +54,7 @@ Two-player local (hot-seat). Designed for couples, friends, and families who enj
 | Grid Dimensions | 8 × 8 × 8 (512 total cells) |
 | Axes | Column (A–H), Row (1–8), Depth (D1–D8) |
 | Coordinate Format | Column-Row-Depth (e.g., C-4-D3) |
-| Ship Orientation | 6 axes: col, row, diagonal (×2), cross-slice (×2). No purely vertical. |
+| Ship Orientation | 8 axes: col, row, diagonal (×2), cross-slice (×4). No purely vertical. |
 | Occupied Cells | 17 of 512 (3.3% density) |
 
 ## **2.2 View Modes**
@@ -90,11 +90,11 @@ Three view modes provide different perspectives on the 3D volume:
 | **Virginia** | 3 | Any allowed axis | Multi-role platform. |
 | **Midget Sub** | 2 | Any allowed axis | Small, hard to find. |
 
-Total occupied cells: 17 of 512 (3.3% volume density). Ships are placed along one of six allowed axes. Ships cannot bend, overlap, or extend outside the grid boundary.
+Total occupied cells: 17 of 512 (3.3% volume density). Ships are placed along one of eight allowed axes. Ships cannot bend, overlap, or extend outside the grid boundary.
 
 ### **3.1.1 Placement Axes**
 
-Six orientation axes are available, organized into two categories:
+Eight orientation axes are available, organized into two categories:
 
 **Within-slice** (ship stays at a constant depth layer):
 * **COL** — extends along columns (A→H), row and depth fixed
@@ -104,13 +104,17 @@ Six orientation axes are available, organized into two categories:
 
 **Cross-slice** (ship spans multiple depth layers while moving horizontally):
 * **COL+D** — extends along columns and depth simultaneously (column and depth both increase, row fixed)
+* **COL-D** — extends along columns with decreasing depth (column increases, depth decreases, row fixed)
 * **ROW+D** — extends along rows and depth simultaneously (row and depth both increase, column fixed)
+* **ROW-D** — extends along rows with decreasing depth (row increases, depth decreases, column fixed)
 
 **Purely vertical placement (depth-only) is not allowed.** Submarines cannot stand on end. This constraint ensures every ship has horizontal extent, making layer-by-layer searching viable while cross-slice axes add complexity that rewards 3D spatial reasoning.
 
+Players can cycle through axes using the **R key** during placement, in addition to clicking axis buttons directly.
+
 ## **3.2 Ship Placement Rules**
 
-* Ships must be placed along one of the six allowed axes (see Section 3.1.1)
+* Ships must be placed along one of the eight allowed axes (see Section 3.1.1)
 
 * Purely vertical (depth-only) orientation is forbidden
 
@@ -249,7 +253,7 @@ Both setup and combat screens share a canvas-dominant overlay layout: the 3D son
 
 ### **7.2.2 Setup Screen**
 
-* **Axis Selector (overlay, top center):** 6-axis toggle: COL / ROW / DIAG↗ / DIAG↘ / COL+D / ROW+D. Controls ship orientation for placement.
+* **Axis Selector (overlay, top center):** 8-axis toggle: COL / ROW / DIAG↗ / DIAG↘ / COL+D / COL-D / ROW+D / ROW-D. R key cycles through axes. Controls ship orientation for placement.
 
 * **Ship Roster (overlay, right side):** Fleet list with placement status, click to select for placement, click placed ship to remove.
 

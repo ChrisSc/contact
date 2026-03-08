@@ -11,7 +11,7 @@ CONTACT is a browser-based 3D naval combat game — Battleship reimagined in a v
 
 This delivery plan breaks the project into 7 sequential phases, each producing a shippable increment. The arc follows a deliberate layering strategy:
 
-**Phase 1 (Foundation)** stands up the project scaffolding, game state engine, and a fully playable game loop using slice-view grids. At the end of this phase, two players can sit down, place ships (using 6 placement axes — no purely vertical), take turns firing, and play to victory — no 3D rendering, no abilities, no audio. This is the structural proof that the core mechanics work. Critically, Phase 1 also establishes the observability layer: a structured JSONL event logger that instruments every state mutation from day one. Every subsequent phase emits events through this logger, meaning the game is fully auditable before a single line of rendering code exists.
+**Phase 1 (Foundation)** stands up the project scaffolding, game state engine, and a fully playable game loop using slice-view grids. At the end of this phase, two players can sit down, place ships (using 8 placement axes — no purely vertical), take turns firing, and play to victory — no 3D rendering, no abilities, no audio. This is the structural proof that the core mechanics work. Critically, Phase 1 also establishes the observability layer: a structured JSONL event logger that instruments every state mutation from day one. Every subsequent phase emits events through this logger, meaning the game is fully auditable before a single line of rendering code exists.
 
 **Phase 2 (3D Rendering)** replaces the flat slice grid with a production Three.js volumetric cube on both the setup and combat screens. All three GDD view modes (Cube, Slice, X-Ray) are implemented with custom orbit controls, raycasting for cell selection, state-driven materials with three opacity tiers, and a ghost cell overlay for 3D placement preview. This is the visual identity moment — the game starts looking like a Cold War sonar terminal.
 
@@ -247,7 +247,7 @@ Establish the project scaffolding, core engine, game state model, and minimum pl
 - Define `Grid` type: three-dimensional `Cell` array (8×8×8)
 - Define `Ship` interface: `{ id: string, name: string, size: number }`
 - Define `ShipPlacement` interface: `{ shipId: string, origin: Coordinate, axis: PlacementAxis, cells: Coordinate[] }`
-- Define `PlacementAxis` type: `'col' | 'row' | 'diag+' | 'diag-' | 'col-depth' | 'row-depth'` (6 axes, no purely vertical)
+- Define `PlacementAxis` type: `'col' | 'row' | 'diag+' | 'diag-' | 'col-depth' | 'col-depth-' | 'row-depth' | 'row-depth-'` (8 axes, no purely vertical). Export `PLACEMENT_AXES` constant for cycle order.
 - Define `PlayerState` interface: `{ ownGrid: Grid, targetingGrid: Grid, placements: ShipPlacement[], shipHealth: Record<string, number> }`
 - Define `GamePhase` enum: `setup_p1`, `setup_p2`, `combat`, `victory`
 - Define `GameState` interface: `{ phase: GamePhase, currentPlayer: 0 | 1, turnCount: number, players: [PlayerState, PlayerState], log: GameEvent[] }`
@@ -287,13 +287,13 @@ Establish the project scaffolding, core engine, game state model, and minimum pl
 - Define ship roster constant: Typhoon (5), Akula (4), Seawolf (3), Virginia (3), Midget Sub (2)
 - Implement `AXIS_DELTAS` lookup table: maps each `PlacementAxis` to `[dCol, dRow, dDepth]` per step
 - Implement `calculateShipCells(origin, axis, size)`: compute cell coordinates using `AXIS_DELTAS`
-- Implement `validatePlacement(grid, ship, origin, axis)`: 6-axis constraint, boundary check, overlap detection (ships and decoy). Diagonal axes must validate both col/row bounds; cross-slice axes must validate depth bounds.
+- Implement `validatePlacement(grid, ship, origin, axis)`: 8-axis constraint, boundary check, overlap detection (ships and decoy). Diagonal axes must validate both col/row bounds; cross-slice axes must validate depth bounds (including negative depth for `col-depth-`/`row-depth-`).
 - Implement `placeShip(grid, ship, origin, axis)`: returns new grid with ship cells marked
 - Implement `removeShip(grid, shipId)`: returns new grid with ship cells cleared (for repositioning)
 - Implement `placeDecoy(grid, coord)`: validates no overlap, marks cell as decoy
 - Implement `getShipHealth(grid, shipId)`: count non-hit cells for a given ship
 - Implement `checkSunk(grid, shipId)`: returns true if all cells hit → mark entire ship `sunk`
-- Write unit tests for placement validation on all 6 axes, overlap rejection, boundary cases (diag- row underflow, cross-slice depth overflow), consistent depth for within-slice axes, sunk detection
+- Write unit tests for placement validation on all 8 axes, overlap rejection, boundary cases (diag- row underflow, cross-slice depth overflow, col-depth-/row-depth- depth underflow), consistent depth for within-slice axes, sunk detection
 - Instrument all fleet mutations: emit `fleet.place`, `fleet.remove`, `fleet.decoy_place`, `fleet.confirm` events via Logger
 
 **Component: Turn & Session Controller**
@@ -326,7 +326,7 @@ Establish the project scaffolding, core engine, game state model, and minimum pl
 
 **Component: Ship Placement Screen**
 - Render depth layer selector (ALL + D1–D8 buttons)
-- Render 6-axis selector (COL / ROW / DIAG↗ / DIAG↘ / COL+D / ROW+D)
+- Render 8-axis selector (COL / ROW / DIAG↗ / DIAG↘ / COL+D / COL-D / ROW+D / ROW-D) with R key cycling
 - Render ship roster with placed/unplaced status indicators
 - Implement placement preview: ghost cells showing proposed ship position on hover
 - Implement placement confirmation: click to commit, call `placeShip()`, update grid
@@ -443,7 +443,7 @@ Replace the flat slice grid with production Three.js rendering. Implement all th
 **Component: Setup Screen 3D Upgrade**
 - Rewrite setup screen from 2D SliceGrid to canvas-dominant overlay layout matching combat screen pattern
 - Wire SceneManager: view mode selector, depth panel, coordinate display via raycaster hover, ship/decoy placement via raycaster cell click
-- 6-axis selector overlay (COL/ROW/DIAG↗/DIAG↘/COL+D/ROW+D)
+- 8-axis selector overlay (COL/ROW/DIAG↗/DIAG↘/COL+D/COL-D/ROW+D/ROW-D) with R key cycling
 - Ship roster as right-side overlay with selection and removal callbacks
 - Ghost cell preview via `SceneManager.setGhostCells()` — green for valid, red for invalid placement
 - Board type fixed to `'own'` (always shows own grid with ships visible)
@@ -723,7 +723,7 @@ Production build, containerized deployment, comprehensive testing, and release p
 
 **Component: Unit Tests (Engine)**
 - Test grid operations: create, get, set, coordinate round-trip
-- Test fleet placement: all 5 ships on each of 6 axes (col, row, diag+, diag-, col-depth, row-depth), boundary cases (diag- row underflow, cross-slice depth overflow), overlap rejection
+- Test fleet placement: all 5 ships on each of 8 axes (col, row, diag+, diag-, col-depth, col-depth-, row-depth, row-depth-), boundary cases (diag- row underflow, cross-slice depth overflow, negative depth underflow), overlap rejection
 - Test decoy: placement, hit → false confirmation, next-turn retraction, drone interaction
 - Test all 8 abilities: earn conditions, activation, effect resolution, consumption
 - Test ability interactions: Sonar Ping vs. Radar Jammer, Recon Drone vs. Decoy, G-SONAR vs. Acoustic Cloak, Silent Running delayed reveal

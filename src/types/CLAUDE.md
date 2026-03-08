@@ -3,7 +3,7 @@
 ## Files
 
 - **`grid.ts`** — `Grid3D`, `Cell`, `Coordinate` types; `CellState` enum; column/row/depth label constants
-- **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant; `TOTAL_SHIP_CELLS` constant
+- **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant; `PLACEMENT_AXES` constant (8-axis cycle order); `TOTAL_SHIP_CELLS` constant
 - **`game.ts`** — `GamePhase` enum, `PlayerState`, `GameState`, `TurnSlots` interfaces; `PlayerIndex = 0 | 1`
 - **`abilities.ts`** — `AbilityId` union, `AbilityState` interface, `ABILITY_DEFINITIONS` constant; `PerkId` union, `PerkSlot` union, `PerkDefinition`/`PerkInstance` interfaces, `PlayerInventory` type, `STARTING_CREDITS` constant, `PERK_CATALOG` constant
 - **`events.ts`** — `LogEventType` string literal union (includes `fleet.decoy_place`, `view.depth_change`, `view.mode_change`, `view.board_toggle`, `economy.credit`, `economy.purchase`, `economy.balance`, `perk.use`), `LogEvent` interface, payload interfaces per event category
@@ -40,6 +40,7 @@
 
 ## PlacementAxis
 
-6 axes — no purely vertical (depth-only): `'col' | 'row' | 'diag+' | 'diag-' | 'col-depth' | 'row-depth'`
+8 axes — no purely vertical (depth-only): `'col' | 'row' | 'diag+' | 'diag-' | 'col-depth' | 'col-depth-' | 'row-depth' | 'row-depth-'`
 - Within-slice: `col`, `row`, `diag+`, `diag-`
-- Cross-slice: `col-depth`, `row-depth`
+- Cross-slice: `col-depth`, `col-depth-`, `row-depth`, `row-depth-`
+- `PLACEMENT_AXES` constant defines the cycle order for R-key rotation

@@ -2,7 +2,7 @@ import type { ScreenContext, ScreenCleanup } from '../screen-router';
 import type { Coordinate } from '../../types/grid';
 import { CellState, GRID_SIZE } from '../../types/grid';
 import type { FleetRosterEntry, PlacementAxis } from '../../types/fleet';
-import { FLEET_ROSTER } from '../../types/fleet';
+import { FLEET_ROSTER, PLACEMENT_AXES } from '../../types/fleet';
 import { calculateShipCells, validatePlacement } from '../../engine/fleet';
 import { getCell, formatCoordinate } from '../../engine/grid';
 import { ShipRoster, DECOY_ID } from '../components/ship-roster';
@@ -93,7 +93,9 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
     { id: 'diag+', label: 'DIAG\u2197' },
     { id: 'diag-', label: 'DIAG\u2198' },
     { id: 'col-depth', label: 'ROW+D' },
+    { id: 'col-depth-', label: 'ROW-D' },
     { id: 'row-depth', label: 'COL+D' },
+    { id: 'row-depth-', label: 'COL-D' },
   ];
 
   for (const axis of axes) {
@@ -219,7 +221,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   // --- Controls hint ---
   const hint = document.createElement('div');
   hint.className = 'setup-screen__hint';
-  hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO PLACE';
+  hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO PLACE \u00b7 R TO CYCLE AXIS';
   el.appendChild(hint);
 
   container.appendChild(el);
@@ -236,6 +238,16 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   updateSceneGrid();
   sceneManager.start();
   updateStatus();
+
+  // --- R key rotation handler ---
+  function handleKeyDown(e: KeyboardEvent): void {
+    if (e.key !== 'r' && e.key !== 'R') return;
+    if (uiState.placementPhase !== 'ships' && uiState.placementPhase !== 'decoy') return;
+    const currentIndex = PLACEMENT_AXES.indexOf(uiState.currentAxis);
+    const nextAxis = PLACEMENT_AXES[(currentIndex + 1) % PLACEMENT_AXES.length]!;
+    handleAxisChange(nextAxis);
+  }
+  document.addEventListener('keydown', handleKeyDown);
 
   // --- Handlers ---
 
@@ -437,6 +449,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
 
   return {
     unmount(): void {
+      document.removeEventListener('keydown', handleKeyDown);
       sceneManager.dispose();
       shipRoster.destroy();
       el.remove();

@@ -122,12 +122,12 @@ describe('Setup Screen', () => {
     expect(btns.length).toBe(9);
   });
 
-  it('renders axis selector with 6 buttons', () => {
+  it('renders axis selector with 8 buttons', () => {
     mountScreen();
     const btns = container.querySelectorAll('.setup-screen__axis-btn');
-    expect(btns.length).toBe(6);
+    expect(btns.length).toBe(8);
     expect(Array.from(btns).map(b => b.textContent)).toEqual([
-      'ROW', 'COL', 'DIAG\u2197', 'DIAG\u2198', 'ROW+D', 'COL+D',
+      'ROW', 'COL', 'DIAG\u2197', 'DIAG\u2198', 'ROW+D', 'ROW-D', 'COL+D', 'COL-D',
     ]);
   });
 
@@ -254,6 +254,61 @@ describe('Setup Screen', () => {
     resetBtn.click();
 
     expect(game.getCurrentPlayer().ships.length).toBe(0);
+  });
+
+  it('R key cycles to next axis during ship placement', () => {
+    mountScreen();
+    // Default axis is 'col', R should cycle to 'row'
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+    const btns = container.querySelectorAll('.setup-screen__axis-btn');
+    const activeBtn = Array.from(btns).find(b => b.classList.contains('setup-screen__axis-btn--active'));
+    expect(activeBtn?.textContent).toBe('COL'); // 'row' axis → COL label
+  });
+
+  it('R key wraps around after last axis', () => {
+    mountScreen();
+    // Press R 8 times to wrap around back to 'col'
+    for (let i = 0; i < 8; i++) {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+    }
+    const btns = container.querySelectorAll('.setup-screen__axis-btn');
+    const activeBtn = Array.from(btns).find(b => b.classList.contains('setup-screen__axis-btn--active'));
+    expect(activeBtn?.textContent).toBe('ROW'); // 'col' axis → ROW label
+  });
+
+  it('R key does nothing during confirm phase', () => {
+    mountScreen();
+
+    // Place all ships + decoy to reach confirm phase
+    const placements = [
+      { id: 'typhoon', col: 0, row: 0, depth: 0 },
+      { id: 'akula', col: 0, row: 1, depth: 0 },
+      { id: 'seawolf', col: 0, row: 2, depth: 0 },
+      { id: 'virginia', col: 0, row: 3, depth: 0 },
+      { id: 'midget', col: 0, row: 4, depth: 0 },
+    ];
+    for (const p of placements) {
+      const entries = container.querySelectorAll('.ship-roster__entry');
+      const entry = Array.from(entries).find(
+        (e) => e.getAttribute('data-ship-id') === p.id,
+      ) as HTMLElement;
+      entry.click();
+      cellClickCb!({ col: p.col, row: p.row, depth: p.depth });
+    }
+    const decoyEntry = container.querySelector('[data-ship-id="decoy"]') as HTMLElement;
+    decoyEntry.click();
+    cellClickCb!({ col: 7, row: 7, depth: 7 });
+
+    // Now in confirm phase — R should not change axis
+    const btnsBefore = container.querySelectorAll('.setup-screen__axis-btn');
+    const activeBefore = Array.from(btnsBefore).find(b => b.classList.contains('setup-screen__axis-btn--active'));
+    const labelBefore = activeBefore?.textContent;
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
+
+    const btnsAfter = container.querySelectorAll('.setup-screen__axis-btn');
+    const activeAfter = Array.from(btnsAfter).find(b => b.classList.contains('setup-screen__axis-btn--active'));
+    expect(activeAfter?.textContent).toBe(labelBefore);
   });
 
   it('dispose is called on unmount', () => {

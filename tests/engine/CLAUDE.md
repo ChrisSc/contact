@@ -3,7 +3,7 @@
 ## Files
 
 - **`grid.test.ts`** — grid creation, coordinate validation, get/set cell, coordinate parsing and formatting
-- **`fleet.test.ts`** — ship placement, validation (overlap, OOB, axis), removal, decoy, sunk detection, `getShipHealth`, `fleet.decoy_place` event. Covers all 6 axes: col, row, diag+, diag-, col-depth, row-depth. Validates consistent depth for within-slice axes and cross-slice depth progression.
+- **`fleet.test.ts`** — ship placement, validation (overlap, OOB, axis), removal, decoy, sunk detection, `getShipHealth`, `fleet.decoy_place` event. Covers all 8 axes: col, row, diag+, diag-, col-depth, col-depth-, row-depth, row-depth-. Validates consistent depth for within-slice axes, cross-slice depth progression, and negative depth boundary rejection.
 - **`game.test.ts`** — setup flow (both players), combat turns, torpedo firing, victory detection, full game integration, `combat.fire` payload (ship/remaining), `combat.sunk` payload (remaining: 0), credit awards (hit/miss/sunk/consecutive), perk purchase, sonar ping (targeting grid write, inventory consumption, ping slot, re-ping blocking), turn slots (ping doesn't block attack, attack blocks second attack, fire on sonar-pinged cell)
 - **`credits.test.ts`** — `calculateFireCredits`: miss (empty), hit (1), hit+consecutive (1+5), sunk (1+10), sunk+consecutive (1+5+10)
 - **`perks.test.ts`** — `getPerkDefinition` (known/unknown), `canPurchase` (true/false/exact), `purchasePerk` (success/insufficient/immutability), `removeFromInventory`, `getInventoryBySlot`, `generateInstanceId` (incrementing/scoped by perk type)

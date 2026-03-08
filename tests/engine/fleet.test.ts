@@ -88,6 +88,25 @@ describe('calculateShipCells', () => {
       { col: 3, row: 3, depth: 4 },
     ]);
   });
+
+  it('extends along col-depth- axis (col increases, depth decreases)', () => {
+    const cells = calculateShipCells({ col: 0, row: 2, depth: 4 }, 'col-depth-', 3);
+    expect(cells).toEqual([
+      { col: 0, row: 2, depth: 4 },
+      { col: 1, row: 2, depth: 3 },
+      { col: 2, row: 2, depth: 2 },
+    ]);
+  });
+
+  it('extends along row-depth- axis (row increases, depth decreases)', () => {
+    const cells = calculateShipCells({ col: 3, row: 0, depth: 5 }, 'row-depth-', 4);
+    expect(cells).toEqual([
+      { col: 3, row: 0, depth: 5 },
+      { col: 3, row: 1, depth: 4 },
+      { col: 3, row: 2, depth: 3 },
+      { col: 3, row: 3, depth: 2 },
+    ]);
+  });
 });
 
 describe('validatePlacement', () => {
@@ -111,6 +130,33 @@ describe('validatePlacement', () => {
     const result = validatePlacement(grid, seawolf, { col: 0, row: 1, depth: 0 }, 'diag-');
     expect(result.valid).toBe(false);
     expect(result.error).toContain('boundaries');
+  });
+
+  it('rejects col-depth- placement that goes below depth 0', () => {
+    const grid = createGrid();
+    // col-depth- from depth 1, size 3: depths 1, 0, -1 — OOB
+    const result = validatePlacement(grid, seawolf, { col: 0, row: 0, depth: 1 }, 'col-depth-');
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('boundaries');
+  });
+
+  it('rejects row-depth- placement that goes below depth 0', () => {
+    const grid = createGrid();
+    const result = validatePlacement(grid, seawolf, { col: 0, row: 0, depth: 1 }, 'row-depth-');
+    expect(result.valid).toBe(false);
+    expect(result.error).toContain('boundaries');
+  });
+
+  it('accepts valid col-depth- placement', () => {
+    const grid = createGrid();
+    const result = validatePlacement(grid, seawolf, { col: 0, row: 0, depth: 4 }, 'col-depth-');
+    expect(result.valid).toBe(true);
+  });
+
+  it('accepts valid row-depth- placement', () => {
+    const grid = createGrid();
+    const result = validatePlacement(grid, seawolf, { col: 0, row: 0, depth: 4 }, 'row-depth-');
+    expect(result.valid).toBe(true);
   });
 
   it('accepts valid diagonal placement', () => {

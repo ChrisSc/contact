@@ -12,7 +12,9 @@ const AXIS_DELTAS: Record<PlacementAxis, [number, number, number]> = {
   'diag+':     [1, 1, 0],
   'diag-':     [1, -1, 0],
   'col-depth': [1, 0, 1],
+  'col-depth-': [1, 0, -1],
   'row-depth': [0, 1, 1],
+  'row-depth-': [0, 1, -1],
 };
 
 export function calculateShipCells(
