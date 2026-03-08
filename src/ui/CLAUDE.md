@@ -12,9 +12,10 @@
 - **`components/perk-store.ts`** — `PerkStore` class: slide-out store panel with OFFENSIVE (red border) / DEFENSIVE (green border) sections. Each perk shows name, cost badge (amber), description, BUY button. `update(credits)` refreshes button enabled/disabled states. Callbacks: `onPurchase(perkId)`, `onClose()`.
 - **`components/inventory-tray.ts`** — `InventoryTray` class: purchased perks grouped by perkId with count badges (e.g., "x3"). Slot badges (PING/ATK/DEF). Offensive red-tinted, defensive green-tinted. Selected state with glow border. `update(inventory)`, `getSelected()`, `clearSelection()`. Callback: `onSelect(instance)`.
 - **`components/action-slots.ts`** — `ActionSlots` class: PING / ATTACK / DEFEND slot HUD. Three states: available (dim), used (bright + checkmark), unavailable (dark). `update(turnSlots, hasInventory)`.
+- **`components/notification-banner.ts`** — `NotificationBanner` class: queued CRT notification overlay. `show(config)` displays text banner with optional CSS class and duration (default 2500ms). Queues notifications if one is active; auto-dismisses and shows next. `destroy()` cleans up.
 - **`screens/setup-screen.ts`** — `mountSetupScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), depth panel, 8-axis selector, ship roster overlay, ghost cell preview via raycaster hover, ship/decoy placement via raycaster click, R key to cycle axes, AUTO DEPLOY button (random valid placement of all ships + decoy), confirm flow. Placement phases: `ships` → `decoy-pending` → `decoy` → `confirm`. Decoy requires explicit roster selection before placement.
 - **`screens/handoff-screen.ts`** — `mountHandoffScreen()`: player transition with ready confirmation
-- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations, coordinate hover feedback, HUD stats, enemy fleet status, credit display (amber), STORE button, perk store panel, inventory tray, action slots, ping mode flow, drone mode flow, depth charge mode flow, silent running mode flow, audio integration, end turn
+- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations, coordinate hover feedback, HUD stats, enemy fleet status, credit display (amber), STORE button, perk store panel, inventory tray, action slots, notification banner, ping mode flow, drone mode flow, depth charge mode flow, silent running mode flow, screen shake on hit/sunk, audio integration, end turn
 - **`screens/victory-screen.ts`** — `mountVictoryScreen()`: winner display, stats summary, session export, new engagement restart
 
 ## Architecture
@@ -39,6 +40,7 @@
 - UI state lives in **screen closures**, NOT in GameController. Engine state and UI state are separate.
 - **SceneManager shared pattern**: Both setup and combat screens instantiate SceneManager with `{ container }`, wire `onCellClick`/`onCellHover`, call `start()`, and `dispose()` on unmount.
 - **Combat animation wiring**: `handleFire()` calls `sceneManager.playHitAnimation(coord)` on hit, `sceneManager.playSunkAnimation(ship.cells)` on sunk (cells from `game.getOpponent().ships`), `sceneManager.playMissAnimation(coord)` on miss. `handlePing()` calls `sceneManager.playSonarAnimation(coord, positive)`. `handleDroneScan()` filters `result.cells` to only `written` cells, then calls `sceneManager.playDroneScanAnimation(writtenCells)`. `handleDepthChargeStrike()` filters `already_resolved` cells, then calls `sceneManager.playDepthChargeAnimation(center, animResults)`. Animations run after `updateSceneGrid()` so they overwrite view materials.
+- **Combat feedback**: Screen shake on hit/sunk via `sceneManager.playScreenShake()`. Notification banners via `NotificationBanner` component: "VESSEL DESTROYED: [NAME]" (amber, 2500ms) on sunk, "+N CREDITS" (green, 2000ms on sunk, 1500ms on hit) when credits awarded. Depth charge: shake if any hits, per-ship sunk banners, total credits banner. Banners queue automatically for sequential display.
 
 ## Combat Screen — Perk Integration
 
@@ -61,4 +63,4 @@
 - **Mode cancellation**: `gSonarMode` is cancelled (set to false + `inventoryTray.clearSelection()`) when switching board view via `handleBoardToggle()`, and cancelled (set to false) when selecting any new inventory item via `handleInventorySelect()`.
 - **Audio functions**: `playGSonarSound()` fires on G-SONAR scan; `playAcousticCloakSound()` fires on Acoustic Cloak deploy. Both imported from `../../audio/abilities`.
 - **End turn gating**: `turnSlots.attackUsed` required (unchanged from pre-perk behavior).
-- **Cleanup**: `perkStore.destroy()`, `inventoryTray.destroy()`, `actionSlotsComponent.destroy()`, `stopAmbient()` in `unmount()`.
+- **Cleanup**: `perkStore.destroy()`, `inventoryTray.destroy()`, `actionSlotsComponent.destroy()`, `notifications.destroy()`, `stopAmbient()` in `unmount()`.

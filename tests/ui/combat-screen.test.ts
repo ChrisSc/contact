@@ -27,6 +27,7 @@ const mockSceneManager = {
   playSonarAnimation: vi.fn(),
   playDroneScanAnimation: vi.fn(),
   playDepthChargeAnimation: vi.fn(),
+  playScreenShake: vi.fn(),
   setSilentRunningOverlay: vi.fn(),
   clearSilentRunningOverlay: vi.fn(),
   clearGhostCells: vi.fn(),

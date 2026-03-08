@@ -62,6 +62,7 @@ function createPlayerState(index: PlayerIndex): PlayerState {
 export interface FireResult {
   result: 'hit' | 'miss' | 'sunk';
   shipId?: string;
+  creditsAwarded?: number;
 }
 
 export interface DepthChargeResult {
@@ -302,8 +303,10 @@ export class GameController {
 
     // Credit awards
     const creditResult = calculateFireCredits(fireResult, attacker.lastTurnHit);
+    let creditsAwarded = 0;
     for (const award of creditResult.awards) {
       attacker.credits += award.amount;
+      creditsAwarded += award.amount;
       this.logger.emit('economy.credit', {
         player: attacker.index,
         type: award.type,
@@ -317,10 +320,10 @@ export class GameController {
 
     if (fireResult === 'sunk') {
       this.checkVictory();
-      return { result: 'sunk', shipId: resultShipId };
+      return { result: 'sunk', shipId: resultShipId, creditsAwarded };
     }
 
-    return { result: fireResult, shipId: resultShipId };
+    return { result: fireResult, shipId: resultShipId, creditsAwarded };
   }
 
   getTurnSlots(): TurnSlots {
