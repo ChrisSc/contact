@@ -34,6 +34,7 @@ function createTestPlayerState(overrides?: Partial<PlayerState>): PlayerState {
     credits: 5,
     inventory: [],
     lastTurnHit: false,
+    silentRunningShips: [],
     ...overrides,
   };
 }
@@ -209,6 +210,56 @@ describe('executeReconDrone', () => {
 
     const result = executeReconDrone({ col: 4, row: 4, depth: 4 }, attacker, defender);
     expect(result.cells.every(c => !c.displayedResult)).toBe(true);
+  });
+
+  it('silent running ship is masked from drone per-cell', () => {
+    const attacker = createTestPlayerState({ index: 0, designation: 'ALPHA' });
+    const defender = createTestPlayerState();
+    defender.ownGrid = setCell(defender.ownGrid, { col: 3, row: 3, depth: 3 }, { state: CellState.Ship, shipId: 'typhoon' });
+    defender.ownGrid = setCell(defender.ownGrid, { col: 4, row: 3, depth: 3 }, { state: CellState.Ship, shipId: 'akula' });
+    defender.silentRunningShips = [{ shipId: 'typhoon', turnsRemaining: 2 }];
+
+    const result = executeReconDrone({ col: 3, row: 3, depth: 3 }, attacker, defender);
+
+    // Typhoon cell should be masked (SR active)
+    const typhoonCell = result.cells.find(c => c.coord.col === 3 && c.coord.row === 3 && c.coord.depth === 3);
+    expect(typhoonCell!.rawResult).toBe(true);
+    expect(typhoonCell!.displayedResult).toBe(false);
+
+    // Akula cell should still show (not SR'd)
+    const akulaCell = result.cells.find(c => c.coord.col === 4 && c.coord.row === 3 && c.coord.depth === 3);
+    expect(akulaCell!.rawResult).toBe(true);
+    expect(akulaCell!.displayedResult).toBe(true);
+  });
+
+  it('silent running does not mask decoy', () => {
+    const attacker = createTestPlayerState({ index: 0, designation: 'ALPHA' });
+    const defender = createTestPlayerState();
+    defender.ownGrid = setCell(defender.ownGrid, { col: 3, row: 3, depth: 3 }, { state: CellState.Decoy, shipId: null });
+    defender.silentRunningShips = [{ shipId: 'typhoon', turnsRemaining: 2 }];
+
+    const result = executeReconDrone({ col: 3, row: 3, depth: 3 }, attacker, defender);
+    const decoyCell = result.cells.find(c => c.coord.col === 3 && c.coord.row === 3 && c.coord.depth === 3);
+    expect(decoyCell!.rawResult).toBe(true);
+    expect(decoyCell!.displayedResult).toBe(true);
+  });
+
+  it('silent running takes priority over jammer for SR ship', () => {
+    const attacker = createTestPlayerState({ index: 0, designation: 'ALPHA' });
+    const defender = createTestPlayerState();
+    defender.ownGrid = setCell(defender.ownGrid, { col: 3, row: 3, depth: 3 }, { state: CellState.Ship, shipId: 'typhoon' });
+    defender.silentRunningShips = [{ shipId: 'typhoon', turnsRemaining: 1 }];
+    defender.abilities.radar_jammer.active = true;
+
+    const result = executeReconDrone({ col: 3, row: 3, depth: 3 }, attacker, defender);
+
+    // SR takes priority: ship is masked by SR, not by jammer
+    const shipCell = result.cells.find(c => c.coord.col === 3 && c.coord.row === 3 && c.coord.depth === 3);
+    expect(shipCell!.rawResult).toBe(true);
+    expect(shipCell!.displayedResult).toBe(false);
+
+    // Jammer is still flagged
+    expect(result.jammed).toBe(true);
   });
 
   it('hit cells on defender grid are NOT detected as ships', () => {

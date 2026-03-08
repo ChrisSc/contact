@@ -41,6 +41,8 @@ export type LogEventType =
   | 'economy.balance'
   // Perks
   | 'perk.use'
+  | 'perk.effect'
+  | 'perk.expire'
   // System
   | 'system.init'
   | 'system.error'
@@ -114,4 +116,17 @@ export interface PerkUsePayload {
   instanceId: string;
   target?: string;
   result?: string;
+}
+
+export interface PerkEffectPayload {
+  player: PlayerIndex;
+  perkId: PerkId;
+  shipId?: string;
+  turnsRemaining?: number;
+}
+
+export interface PerkExpirePayload {
+  player: PlayerIndex;
+  perkId: PerkId;
+  shipId?: string;
 }

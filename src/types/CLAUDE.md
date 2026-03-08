@@ -4,9 +4,9 @@
 
 - **`grid.ts`** — `Grid3D`, `Cell`, `Coordinate` types; `CellState` enum; column/row/depth label constants
 - **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant; `PLACEMENT_AXES` constant (8-axis cycle order); `TOTAL_SHIP_CELLS` constant
-- **`game.ts`** — `GamePhase` enum, `PlayerState`, `GameState`, `TurnSlots` interfaces; `PlayerIndex = 0 | 1`
+- **`game.ts`** — `GamePhase` enum, `PlayerState`, `GameState`, `TurnSlots`, `SilentRunningEntry` interfaces; `PlayerIndex = 0 | 1`
 - **`abilities.ts`** — `AbilityId` union, `AbilityState` interface, `ABILITY_DEFINITIONS` constant; `PerkId` union, `PerkSlot` union, `PerkDefinition`/`PerkInstance` interfaces, `PlayerInventory` type, `STARTING_CREDITS` constant, `PERK_CATALOG` constant
-- **`events.ts`** — `LogEventType` string literal union (includes `fleet.decoy_place`, `view.depth_change`, `view.mode_change`, `view.board_toggle`, `economy.credit`, `economy.purchase`, `economy.balance`, `perk.use`), `LogEvent` interface, payload interfaces per event category
+- **`events.ts`** — `LogEventType` string literal union (includes `fleet.decoy_place`, `view.depth_change`, `view.mode_change`, `view.board_toggle`, `economy.credit`, `economy.purchase`, `economy.balance`, `perk.use`, `perk.effect`, `perk.expire`), `LogEvent` interface, payload interfaces per event category
 
 ## Architecture
 
@@ -35,7 +35,8 @@
 - **`PerkSlot`**: `'ping' | 'attack' | 'defend'` — determines which turn slot a perk consumes
 - **`PerkDefinition`**: Catalog entry with id, name, type (offensive/defensive), slot, cost, description
 - **`PerkInstance`**: Runtime instance with unique id (e.g., `sonar_ping_1`), perkId, purchasedOnTurn
-- **`PlayerState`** now includes `credits: number`, `inventory: PerkInstance[]`, `lastTurnHit: boolean`
+- **`PlayerState`** now includes `credits: number`, `inventory: PerkInstance[]`, `lastTurnHit: boolean`, `silentRunningShips: SilentRunningEntry[]`
+- **`SilentRunningEntry`**: `{ shipId: string, turnsRemaining: number }` — tracks active SR state per ship
 - **`TurnSlots`**: `{ pingUsed, attackUsed, defendUsed }` — replaces old `actionTaken: boolean`
 
 ## PlacementAxis

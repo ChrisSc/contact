@@ -14,7 +14,7 @@
 - **`components/action-slots.ts`** — `ActionSlots` class: PING / ATTACK / DEFEND slot HUD. Three states: available (dim), used (bright + checkmark), unavailable (dark). `update(turnSlots, hasInventory)`.
 - **`screens/setup-screen.ts`** — `mountSetupScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), depth panel, 8-axis selector, ship roster overlay, ghost cell preview via raycaster hover, ship/decoy placement via raycaster click, R key to cycle axes, confirm flow. Placement phases: `ships` → `decoy-pending` → `decoy` → `confirm`. Decoy requires explicit roster selection before placement.
 - **`screens/handoff-screen.ts`** — `mountHandoffScreen()`: player transition with ready confirmation
-- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations, coordinate hover feedback, HUD stats, enemy fleet status, credit display (amber), STORE button, perk store panel, inventory tray, action slots, ping mode flow, end turn
+- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations, coordinate hover feedback, HUD stats, enemy fleet status, credit display (amber), STORE button, perk store panel, inventory tray, action slots, ping mode flow, drone mode flow, depth charge mode flow, silent running mode flow, audio integration, end turn
 - **`screens/victory-screen.ts`** — `mountVictoryScreen()`: winner display, stats summary, session export, new engagement restart
 
 ## Architecture
@@ -38,16 +38,21 @@
 - **Options object** pattern for component configuration.
 - UI state lives in **screen closures**, NOT in GameController. Engine state and UI state are separate.
 - **SceneManager shared pattern**: Both setup and combat screens instantiate SceneManager with `{ container }`, wire `onCellClick`/`onCellHover`, call `start()`, and `dispose()` on unmount.
-- **Combat animation wiring**: `handleFire()` calls `sceneManager.playHitAnimation(coord)` on hit, `sceneManager.playSunkAnimation(ship.cells)` on sunk (cells from `game.getOpponent().ships`), `sceneManager.playMissAnimation(coord)` on miss. `handlePing()` calls `sceneManager.playSonarAnimation(coord, positive)`. `handleDroneScan()` filters `result.cells` to only `written` cells, then calls `sceneManager.playDroneScanAnimation(writtenCells)` — this prevents the animation from corrupting Hit/Sunk cell materials. Animations run after `updateSceneGrid()` so they overwrite view materials.
+- **Combat animation wiring**: `handleFire()` calls `sceneManager.playHitAnimation(coord)` on hit, `sceneManager.playSunkAnimation(ship.cells)` on sunk (cells from `game.getOpponent().ships`), `sceneManager.playMissAnimation(coord)` on miss. `handlePing()` calls `sceneManager.playSonarAnimation(coord, positive)`. `handleDroneScan()` filters `result.cells` to only `written` cells, then calls `sceneManager.playDroneScanAnimation(writtenCells)`. `handleDepthChargeStrike()` filters `already_resolved` cells, then calls `sceneManager.playDepthChargeAnimation(center, animResults)`. Animations run after `updateSceneGrid()` so they overwrite view materials.
 
 ## Combat Screen — Perk Integration
 
-- **CombatUIState** includes `storeOpen`, `pingMode`, `turnSlots` fields.
+- **CombatUIState** includes `storeOpen`, `pingMode`, `droneMode`, `depthChargeMode`, `silentRunningMode`, `turnSlots` fields.
 - **Store toggle**: STORE button in top-right toggles perk store panel visibility. Store accessible anytime during turn.
 - **Purchase flow**: `onPurchase` → `game.purchasePerk(perkId)` → refresh credits/inventory/store/action slots.
 - **Ping mode**: Selecting sonar_ping from inventory → `pingMode = true`, hint changes to "CLICK CELL TO PING". `handleCellClick()` routes to `handlePing(coord)` when in ping mode, else `handleFire(coord)`.
 - **Ping resolution**: `game.useSonarPing(coord)` → sonar sweep animation → status "SONAR: CONTACT" or "SONAR: NEGATIVE" → exit ping mode, refresh UI.
 - **Drone mode**: Selecting recon_drone from inventory → `droneMode = true`, hover shows 3×3×3 ghost cell preview via `calculateScanArea()`. Click → `handleDroneScan(coord)` → `game.useReconDrone()` → filter to `written` cells → animate + count only written cells → status "DRONE SCAN: N CONTACTS".
+- **Depth charge mode**: Selecting depth_charge from inventory → `depthChargeMode = true`, hover shows 3×3×3 ghost cell preview (reuses `calculateScanArea()`). Click → `handleDepthChargeStrike(coord)` → `game.useDepthCharge()` → depth charge blast animation + audio → status "DEPTH CHARGE: N HITS" / "N SUNK" → refresh all UI.
+- **Silent running mode**: Selecting silent_running from inventory → switches to own grid, `silentRunningMode = true`. Click on own ship cell → `handleSilentRunningSelect(coord)` → `game.useSilentRunning(shipId)` → activation audio → status "SILENT RUNNING: [SHIP] CLOAKED (2 TURNS)" → switches back to targeting grid.
+- **SR overlay on own grid**: `updateSceneGrid()` clears SR overlay, then rebuilds from `player.silentRunningShips` when `boardView === 'own'` via `sceneManager.setSilentRunningOverlay(coords)`.
+- **Mode cancellation**: Switching board view or selecting a new inventory item cancels any active mode (ping/drone/depthCharge/silentRunning) and clears ghost cells.
+- **Audio integration**: `initAudioContext()` called on first user interaction (handleFire, handlePing, handleDroneScan, handleDepthChargeStrike, handleSilentRunningSelect, handleEndTurn). Sound functions fire-and-forget.
 - **Radar jammer display**: `refreshInventory()` filters out `radar_jammer` instances when `player.abilities.radar_jammer.active` — deployed jammer disappears from tray until consumed by opponent action.
 - **End turn gating**: `turnSlots.attackUsed` required (unchanged from pre-perk behavior).
 - **Cleanup**: `perkStore.destroy()`, `inventoryTray.destroy()`, `actionSlotsComponent.destroy()` in `unmount()`.

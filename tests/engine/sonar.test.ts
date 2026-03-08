@@ -99,4 +99,62 @@ describe('executeSonarPing', () => {
     expect(result.jammed).toBe(true);
     expect(result.displayedResult).toBe(false); // inverted: true -> false (accidentally correct)
   });
+
+  it('silent running ship is masked (displayedResult false, silentRunning true)', () => {
+    const attacker = createEmptyPlayerState(0);
+    const defender = createEmptyPlayerState(1);
+
+    defender.ownGrid[3]![3]![3] = { state: CellState.Ship, shipId: 'typhoon' };
+    defender.silentRunningShips = [{ shipId: 'typhoon', turnsRemaining: 2 }];
+
+    const result = executeSonarPing({ col: 3, row: 3, depth: 3 }, attacker, defender);
+    expect(result.rawResult).toBe(true);
+    expect(result.silentRunning).toBe(true);
+    expect(result.displayedResult).toBe(false);
+  });
+
+  it('silent running does not mask decoy (decoy has null shipId)', () => {
+    const attacker = createEmptyPlayerState(0);
+    const defender = createEmptyPlayerState(1);
+
+    defender.ownGrid[3]![3]![3] = { state: CellState.Decoy, shipId: null };
+    // Even if SR list has entries, decoy has no shipId so SR should not affect it
+    defender.silentRunningShips = [{ shipId: 'typhoon', turnsRemaining: 2 }];
+
+    const result = executeSonarPing({ col: 3, row: 3, depth: 3 }, attacker, defender);
+    expect(result.rawResult).toBe(true);
+    expect(result.silentRunning).toBe(false);
+    expect(result.displayedResult).toBe(true); // decoy still shows as positive
+  });
+
+  it('silent running takes priority over jammer for SR ship', () => {
+    const attacker = createEmptyPlayerState(0);
+    const defender = createEmptyPlayerState(1);
+
+    defender.ownGrid[3]![3]![3] = { state: CellState.Ship, shipId: 'typhoon' };
+    defender.silentRunningShips = [{ shipId: 'typhoon', turnsRemaining: 1 }];
+    defender.abilities.radar_jammer = { earned: true, used: false, active: true, turnsRemaining: null };
+
+    const result = executeSonarPing({ col: 3, row: 3, depth: 3 }, attacker, defender);
+    expect(result.rawResult).toBe(true);
+    expect(result.silentRunning).toBe(true);
+    expect(result.jammed).toBe(true);
+    // SR takes priority: displayedResult is false (masked), NOT jammer-inverted
+    expect(result.displayedResult).toBe(false);
+  });
+
+  it('non-SR ship still affected by jammer normally', () => {
+    const attacker = createEmptyPlayerState(0);
+    const defender = createEmptyPlayerState(1);
+
+    defender.ownGrid[3]![3]![3] = { state: CellState.Ship, shipId: 'akula' };
+    defender.silentRunningShips = [{ shipId: 'typhoon', turnsRemaining: 2 }]; // different ship
+    defender.abilities.radar_jammer = { earned: true, used: false, active: true, turnsRemaining: null };
+
+    const result = executeSonarPing({ col: 3, row: 3, depth: 3 }, attacker, defender);
+    expect(result.rawResult).toBe(true);
+    expect(result.silentRunning).toBe(false);
+    expect(result.jammed).toBe(true);
+    expect(result.displayedResult).toBe(false); // jammer inverts true -> false
+  });
 });

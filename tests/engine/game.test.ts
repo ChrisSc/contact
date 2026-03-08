@@ -939,3 +939,409 @@ describe('GameController - Turn Slots', () => {
     expect(afterFire.pingUsed).toBe(false);
   });
 });
+
+describe('GameController - Depth Charge', () => {
+  function earnCredits(gc: GameController, target: number) {
+    // Helper: hit ships to earn credits. Ships at row 0 (typhoon, cols 0-4).
+    // Each hit on a new turn: first hit = 1 CR, consecutive = +5 CR
+    let col = 0;
+    let missDepth = 1;
+    const startCredits = gc.getCurrentPlayer().credits;
+    while (gc.getCurrentPlayer().credits - startCredits < target) {
+      gc.fireTorpedo({ col, row: 0, depth: 0 }); // hit
+      gc.endTurn();
+      gc.fireTorpedo({ col: 7, row: 7, depth: missDepth++ }); // opponent misses
+      gc.endTurn();
+      col++;
+      if (col >= 5) break;
+    }
+  }
+
+  it('useDepthCharge requires depth_charge in inventory', () => {
+    const gc = new GameController('test-dc');
+    setupBothPlayers(gc);
+
+    const result = gc.useDepthCharge({ col: 4, row: 4, depth: 4 });
+    expect(result).toBeNull();
+  });
+
+  it('useDepthCharge consumes attack slot', () => {
+    const gc = new GameController('test-dc');
+    setupBothPlayers(gc);
+
+    // Earn credits for depth charge (cost 25)
+    earnCredits(gc, 25);
+
+    gc.purchasePerk('depth_charge');
+    const result = gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+    expect(result).not.toBeNull();
+    expect(gc.getTurnSlots().attackUsed).toBe(true);
+
+    // Cannot fire after
+    const fire = gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
+    expect(fire).toBeNull();
+  });
+
+  it('depth charge on empty area returns all misses', () => {
+    const gc = new GameController('test-dc');
+    setupBothPlayers(gc);
+
+    earnCredits(gc, 25);
+    gc.purchasePerk('depth_charge');
+
+    const result = gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+    expect(result).not.toBeNull();
+
+    // All cells should be miss (no ships at 7,7,7 area)
+    for (const cell of result!.cellResults) {
+      expect(cell.result).toBe('miss');
+    }
+    expect(result!.shipsSunk).toHaveLength(0);
+  });
+
+  it('depth charge hits ships and awards credits', () => {
+    const gc = new GameController('test-dc');
+    setupBothPlayers(gc);
+
+    // P1's midget sub is at row 4, cols 0-1, depth 0
+    // Earn enough for depth charge
+    earnCredits(gc, 25);
+    gc.purchasePerk('depth_charge');
+
+    // Use depth charge centered at (0, 4, 0) to hit midget
+    const result = gc.useDepthCharge({ col: 0, row: 4, depth: 0 });
+    expect(result).not.toBeNull();
+
+    const hits = result!.cellResults.filter(c => c.result === 'hit' || c.result === 'sunk');
+    expect(hits.length).toBeGreaterThanOrEqual(2); // midget sub is size 2
+
+    // Should have sunk midget
+    expect(result!.shipsSunk).toContain('midget');
+    expect(result!.totalCreditsAwarded).toBeGreaterThan(0);
+  });
+
+  it('depth charge skips already-resolved cells', () => {
+    const gc = new GameController('test-dc');
+    setupBothPlayers(gc);
+
+    // First, fire a torpedo at a cell in the depth charge zone
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // miss
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // opponent misses
+    gc.endTurn();
+
+    earnCredits(gc, 25);
+    gc.purchasePerk('depth_charge');
+
+    const result = gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+    expect(result).not.toBeNull();
+
+    const alreadyResolved = result!.cellResults.filter(c => c.result === 'already_resolved');
+    expect(alreadyResolved.length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('depth charge triggers victory when all ships sunk', () => {
+    const gc = new GameController('test-dc');
+    setupBothPlayers(gc);
+
+    // Sink all ships except midget first
+    const shipCells = [
+      ...Array.from({ length: 5 }, (_, i) => ({ col: i, row: 0, depth: 0 })),
+      ...Array.from({ length: 4 }, (_, i) => ({ col: i, row: 1, depth: 0 })),
+      ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 2, depth: 0 })),
+      ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 3, depth: 0 })),
+    ];
+
+    let missCol = 7;
+    let missDepth = 0;
+
+    for (const cell of shipCells) {
+      gc.fireTorpedo(cell);
+      if (gc.getState().phase === GamePhase.Victory) break;
+      gc.endTurn();
+      gc.fireTorpedo({ col: missCol, row: 7, depth: missDepth });
+      gc.endTurn();
+      missDepth++;
+      if (missDepth >= 8) { missDepth = 0; missCol--; }
+    }
+
+    // Should still be Combat (midget not sunk yet)
+    expect(gc.getState().phase).toBe(GamePhase.Combat);
+
+    // Use depth charge on midget (row 4, cols 0-1, depth 0)
+    gc.purchasePerk('depth_charge');
+    gc.useDepthCharge({ col: 0, row: 4, depth: 0 });
+
+    expect(gc.getState().phase).toBe(GamePhase.Victory);
+    expect(gc.getState().winner).toBe(0);
+  });
+
+  it('depth charge decoy hit appears as hit', () => {
+    const gc = new GameController('test-dc');
+
+    // Player 0 places fleet + decoy
+    placeFullFleet(gc);
+    gc.confirmSetup();
+
+    // Player 1 places fleet + decoy at known position
+    placeFullFleet(gc);
+    gc.placeDecoyForCurrentPlayer({ col: 7, row: 7, depth: 7 });
+    gc.confirmSetup();
+
+    // Player 0 earns credits and uses depth charge on decoy area
+    earnCredits(gc, 25);
+    gc.purchasePerk('depth_charge');
+
+    const result = gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+    expect(result).not.toBeNull();
+
+    // Find the decoy cell result
+    const decoyResult = result!.cellResults.find(
+      c => c.coord.col === 7 && c.coord.row === 7 && c.coord.depth === 7,
+    );
+    expect(decoyResult!.result).toBe('hit');
+  });
+
+  it('depth charge emits perk.use event', () => {
+    const gc = new GameController('test-dc');
+    setupBothPlayers(gc);
+
+    earnCredits(gc, 25);
+    gc.purchasePerk('depth_charge');
+    gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+
+    const logger = getLogger();
+    const events = logger.getBuffer();
+    const perkUse = events.find(e => e.event === 'perk.use' && e.data.perkId === 'depth_charge');
+    expect(perkUse).toBeDefined();
+  });
+});
+
+describe('GameController - Silent Running', () => {
+  it('useSilentRunning deploys on valid ship', () => {
+    const gc = new GameController('test-sr');
+    setupBothPlayers(gc);
+
+    // Player 0 buys and deploys SR (cost 10, need credits)
+    // Start with 5, need to earn more
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // consecutive +6 = 12
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    gc.purchasePerk('silent_running'); // cost 10, have 12
+    const deployed = gc.useSilentRunning('typhoon');
+    expect(deployed).toBe(true);
+    expect(gc.getTurnSlots().defendUsed).toBe(true);
+
+    // Check SR entry exists
+    const player = gc.getCurrentPlayer();
+    expect(player.silentRunningShips).toHaveLength(1);
+    expect(player.silentRunningShips[0]!.shipId).toBe('typhoon');
+    expect(player.silentRunningShips[0]!.turnsRemaining).toBe(2);
+  });
+
+  it('useSilentRunning rejects sunk ship', () => {
+    const gc = new GameController('test-sr');
+    setupBothPlayers(gc);
+
+    // Sink midget first, then try to SR it
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // P0 misses
+    gc.endTurn();
+    // P1 hits P0's midget
+    gc.fireTorpedo({ col: 0, row: 4, depth: 0 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // sinks P0's midget
+    gc.endTurn();
+
+    // P0 now tries to SR midget (which is sunk)
+    // Need credits: earn some
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // consecutive +6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 6, depth: 5 });
+    gc.endTurn();
+
+    gc.purchasePerk('silent_running');
+    const result = gc.useSilentRunning('midget');
+    expect(result).toBe(false);
+  });
+
+  it('useSilentRunning rejects already SR ship', () => {
+    const gc = new GameController('test-sr');
+    setupBothPlayers(gc);
+
+    // Earn credits for two SR purchases
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 2, row: 0, depth: 0 }); // +6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.endTurn();
+
+    gc.purchasePerk('silent_running'); // -10
+    gc.purchasePerk('silent_running'); // -10
+
+    gc.useSilentRunning('typhoon');
+    const second = gc.useSilentRunning('typhoon');
+    expect(second).toBe(false); // already SR'd
+  });
+
+  it('useSilentRunning requires inventory instance', () => {
+    const gc = new GameController('test-sr');
+    setupBothPlayers(gc);
+
+    const result = gc.useSilentRunning('typhoon');
+    expect(result).toBe(false);
+  });
+
+  it('SR ship masked from sonar during combat', () => {
+    const gc = new GameController('test-sr');
+    setupBothPlayers(gc);
+
+    // P0 earns credits
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 = 12
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    // P0 buys SR and activates on own typhoon
+    gc.purchasePerk('silent_running'); // -10 = 2
+    gc.useSilentRunning('typhoon');
+
+    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.endTurn();
+
+    // P1 pings P0's typhoon (at row 0, col 2, depth 0 - still a ship cell)
+    gc.purchasePerk('sonar_ping'); // P1 has 5 credits, cost 3
+    const pingResult = gc.useSonarPing({ col: 2, row: 0, depth: 0 });
+    expect(pingResult).not.toBeNull();
+    expect(pingResult!.rawResult).toBe(true);
+    expect(pingResult!.silentRunning).toBe(true);
+    expect(pingResult!.displayedResult).toBe(false); // masked
+  });
+
+  it('torpedo still hits SR ship normally', () => {
+    const gc = new GameController('test-sr');
+    setupBothPlayers(gc);
+
+    // P0 earns credits and deploys SR
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    gc.purchasePerk('silent_running');
+    gc.useSilentRunning('typhoon');
+
+    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.endTurn();
+
+    // P1 fires at P0's typhoon (at row 0, col 2, depth 0)
+    const result = gc.fireTorpedo({ col: 2, row: 0, depth: 0 });
+    expect(result).not.toBeNull();
+    expect(result!.result).toBe('hit');
+    expect(result!.shipId).toBe('typhoon');
+  });
+
+  it('SR expires after 2 opponent turns', () => {
+    const gc = new GameController('test-sr');
+    setupBothPlayers(gc);
+
+    // P0 earns credits
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 = 12
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    // P0 activates SR on typhoon (turnsRemaining = 2)
+    gc.purchasePerk('silent_running');
+    gc.useSilentRunning('typhoon');
+
+    // P0 fires and ends turn
+    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.endTurn();
+
+    // After P0 ends turn -> P1's turn starts. P0's SR NOT decremented yet
+    // (P0's opponent hasn't completed a turn yet)
+    expect(gc.getState().players[0]!.silentRunningShips).toHaveLength(1);
+    expect(gc.getState().players[0]!.silentRunningShips[0]!.turnsRemaining).toBe(2);
+
+    // P1 fires and ends turn (1st opponent turn for P0)
+    gc.fireTorpedo({ col: 7, row: 7, depth: 4 });
+    gc.endTurn();
+
+    // After P1 ends turn -> P0's turn starts -> P0's SR decrements to 1
+    expect(gc.getState().players[0]!.silentRunningShips).toHaveLength(1);
+    expect(gc.getState().players[0]!.silentRunningShips[0]!.turnsRemaining).toBe(1);
+
+    // P0 fires and ends turn
+    gc.fireTorpedo({ col: 7, row: 6, depth: 5 });
+    gc.endTurn();
+
+    // P1 fires and ends turn (2nd opponent turn for P0)
+    gc.fireTorpedo({ col: 7, row: 6, depth: 4 });
+    gc.endTurn();
+
+    // After P1 ends turn -> P0's turn starts -> P0's SR decrements to 0 (expired)
+    expect(gc.getState().players[0]!.silentRunningShips).toHaveLength(0);
+
+    // Verify the perk.expire event was emitted
+    const logger = getLogger();
+    const events = logger.getBuffer();
+    const expireEvent = events.find(e => e.event === 'perk.expire' && e.data.perkId === 'silent_running');
+    expect(expireEvent).toBeDefined();
+    expect(expireEvent!.data.shipId).toBe('typhoon');
+  });
+
+  it('SR emits perk.effect event on activation', () => {
+    const gc = new GameController('test-sr');
+    setupBothPlayers(gc);
+
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    gc.purchasePerk('silent_running');
+    gc.useSilentRunning('typhoon');
+
+    const logger = getLogger();
+    const events = logger.getBuffer();
+    const effectEvent = events.find(e => e.event === 'perk.effect' && e.data.perkId === 'silent_running');
+    expect(effectEvent).toBeDefined();
+    expect(effectEvent!.data.shipId).toBe('typhoon');
+    expect(effectEvent!.data.turnsRemaining).toBe(2);
+  });
+});

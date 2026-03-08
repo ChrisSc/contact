@@ -45,6 +45,10 @@ export class SceneManager {
   private ghostInvalidMat: THREE.MeshBasicMaterial;
   private ghostInvalidEdge: THREE.LineBasicMaterial;
 
+  private srOverlayEntries: GhostEntry[] = [];
+  private srOverlayMat: THREE.MeshBasicMaterial;
+  private srOverlayEdge: THREE.LineBasicMaterial;
+
   private boundOnClick: (e: PointerEvent) => void;
   private boundOnPointerMove: (e: PointerEvent) => void;
 
@@ -72,6 +76,9 @@ export class SceneManager {
     this.ghostValidEdge = new THREE.LineBasicMaterial({ color: CRT_COLORS.GREEN, transparent: true, opacity: 0.7 });
     this.ghostInvalidMat = new THREE.MeshBasicMaterial({ color: CRT_COLORS.RED, transparent: true, opacity: 0.3, depthWrite: false });
     this.ghostInvalidEdge = new THREE.LineBasicMaterial({ color: CRT_COLORS.RED, transparent: true, opacity: 0.7 });
+
+    this.srOverlayMat = new THREE.MeshBasicMaterial({ color: CRT_COLORS.CYAN, transparent: true, opacity: 0.2, depthWrite: false });
+    this.srOverlayEdge = new THREE.LineBasicMaterial({ color: CRT_COLORS.CYAN, transparent: true, opacity: 0.4 });
 
     this.views = new ViewManager(this.cube, this.materialPool);
     this.animations = new AnimationManager(this.cube, this.materialPool);
@@ -234,9 +241,38 @@ export class SceneManager {
     this.animations.playDroneScan(cells.map(c => ({coord: c.coord, positive: c.displayedResult})));
   }
 
+  playDepthChargeAnimation(center: Coordinate, results: Array<{coord: Coordinate; hit: boolean}>): void {
+    this.animations.playDepthChargeBlast(center, results);
+  }
+
+  setSilentRunningOverlay(coords: Coordinate[]): void {
+    this.clearSilentRunningOverlay();
+    for (const coord of coords) {
+      const cell = this.cube.getCellMesh(coord);
+      if (cell) {
+        this.srOverlayEntries.push({
+          cell,
+          origFill: cell.box.material as THREE.Material,
+          origEdge: cell.edges.material as THREE.Material,
+        });
+        cell.box.material = this.srOverlayMat;
+        cell.edges.material = this.srOverlayEdge;
+      }
+    }
+  }
+
+  clearSilentRunningOverlay(): void {
+    for (const entry of this.srOverlayEntries) {
+      entry.cell.box.material = entry.origFill;
+      entry.cell.edges.material = entry.origEdge;
+    }
+    this.srOverlayEntries.length = 0;
+  }
+
   dispose(): void {
     this.stop();
     this.clearGhostCells();
+    this.clearSilentRunningOverlay();
 
     const canvas = this.renderer.domElement;
     canvas.removeEventListener('click', this.boundOnClick as EventListener);
@@ -246,6 +282,8 @@ export class SceneManager {
     this.ghostValidEdge.dispose();
     this.ghostInvalidMat.dispose();
     this.ghostInvalidEdge.dispose();
+    this.srOverlayMat.dispose();
+    this.srOverlayEdge.dispose();
 
     this.animations.dispose();
     this.views.dispose();

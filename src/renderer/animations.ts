@@ -18,11 +18,13 @@ interface AnimEntry {
 }
 
 interface ActiveAnimation {
-  type: 'hit_flash' | 'sunk_cascade' | 'miss_fade' | 'sonar_sweep' | 'drone_scan';
+  type: 'hit_flash' | 'sunk_cascade' | 'miss_fade' | 'sonar_sweep' | 'drone_scan' | 'depth_charge_blast';
   elapsed: number;
   entries: AnimEntry[];
   /** Per-entry positive flags for drone_scan (used by cancel to restore correct state) */
   positiveFlags?: boolean[];
+  /** Per-entry hit flags for depth_charge_blast (used by cancel to restore correct state) */
+  hitFlags?: boolean[];
   onUpdate(elapsed: number): boolean; // returns true when complete
 }
 
@@ -510,6 +512,162 @@ export class AnimationManager {
   }
 
   // -------------------------------------------------------------------------
+  // playDepthChargeBlast — expanding shockwave from center, then settle to Hit/Miss
+  // Phase 1 (0–200ms): center cell full ORANGE flash
+  // Phase 2 (200–700ms): rings expand outward staggered by 80ms per Manhattan ring
+  // Phase 3 (700–1200ms): settle — hit cells restore Hit pool, miss cells restore Miss pool
+  // -------------------------------------------------------------------------
+
+  playDepthChargeBlast(center: Coordinate, results: Array<{coord: Coordinate; hit: boolean}>): void {
+    if (results.length === 0) return;
+
+    // Cancel existing animations on these cells
+    for (const r of results) {
+      const key = coordKey(r.coord);
+      if (this.animations.has(key)) {
+        this._cancelKey(key);
+      }
+    }
+
+    const entries: AnimEntry[] = [];
+    const hitFlags: boolean[] = [];
+    const manhattanDistances: number[] = [];
+
+    for (const r of results) {
+      const cell = this.cube.getCellMesh(r.coord);
+      if (!cell) continue;
+
+      const fill = new THREE.MeshBasicMaterial({
+        color: CRT_COLORS.ORANGE,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const edge = new THREE.LineBasicMaterial({
+        color: CRT_COLORS.ORANGE,
+        transparent: true,
+        opacity: 0,
+      });
+
+      cell.box.material = fill;
+      cell.edges.material = edge;
+
+      const dist =
+        Math.abs(r.coord.col - center.col) +
+        Math.abs(r.coord.row - center.row) +
+        Math.abs(r.coord.depth - center.depth);
+
+      entries.push({ coord: r.coord, cell, fill, edge });
+      hitFlags.push(r.hit);
+      manhattanDistances.push(dist);
+    }
+
+    if (entries.length === 0) return;
+
+    const pool = this.materialPool;
+    const allKeys = entries.map(e => coordKey(e.coord));
+    const animationsMap = this.animations;
+
+    // Phase timing constants (in seconds)
+    const PHASE1_END = 0.2;   // center flash full
+    const PHASE2_START = 0.2; // shockwave expansion begins
+    const PHASE2_END = 0.7;   // shockwave expansion ends
+    const PHASE3_END = 1.2;   // settle complete
+
+    const RING_STAGGER = 0.08; // 80ms per Manhattan ring
+
+    const anim: ActiveAnimation = {
+      type: 'depth_charge_blast',
+      elapsed: 0,
+      entries,
+      hitFlags,
+      onUpdate(elapsed: number): boolean {
+        for (let i = 0; i < entries.length; i++) {
+          const entry = entries[i]!;
+          const dist = manhattanDistances[i]!;
+          const isHit = hitFlags[i]!;
+
+          // Each ring starts its flash staggered by distance
+          const ringStart = PHASE2_START + dist * RING_STAGGER;
+          const flashPeak = ringStart + 0.15; // 150ms to peak
+          const flashEnd = flashPeak + 0.15;  // 150ms to settle
+
+          if (dist === 0) {
+            // Center cell — Phase 1 full flash
+            if (elapsed <= PHASE1_END) {
+              entry.fill.opacity = 1.0;
+              entry.edge.opacity = 1.0;
+            } else if (elapsed <= PHASE3_END) {
+              // Settle to hit/miss target during Phase 3
+              const targetFill = isHit ? 0.7 : 0.15;
+              const targetEdge = isHit ? 0.9 : 0.2;
+              const t = clamp((elapsed - PHASE2_END) / (PHASE3_END - PHASE2_END), 0, 1);
+              entry.fill.opacity = 1.0 + t * (targetFill - 1.0);
+              entry.edge.opacity = 1.0 + t * (targetEdge - 1.0);
+            }
+          } else {
+            // Shockwave ring cells
+            if (elapsed < ringStart) {
+              entry.fill.opacity = 0;
+              entry.edge.opacity = 0;
+            } else if (elapsed <= flashPeak) {
+              const t = clamp((elapsed - ringStart) / 0.15, 0, 1);
+              entry.fill.opacity = t * 1.0;
+              entry.edge.opacity = t * 1.0;
+            } else if (elapsed <= flashEnd) {
+              const t = clamp((elapsed - flashPeak) / 0.15, 0, 1);
+              const targetFill = isHit ? 0.7 : 0.15;
+              const targetEdge = isHit ? 0.9 : 0.2;
+              entry.fill.opacity = 1.0 + t * (targetFill - 1.0);
+              entry.edge.opacity = 1.0 + t * (targetEdge - 1.0);
+            } else {
+              // Hold at target until animation complete
+              entry.fill.opacity = isHit ? 0.7 : 0.15;
+              entry.edge.opacity = isHit ? 0.9 : 0.2;
+            }
+          }
+        }
+
+        if (elapsed >= PHASE3_END) {
+          // Restore pooled materials per cell
+          for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i]!;
+            const isHit = hitFlags[i]!;
+            const targetState = isHit ? CellState.Hit : CellState.Miss;
+            const mats = pool.getMaterials(targetState);
+            entry.cell.box.material = mats.fill;
+            entry.cell.edges.material = mats.edge;
+            entry.fill.dispose();
+            entry.edge.dispose();
+          }
+          return true;
+        }
+        return false;
+      },
+    };
+
+    // Register under ALL coord keys
+    for (const key of allKeys) {
+      this.animations.set(key, anim);
+    }
+
+    tryLog('animation_start', 'depth_charge_blast');
+
+    // Override onUpdate to clean up all keys on completion
+    const originalOnUpdate = anim.onUpdate.bind(anim);
+    anim.onUpdate = function (elapsed: number): boolean {
+      const done = originalOnUpdate(elapsed);
+      if (done) {
+        for (const k of allKeys) {
+          animationsMap.delete(k);
+        }
+        tryLog('animation_complete', 'depth_charge_blast');
+      }
+      return done;
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // cancelAt — remove animation, dispose private materials, restore pool mats
   // -------------------------------------------------------------------------
 
@@ -527,9 +685,12 @@ export class AnimationManager {
       const entry = anim.entries[i]!;
 
       // Drone scan: restore each cell to its correct positive/negative state
+      // Depth charge blast: restore each cell to Hit or Miss based on hitFlags
       let restoreState: CellState;
       if (anim.type === 'drone_scan' && anim.positiveFlags) {
         restoreState = anim.positiveFlags[i] ? CellState.DronePositive : CellState.DroneNegative;
+      } else if (anim.type === 'depth_charge_blast' && anim.hitFlags) {
+        restoreState = anim.hitFlags[i] ? CellState.Hit : CellState.Miss;
       } else {
         restoreState =
           anim.type === 'hit_flash' ? CellState.Hit :
@@ -571,6 +732,8 @@ export class AnimationManager {
         let restoreState: CellState;
         if (anim.type === 'drone_scan' && anim.positiveFlags) {
           restoreState = anim.positiveFlags[i] ? CellState.DronePositive : CellState.DroneNegative;
+        } else if (anim.type === 'depth_charge_blast' && anim.hitFlags) {
+          restoreState = anim.hitFlags[i] ? CellState.Hit : CellState.Miss;
         } else {
           restoreState =
             anim.type === 'hit_flash' ? CellState.Hit :
