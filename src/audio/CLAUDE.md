@@ -42,10 +42,10 @@ Combat screen calls `initAudioContext()` on first user interaction (any click ha
 - `handleFire()` → `playTorpedoFireSound()` immediately on success, then `playTorpedoHitSound()` / `playTorpedoSunkSound()` / `playTorpedoMissSound()` based on result
 - `handlePing()` → `playSonarPingSound()` when ping succeeds
 - `handleDroneScan()` → `playReconDroneSound()` when scan succeeds
-- `handleInventorySelect()` radar_jammer case → `playRadarJammerSound()` when deployed
+- `handleInventorySelect()` radar_jammer case → `playRadarJammerSound()` when auto-deployed
 - `handleDepthChargeStrike()` → `playDepthChargeSound()`
 - `handleSilentRunningSelect()` → `playSilentRunningActivate()`
-- SR expiry → `playSilentRunningExpire()` (not yet wired — visual overlay handles feedback)
+- SR expiry → `playSilentRunningExpire()` (not yet wired — SR overlay + status text handles feedback)
 
 ## Testing
 

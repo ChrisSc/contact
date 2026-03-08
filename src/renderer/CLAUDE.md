@@ -3,7 +3,7 @@
 ## Files
 
 - **`materials.ts`** — `CRT_COLORS` palette (includes CYAN for recon states), `MaterialSet`/`MaterialDef` interfaces, `MATERIAL_DEFS` lookup, `MaterialPool` class (normal + dimmed + ghost material pools per `CellState`)
-- **`orbit.ts`** — Custom `OrbitControls` (spherical coords, pointer/wheel/pinch events, damping). Exports pure helpers: `sphericalToCartesian`, `clampPhi`, `clampDistance`. Public `dragging` getter for live drag state; `wasDragging` getter + `consumeDrag()` for post-drag click suppression (5px movement threshold).
+- **`orbit.ts`** — Custom `OrbitControls` (spherical coords, pointer/wheel/pinch events, damping). Exports pure helpers: `sphericalToCartesian`, `clampPhi`, `clampDistance`. Public `dragging` getter for live drag state; `wasDragging` getter + `consumeDrag()` for post-drag click suppression (5px movement threshold). Default camera: `initialPhi: π/3`, `initialTheta: π×1.15` (elevated oblique view).
 - **`cube.ts`** — `GridCube` class (512 `BoxGeometry` + `EdgesGeometry` meshes in 8x8x8 layout), `coordToPosition` helper, layer helpers (`getCellMeshesAtDepth`, `getAllCellMeshes`, `setLayerVisible`)
 - **`views.ts`** — `ViewManager` class: three view modes (CUBE, SLICE, X-RAY), depth layer control, board type, smooth opacity transitions, interactable mesh filtering
 - **`raycaster.ts`** — `GridRaycaster` class: wraps `THREE.Raycaster` for cell picking via NDC normalization, configurable mesh source
