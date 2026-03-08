@@ -198,6 +198,7 @@ export class SceneManager {
   }
 
   updateGrid(grid: Grid): void {
+    this.clearGhostCells();
     this.cube.updateFromGrid(grid);
     this.views.applyView(grid);
   }

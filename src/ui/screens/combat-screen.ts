@@ -23,6 +23,9 @@ interface CombatUIState {
 export function mountCombatScreen(container: HTMLElement, context: ScreenContext): ScreenCleanup {
   const { game, router } = context;
 
+  const opponent = game.getOpponent();
+  const initialSunkIds = opponent.ships.filter((s) => s.sunk).map((s) => s.id);
+
   const uiState: CombatUIState = {
     currentDepth: 0,
     boardView: 'targeting',
@@ -30,7 +33,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     hoveredCoord: null,
     lastFireResult: null,
     actionTaken: false,
-    sunkShipIds: [],
+    sunkShipIds: initialSunkIds,
     gameLog: [],
   };
 
