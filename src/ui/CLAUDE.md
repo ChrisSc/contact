@@ -3,7 +3,9 @@
 ## Files
 
 - **`screen-router.ts`** — `ScreenRouter` class: manages screen mount/unmount lifecycle, navigation with context passing, `setGame()` for restart flow
-- **`flicker.ts`** — CRT flicker effect (persists across screen navigations)
+- **`flicker.ts`** — CRT flicker effect (persists across screen navigations). Exports `FlickerController` interface with `stop()` and `pulse(intensity, durationMs)`. Module-level singleton via `getFlickerController()`. `pulse()` widens opacity range temporarily (intensity 0.5 → min 0.92, intensity 1.0 → min 0.85) using `performance.now()` timestamps.
+- **`effects/crt-noise.ts`** — `CRTNoise` class: 256×256 canvas grain tiled full-screen via CSS `background-repeat`, updates every 3 frames (~20fps). `z-index: 999`, `opacity: 0.04`. API: `render(): HTMLElement` (returns wrapper div), `start()`, `stop()`, `pulse(intensity, durationMs)` (boosts opacity temporarily), `dispose()`.
+- **`effects/ability-overlays.ts`** — `AbilityOverlayManager` class: single canvas at `z-index: 50`, `pointer-events: none`. 7 ability-specific 2D canvas animations (sonar_ping: green radial sweep; recon_drone: cyan scan line; radar_jammer: static noise flashes; silent_running: radial darken; depth_charge: sequential band flashes; g_sonar: expanding ring; acoustic_cloak: converging dots). API: `render(): HTMLCanvasElement`, `play(type, onComplete?)`, `cancel()`, `dispose()`. Cross-effects: radar_jammer/acoustic_cloak/depth_charge pulse flicker and noise. Static `setNoiseInstance()` for CRTNoise coupling. Logs `view.change` events.
 - **`components/slice-grid.ts`** — `SliceGrid` class: 8x8 grid for one depth layer, cell state rendering, ghost preview, click handling
 - **`components/depth-selector.ts`** — `DepthSelector` class: ALL + D1-D8 depth layer navigation (ALL = depth -1, clamped by screens)
 - **`components/axis-selector.ts`** — `AxisSelector` class: 8-axis toggle (COL/ROW/DIAG↗/DIAG↘/COL+D/COL-D/ROW+D/ROW-D) for ship placement
@@ -15,7 +17,7 @@
 - **`components/notification-banner.ts`** — `NotificationBanner` class: queued CRT notification overlay. `show(config)` displays text banner with optional CSS class and duration (default 2500ms). Queues notifications if one is active; auto-dismisses and shows next. `destroy()` cleans up.
 - **`screens/setup-screen.ts`** — `mountSetupScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), depth panel, 8-axis selector, ship roster overlay, ghost cell preview via raycaster hover, ship/decoy placement via raycaster click, R key to cycle axes, AUTO DEPLOY button (random valid placement of all ships + decoy), confirm flow. Placement phases: `ships` → `decoy-pending` → `decoy` → `confirm`. Decoy requires explicit roster selection before placement.
 - **`screens/handoff-screen.ts`** — `mountHandoffScreen()`: player transition with ready confirmation
-- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations, coordinate hover feedback, HUD stats, enemy fleet status, credit display (amber), STORE button, perk store panel, inventory tray, action slots, notification banner, ping mode flow, drone mode flow, depth charge mode flow, silent running mode flow, screen shake on hit/sunk, audio integration, end turn
+- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations, coordinate hover feedback, HUD stats, enemy fleet status, credit display (amber), STORE button, perk store panel, inventory tray, action slots, notification banner, ability deployment overlays, ping mode flow, drone mode flow, depth charge mode flow, silent running mode flow, screen shake on hit/sunk, audio integration, end turn
 - **`screens/victory-screen.ts`** — `mountVictoryScreen()`: winner display, stats summary, session export, new engagement restart
 
 ## Architecture
@@ -41,6 +43,7 @@
 - **SceneManager shared pattern**: Both setup and combat screens instantiate SceneManager with `{ container }`, wire `onCellClick`/`onCellHover`, call `start()`, and `dispose()` on unmount.
 - **Combat animation wiring**: `handleFire()` calls `sceneManager.playHitAnimation(coord)` on hit, `sceneManager.playSunkAnimation(ship.cells)` on sunk (cells from `game.getOpponent().ships`), `sceneManager.playMissAnimation(coord)` on miss. `handlePing()` calls `sceneManager.playSonarAnimation(coord, positive)`. `handleDroneScan()` filters `result.cells` to only `written` cells, then calls `sceneManager.playDroneScanAnimation(writtenCells)`. `handleDepthChargeStrike()` filters `already_resolved` cells, then calls `sceneManager.playDepthChargeAnimation(center, animResults)`. Animations run after `updateSceneGrid()` so they overwrite view materials.
 - **Combat feedback**: Screen shake on hit/sunk via `sceneManager.playScreenShake()`. Notification banners via `NotificationBanner` component: "VESSEL DESTROYED: [NAME]" (amber, 2500ms) on sunk, "+N CREDITS" (green, 2000ms on sunk, 1500ms on hit) when credits awarded. Depth charge: shake if any hits, per-ship sunk banners, total credits banner. Banners queue automatically for sequential display.
+- **Ability deployment overlays**: `AbilityOverlayManager` instantiated in `mountCombatScreen()`, canvas appended to combat screen. `overlays.play(type)` called adjacent to audio calls in all 7 ability handlers: sonar_ping, recon_drone, radar_jammer, acoustic_cloak, depth_charge, g_sonar, silent_running. Overlays play concurrently with cell animations and audio. `overlays.dispose()` in `unmount()`.
 
 ## Combat Screen — Perk Integration
 
@@ -63,4 +66,10 @@
 - **Mode cancellation**: `gSonarMode` is cancelled (set to false + `inventoryTray.clearSelection()`) when switching board view via `handleBoardToggle()`, and cancelled (set to false) when selecting any new inventory item via `handleInventorySelect()`.
 - **Audio functions**: `playGSonarSound()` fires on G-SONAR scan; `playAcousticCloakSound()` fires on Acoustic Cloak deploy. Both imported from `../../audio/abilities`.
 - **End turn gating**: `turnSlots.attackUsed` required (unchanged from pre-perk behavior).
-- **Cleanup**: `perkStore.destroy()`, `inventoryTray.destroy()`, `actionSlotsComponent.destroy()`, `notifications.destroy()`, `stopAmbient()` in `unmount()`.
+- **Cleanup**: `overlays.dispose()`, `perkStore.destroy()`, `inventoryTray.destroy()`, `actionSlotsComponent.destroy()`, `notifications.destroy()`, `stopAmbient()` in `unmount()`.
+
+## CRT Effects (Persistent)
+
+- **Flicker**: `startFlicker(app)` in `main.ts` returns `FlickerController` stored as module singleton. Accessible via `getFlickerController()` from any module. `pulse(intensity, durationMs)` widens opacity range temporarily for ability cross-effects.
+- **CRT Noise**: `CRTNoise` instantiated in `main.ts`, appended to `#app`. Grain overlay at z-index 999. Wired into `AbilityOverlayManager` via static `setNoiseInstance()`.
+- **Cross-effects**: Radar jammer, acoustic cloak, and depth charge overlays trigger `getFlickerController().pulse()` and `AbilityOverlayManager.noiseInstance.pulse()` for compound CRT distortion feedback.

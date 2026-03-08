@@ -79,6 +79,15 @@ vi.mock('../../src/audio/abilities', () => ({
   playInsufficientFundsSound: vi.fn(),
 }));
 
+vi.mock('../../src/ui/effects/ability-overlays', () => ({
+  AbilityOverlayManager: vi.fn(() => ({
+    render: vi.fn(() => document.createElement('canvas')),
+    play: vi.fn(),
+    cancel: vi.fn(),
+    dispose: vi.fn(),
+  })),
+}));
+
 class MockResizeObserver {
   observe = vi.fn();
   unobserve = vi.fn();
