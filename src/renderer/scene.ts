@@ -36,6 +36,10 @@ export class SceneManager {
   private container: HTMLElement;
   private lastTime = 0;
 
+  private shakeTimeRemaining = 0;
+  private shakeDuration = 0;
+  private shakeIntensity = 0;
+
   private cellClickCallbacks: ((coord: Coordinate) => void)[] = [];
   private cellHoverCallbacks: ((coord: Coordinate | null) => void)[] = [];
 
@@ -192,6 +196,15 @@ export class SceneManager {
       this.views.update(dt);
       this.animations.update(dt);
       this.orbit.update();
+      if (this.shakeTimeRemaining > 0) {
+        this.shakeTimeRemaining -= dt;
+        const progress = Math.max(0, this.shakeTimeRemaining / this.shakeDuration);
+        const decay = progress * progress; // quadratic decay
+        const offset = this.shakeIntensity * decay;
+        this.camera.position.x += (Math.random() - 0.5) * 2 * offset;
+        this.camera.position.y += (Math.random() - 0.5) * 2 * offset;
+        this.camera.position.z += (Math.random() - 0.5) * 2 * offset;
+      }
       this.renderer.render(this.scene, this.camera);
     };
     this.animationFrameId = requestAnimationFrame(loop);
@@ -247,6 +260,17 @@ export class SceneManager {
 
   playGSonarScanAnimation(cells: Array<{coord: Coordinate; displayedResult: boolean}>): void {
     this.animations.playGSonarScan(cells.map(c => ({coord: c.coord, positive: c.displayedResult})));
+  }
+
+  playScreenShake(intensity = 0.15, duration = 0.25): void {
+    this.shakeIntensity = intensity;
+    this.shakeDuration = duration;
+    this.shakeTimeRemaining = duration;
+    try {
+      getLogger().emit('view.change', { action: 'screen_shake', intensity, duration });
+    } catch {
+      // Logger may not be initialized
+    }
   }
 
   setSilentRunningOverlay(coords: Coordinate[]): void {

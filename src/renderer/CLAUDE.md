@@ -22,7 +22,7 @@
   - SLICE: selected visible+normal, ±1 visible+ghost, rest hidden
   - X-RAY: only non-empty cells visible (filtered by board type)
 - **GridRaycaster** picks cells via `THREE.Raycaster`, mesh source filtered by ViewManager.
-- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Silent Running overlay via `setSilentRunningOverlay(coords)` / `clearSilentRunningOverlay()` (CYAN, separate from ghost cells). Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`, `playSonarAnimation(coord, positive)`, `playDepthChargeAnimation(center, results)`, `playGSonarScanAnimation(cells)`.
+- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Silent Running overlay via `setSilentRunningOverlay(coords)` / `clearSilentRunningOverlay()` (CYAN, separate from ghost cells). Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`, `playSonarAnimation(coord, positive)`, `playDepthChargeAnimation(center, results)`, `playGSonarScanAnimation(cells)`. Screen shake via `playScreenShake(intensity?, duration?)`.
 - **ResizeObserver** handles responsive canvas sizing. `devicePixelRatio` capped at 2.
 
 ## Ghost Cell Overlay
@@ -44,6 +44,8 @@
 | **Drone Scan** | `playDroneScan(results)` | `30ms × (n-1) + 500ms` | Staggered per-cell pulse (same two-phase as sonar). CYAN if positive, GREEN_DIM if negative. Stores `positiveFlags` for correct per-cell cancel restore. Completes → restores pooled DronePositive or DroneNegative materials per cell |
 | **G-SONAR Scan** | `playGSonarScan(results)` | `15ms × (n-1) + 500ms` (~1.5s for 64 cells) | Same two-phase staggered pulse as drone scan but 15ms stagger (vs 30ms). CYAN if positive, GREEN_DIM if negative. Stores `positiveFlags` for correct per-cell cancel restore. Completes → restores pooled DronePositive or DroneNegative materials per cell |
 | **Depth Charge Blast** | `playDepthChargeBlast(center, results)` | ~1200ms | Three-phase: (1) 0–200ms center cell ORANGE flash, (2) 200–700ms expanding shockwave by Manhattan distance (80ms per ring), (3) 700–1200ms settle to final state. Stores `hitFlags` for per-cell cancel restore. Completes → restores pooled Hit (hits) or Miss (misses) materials |
+
+| **Screen Shake** | `playScreenShake(intensity?, duration?)` | 250ms (default) | Additive random XYZ camera offset with quadratic decay. Applied after `orbit.update()` so it doesn't accumulate. Default intensity 0.15, duration 0.25s |
 
 - Duplicate animation on same cell cancels previous and disposes its materials.
 - Combat screen wires animations in `handleFire()`: hit→`playHitAnimation`, sunk→`playSunkAnimation` (using ship cells from opponent state), miss→`playMissAnimation`. Sonar wired in `handlePing()`: `playSonarAnimation(coord, result.displayedResult)`. Drone wired in `handleDroneScan()`: `playDroneScanAnimation(writtenCells)` — only cells actually written to targeting grid, not skipped Hit/Sunk cells. Depth charge wired in `handleDepthChargeStrike()`: `playDepthChargeAnimation(center, animResults)` — filters out already_resolved cells. G-SONAR wired in `handleGSonar()`: `playGSonarScanAnimation(writtenCells)` — only cells actually written to targeting grid.
@@ -68,7 +70,7 @@
 - Dispose pattern: every class has `dispose()` that cleans up Three.js resources and event listeners.
 - Camera targets origin (0,0,0). Grid is centered at origin via `GRID_OFFSET = 3.5`.
 - Fog (`FogExp2`) fades distant cells for depth perception.
-- Logger events: `view.rotate` on drag end, `view.change` on scene init, `view.mode_change` on mode switch, `view.depth_change` on depth change.
+- Logger events: `view.rotate` on drag end, `view.change` on scene init / screen shake, `view.mode_change` on mode switch, `view.depth_change` on depth change.
 - View transitions: ~200ms opacity lerp for dimmed/ghost materials.
 
 ## Coordinate System

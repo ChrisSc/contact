@@ -50,6 +50,7 @@
 - Consecutive hit tracked via `PlayerState.lastTurnHit` — set at `endTurn()`, not during fire.
 - Decoy hit counts as hit for credits (1 CR) and consecutive tracking.
 - `fireTorpedo()` allows firing on cells with `SonarPositive`/`SonarNegative` state (overwrites sonar result with Hit/Miss).
+- `FireResult` includes optional `creditsAwarded` field — total credits earned from the shot (sum of hit/consecutive/sink awards). Backward-compatible.
 
 ## Sonar Ping
 

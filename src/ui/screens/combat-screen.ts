@@ -16,6 +16,7 @@ import { getLogger } from '../../observability/logger';
 import { PerkStore } from '../components/perk-store';
 import { InventoryTray } from '../components/inventory-tray';
 import { ActionSlots } from '../components/action-slots';
+import { NotificationBanner } from '../components/notification-banner';
 import {
   initAudioContext,
   toggleMute,
@@ -240,6 +241,10 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   });
   perkStore.render().style.display = 'none';
   el.appendChild(perkStore.render());
+
+  // --- Notification Banner component ---
+  const notifications = new NotificationBanner();
+  el.appendChild(notifications.render());
 
   // --- Inventory Tray component ---
   const inventoryTray = new InventoryTray({
@@ -704,8 +709,19 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       if (sunkShip && sunkShip.cells.length > 0) {
         sceneManager.playSunkAnimation(sunkShip.cells);
       }
+      sceneManager.playScreenShake();
+      const entry = FLEET_ROSTER.find((r) => r.id === result.shipId);
+      const sunkName = entry ? entry.name.toUpperCase() : (result.shipId ?? 'UNKNOWN').toUpperCase();
+      notifications.show({ text: `VESSEL DESTROYED: ${sunkName}`, duration: 2500, className: 'notification-banner__message--sunk' });
+      if (result.creditsAwarded && result.creditsAwarded > 0) {
+        notifications.show({ text: `+${result.creditsAwarded} CREDITS`, duration: 2000, className: 'notification-banner__message--credits' });
+      }
     } else if (result.result === 'hit') {
       sceneManager.playHitAnimation(coord);
+      sceneManager.playScreenShake();
+      if (result.creditsAwarded && result.creditsAwarded > 0) {
+        notifications.show({ text: `+${result.creditsAwarded} CREDITS`, duration: 1500, className: 'notification-banner__message--credits' });
+      }
     } else {
       sceneManager.playMissAnimation(coord);
     }
@@ -743,6 +759,22 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
     sceneManager.playDepthChargeAnimation(coord, animResults);
     playDepthChargeSound();
+
+    // Screen shake if any hits
+    const hasHits = animResults.some(r => r.hit);
+    if (hasHits) {
+      sceneManager.playScreenShake();
+    }
+
+    // Notification banners for sunk ships
+    for (const shipId of result.shipsSunk) {
+      const entry = FLEET_ROSTER.find((r) => r.id === shipId);
+      const sunkName = entry ? entry.name.toUpperCase() : shipId.toUpperCase();
+      notifications.show({ text: `VESSEL DESTROYED: ${sunkName}`, duration: 2500, className: 'notification-banner__message--sunk' });
+    }
+    if (result.totalCreditsAwarded > 0) {
+      notifications.show({ text: `+${result.totalCreditsAwarded} CREDITS`, duration: 2000, className: 'notification-banner__message--credits' });
+    }
 
     // Status message
     const hits = result.cellResults.filter(r => r.result === 'hit' || r.result === 'sunk').length;
@@ -931,6 +963,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       perkStore.destroy();
       inventoryTray.destroy();
       actionSlotsComponent.destroy();
+      notifications.destroy();
       sceneManager.dispose();
       el.remove();
     },

@@ -5,7 +5,7 @@
 - **`variables.css`** — Design tokens (colors, spacing, fonts) + CSS reset. Single source of truth for theming.
 - **`crt.css`** — Scanline overlay, vignette effect, subtle flicker animation. CRT terminal aesthetic.
 - **`grid.css`** — Slice grid layout, cell state classes, ghost cell preview, hover effects.
-- **`ui.css`** — Screen layouts (setup, combat, victory, handoff), buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status, perk store, inventory tray, action slots, credit display. Both setup and combat screens use canvas-dominant overlay layout.
+- **`ui.css`** — Screen layouts (setup, combat, victory, handoff), buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status, perk store, inventory tray, action slots, credit display, notification banner. Both setup and combat screens use canvas-dominant overlay layout.
 
 ## Architecture
 
@@ -39,3 +39,4 @@
 - **Store button** (`.combat-screen__store-btn`): Amber-bordered toggle near view modes.
 - **Mute button** (`.combat-screen__mute-btn`): Green-bordered toggle next to store button. `--muted` modifier dims the button (opacity 0.6) when audio is muted.
 - **Sonar status** (`.combat-screen__status--sonar-positive/negative`): Cyan for contact, dim green for negative.
+- **Notification banner** (`.notification-banner`): Fixed centered overlay at `z-index: 30`, pointer-events none. Messages use Press Start 2P font with glow. `--sunk` modifier: amber color/border, larger font. `--credits` modifier: green, smaller font. `--dismiss` modifier triggers fade-out animation. Appear/dismiss via `@keyframes notif-appear`/`notif-dismiss` (scale + opacity).
