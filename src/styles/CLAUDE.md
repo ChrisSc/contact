@@ -5,7 +5,7 @@
 - **`variables.css`** — Design tokens (colors, spacing, fonts) + CSS reset. Single source of truth for theming.
 - **`crt.css`** — Scanline overlay, vignette effect, barrel distortion (`#app` border-radius + inset box-shadow). CRT terminal aesthetic.
 - **`grid.css`** — Slice grid layout, cell state classes, ghost cell preview, hover effects.
-- **`ui.css`** — Screen layouts (setup, combat, victory, handoff), buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status, perk store, inventory tray, action slots, credit display, notification banner. Both setup and combat screens use canvas-dominant overlay layout.
+- **`ui.css`** — Screen layouts (setup, combat, victory, handoff), buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status (friendly + enemy with separator), perk store, inventory tray, action slots, credit display, notification banner. Both setup and combat screens use canvas-dominant overlay layout.
 - **`effects.css`** — Phosphor bloom CSS utility. Applies `filter: brightness(1.05) blur(0.3px)` + stacked `text-shadow` (10px/20px/40px at decreasing alpha) to `.notification-banner` and `.combat-screen__status` elements. Amber bloom override for `--sunk`, cyan bloom for `--sonar-positive`.
 
 ## Architecture
@@ -39,6 +39,8 @@
 - **Credit display** (`.combat-screen__credits`): Amber text in top-right bar.
 - **Store button** (`.combat-screen__store-btn`): Amber-bordered toggle near view modes.
 - **Mute button** (`.combat-screen__mute-btn`): Green-bordered toggle next to store button. `--muted` modifier dims the button (opacity 0.6) when audio is muted.
+- **Fleet pip damage** (`.combat-screen__pip--hit`): Red background at 0.8 opacity for per-cell damage on friendly fleet. Distinct from `--sunk` (0.6 opacity, used for all pips when ship fully destroyed).
+- **Fleet separator** (`.combat-screen__fleet-separator`): 1px green line at 15% opacity between friendly and enemy fleet sections.
 - **Sonar status** (`.combat-screen__status--sonar-positive/negative`): Cyan for contact, dim green for negative.
 - **Notification banner** (`.notification-banner`): Fixed centered overlay at `z-index: 30`, pointer-events none. Messages use Press Start 2P font with glow. `--sunk` modifier: amber color/border, larger font. `--credits` modifier: green, smaller font. `--dismiss` modifier triggers fade-out animation. Appear/dismiss via `@keyframes notif-appear`/`notif-dismiss` (scale + opacity).
 

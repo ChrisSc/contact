@@ -53,6 +53,10 @@ export class SceneManager {
   private srOverlayMat: THREE.MeshBasicMaterial;
   private srOverlayEdge: THREE.LineBasicMaterial;
 
+  private friendlyOverlayEntries: GhostEntry[] = [];
+  private friendlyOverlayMat: THREE.MeshBasicMaterial;
+  private friendlyOverlayEdge: THREE.LineBasicMaterial;
+
   private boundOnClick: (e: PointerEvent) => void;
   private boundOnPointerMove: (e: PointerEvent) => void;
 
@@ -83,6 +87,9 @@ export class SceneManager {
 
     this.srOverlayMat = new THREE.MeshBasicMaterial({ color: CRT_COLORS.CYAN, transparent: true, opacity: 0.2, depthWrite: false });
     this.srOverlayEdge = new THREE.LineBasicMaterial({ color: CRT_COLORS.CYAN, transparent: true, opacity: 0.4 });
+
+    this.friendlyOverlayMat = new THREE.MeshBasicMaterial({ color: CRT_COLORS.GREEN, transparent: true, opacity: 0.3, depthWrite: false });
+    this.friendlyOverlayEdge = new THREE.LineBasicMaterial({ color: CRT_COLORS.GREEN, transparent: true, opacity: 0.6 });
 
     this.views = new ViewManager(this.cube, this.materialPool);
     this.animations = new AnimationManager(this.cube, this.materialPool);
@@ -219,6 +226,7 @@ export class SceneManager {
 
   updateGrid(grid: Grid): void {
     this.clearGhostCells();
+    this.clearFriendlyFleetOverlay();
     this.cube.updateFromGrid(grid);
     this.views.applyView(grid);
   }
@@ -297,10 +305,35 @@ export class SceneManager {
     this.srOverlayEntries.length = 0;
   }
 
+  setFriendlyFleetOverlay(coords: Coordinate[]): void {
+    this.clearFriendlyFleetOverlay();
+    for (const coord of coords) {
+      const cell = this.cube.getCellMesh(coord);
+      if (cell) {
+        this.friendlyOverlayEntries.push({
+          cell,
+          origFill: cell.box.material as THREE.Material,
+          origEdge: cell.edges.material as THREE.Material,
+        });
+        cell.box.material = this.friendlyOverlayMat;
+        cell.edges.material = this.friendlyOverlayEdge;
+      }
+    }
+  }
+
+  clearFriendlyFleetOverlay(): void {
+    for (const entry of this.friendlyOverlayEntries) {
+      entry.cell.box.material = entry.origFill;
+      entry.cell.edges.material = entry.origEdge;
+    }
+    this.friendlyOverlayEntries.length = 0;
+  }
+
   dispose(): void {
     this.stop();
     this.clearGhostCells();
     this.clearSilentRunningOverlay();
+    this.clearFriendlyFleetOverlay();
 
     const canvas = this.renderer.domElement;
     canvas.removeEventListener('click', this.boundOnClick as EventListener);
@@ -312,6 +345,8 @@ export class SceneManager {
     this.ghostInvalidEdge.dispose();
     this.srOverlayMat.dispose();
     this.srOverlayEdge.dispose();
+    this.friendlyOverlayMat.dispose();
+    this.friendlyOverlayEdge.dispose();
 
     this.animations.dispose();
     this.views.dispose();

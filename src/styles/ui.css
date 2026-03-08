@@ -769,9 +769,20 @@
   opacity: 0.8;
 }
 
+.combat-screen__pip--hit {
+  background: var(--crt-red);
+  opacity: 0.8;
+}
+
 .combat-screen__pip--sunk {
   background: var(--crt-red);
   opacity: 0.6;
+}
+
+.combat-screen__fleet-separator {
+  height: 1px;
+  background: rgba(0, 255, 65, 0.15);
+  margin: 6px 0;
 }
 
 /* --- End Turn button (bottom-right) --- */
