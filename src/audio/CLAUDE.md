@@ -3,7 +3,7 @@
 ## Files
 
 - **`audio-manager.ts`** — Tone.js context lifecycle owner. `initAudioContext()` (lazy, idempotent — call on first user gesture), `isAudioReady()` (guards all playback), `setMasterVolume(db)`, `toggleMute()`, `isMuted()`. Module-level `contextReady` flag plus `Tone.getContext().state` check.
-- **`abilities.ts`** — Synthesized SFX for all combat actions and ability deployments. All no-ops when context not ready. Fire-and-forget (no await needed). Exports: `playTorpedoFireSound()`, `playTorpedoHitSound()`, `playTorpedoMissSound()`, `playTorpedoSunkSound()`, `playSonarPingSound()`, `playReconDroneSound()`, `playRadarJammerSound()`, `playDepthChargeSound()`, `playSilentRunningActivate()`, `playSilentRunningExpire()`.
+- **`abilities.ts`** — Synthesized SFX for all combat actions and ability deployments. All no-ops when context not ready. Fire-and-forget (no await needed). Exports: `playTorpedoFireSound()`, `playTorpedoHitSound()`, `playTorpedoMissSound()`, `playTorpedoSunkSound()`, `playSonarPingSound()`, `playReconDroneSound()`, `playRadarJammerSound()`, `playDepthChargeSound()`, `playSilentRunningActivate()`, `playSilentRunningExpire()`, `playGSonarSound()`, `playAcousticCloakSound()`.
 
 ## Architecture
 
@@ -27,6 +27,8 @@
 | **Depth Charge** | (1) White noise → bandpass 200→60 Hz sweep + lowpass 300 Hz (shockwave), (2) Sine 50 Hz with long decay (sub-bass rumble), (3) White noise → bandpass 800 Hz (impact crack) | ~1s + 1.4s cleanup | Deep underwater explosion |
 | **Silent Running activate** | (1) Sine 500→100 Hz descending + lowpass 600→80 Hz closing, (2) Sine 250→50 Hz sub-octave layer | ~500ms + 900ms cleanup | Submarine disappearing |
 | **Silent Running expire** | Triangle 100→400 Hz ascending, highpass 80 Hz, -16 dB | ~300ms + 600ms cleanup | Subtle resurface notification |
+| **G-SONAR** | (1) Sine 200→400 Hz main sweep, -6 dB, (2) Sine 600→1200 Hz harmonic layer, -14 dB, (3) FeedbackDelay (0.32s, 28% feedback, 30% wet) shared by both | ~800ms + 1.6s cleanup | Deep commanding area sonar, wider and slower than standard ping |
+| **Acoustic Cloak** | White noise → bandpass 1200→200 Hz closing sweep, Q 1.8, LFO 8 Hz on filter detune (±80 Hz wobble), -14 dB overall | ~500ms + 900ms cleanup | Ethereal fade-to-silence, ships dissolving from sensors |
 
 ## Patterns
 
@@ -46,9 +48,11 @@ Combat screen calls `initAudioContext()` on first user interaction (any click ha
 - `handleDepthChargeStrike()` → `playDepthChargeSound()`
 - `handleSilentRunningSelect()` → `playSilentRunningActivate()`
 - SR expiry → `playSilentRunningExpire()` (not yet wired — SR overlay + status text handles feedback)
+- G-SONAR deploy → `playGSonarSound()`
+- Acoustic Cloak trigger → `playAcousticCloakSound()`
 
 ## Testing
 
 - Audio modules are **mocked** in UI tests (`vi.mock`) to avoid Tone.js ESM import issues in jsdom.
-- Mock in `tests/ui/combat-screen.test.ts` lists all 10 exported functions as `vi.fn()` no-ops.
+- Mock in `tests/ui/combat-screen.test.ts` lists all 12 exported functions as `vi.fn()` no-ops.
 - No dedicated audio unit tests — functions are fire-and-forget synthesis with no return values or testable state.

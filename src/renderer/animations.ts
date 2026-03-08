@@ -18,10 +18,10 @@ interface AnimEntry {
 }
 
 interface ActiveAnimation {
-  type: 'hit_flash' | 'sunk_cascade' | 'miss_fade' | 'sonar_sweep' | 'drone_scan' | 'depth_charge_blast';
+  type: 'hit_flash' | 'sunk_cascade' | 'miss_fade' | 'sonar_sweep' | 'drone_scan' | 'depth_charge_blast' | 'g_sonar_scan';
   elapsed: number;
   entries: AnimEntry[];
-  /** Per-entry positive flags for drone_scan (used by cancel to restore correct state) */
+  /** Per-entry positive flags for drone_scan / g_sonar_scan (used by cancel to restore correct state) */
   positiveFlags?: boolean[];
   /** Per-entry hit flags for depth_charge_blast (used by cancel to restore correct state) */
   hitFlags?: boolean[];
@@ -512,6 +512,133 @@ export class AnimationManager {
   }
 
   // -------------------------------------------------------------------------
+  // playGSonarScan — same pulse pattern as drone_scan but 15ms stagger for 64 cells (~1.5s total)
+  // -------------------------------------------------------------------------
+
+  playGSonarScan(results: Array<{coord: Coordinate; positive: boolean}>): void {
+    if (results.length === 0) return;
+
+    // Cancel existing animations on these cells
+    for (const r of results) {
+      const key = coordKey(r.coord);
+      if (this.animations.has(key)) {
+        this._cancelKey(key);
+      }
+    }
+
+    const entries: AnimEntry[] = [];
+    const positiveFlags: boolean[] = [];
+
+    for (const r of results) {
+      const cell = this.cube.getCellMesh(r.coord);
+      if (!cell) continue;
+
+      const color = r.positive ? CRT_COLORS.CYAN : CRT_COLORS.GREEN_DIM;
+
+      const fill = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const edge = new THREE.LineBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0,
+      });
+
+      cell.box.material = fill;
+      cell.edges.material = edge;
+
+      entries.push({ coord: r.coord, cell, fill, edge });
+      positiveFlags.push(r.positive);
+    }
+
+    if (entries.length === 0) return;
+
+    const stagger = 0.015; // 15ms per cell (vs 30ms for drone scan)
+    const cellDuration = 0.5; // 500ms per cell (300ms pulse + 200ms settle)
+    const totalDuration = stagger * (entries.length - 1) + cellDuration;
+    const pool = this.materialPool;
+    const allKeys = entries.map(e => coordKey(e.coord));
+
+    const anim: ActiveAnimation = {
+      type: 'g_sonar_scan',
+      elapsed: 0,
+      entries,
+      positiveFlags,
+      onUpdate(elapsed: number): boolean {
+        for (let i = 0; i < entries.length; i++) {
+          const entry = entries[i]!;
+          const positive = positiveFlags[i]!;
+          const staggerOffset = i * stagger;
+          const localTime = elapsed - staggerOffset;
+
+          const targetFillOpacity = positive ? 0.4 : 0.1;
+          const targetEdgeOpacity = positive ? 0.6 : 0.15;
+
+          if (localTime < 0) {
+            // Not started yet
+            entry.fill.opacity = 0;
+            entry.edge.opacity = 0;
+          } else if (localTime <= 0.3) {
+            // Phase 1: pulse up
+            const t = clamp(localTime / 0.3, 0, 1);
+            entry.fill.opacity = t * 0.8;
+            entry.edge.opacity = t * 1.0;
+          } else if (localTime <= 0.5) {
+            // Phase 2: settle to target
+            const t = clamp((localTime - 0.3) / 0.2, 0, 1);
+            entry.fill.opacity = 0.8 + t * (targetFillOpacity - 0.8);
+            entry.edge.opacity = 1.0 + t * (targetEdgeOpacity - 1.0);
+          } else {
+            // Done — hold at target values
+            entry.fill.opacity = targetFillOpacity;
+            entry.edge.opacity = targetEdgeOpacity;
+          }
+        }
+
+        if (elapsed >= totalDuration) {
+          // Restore pooled materials for each cell
+          for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i]!;
+            const positive = positiveFlags[i]!;
+            const targetState = positive ? CellState.DronePositive : CellState.DroneNegative;
+            const mats = pool.getMaterials(targetState);
+            entry.cell.box.material = mats.fill;
+            entry.cell.edges.material = mats.edge;
+            entry.fill.dispose();
+            entry.edge.dispose();
+          }
+          return true;
+        }
+        return false;
+      },
+    };
+
+    // Register under ALL coord keys
+    const animationsMap = this.animations;
+    for (const key of allKeys) {
+      this.animations.set(key, anim);
+    }
+
+    tryLog('animation_start', 'g_sonar_scan');
+
+    // Override onUpdate to clean up all keys
+    const originalOnUpdate = anim.onUpdate.bind(anim);
+    anim.onUpdate = function (elapsed: number): boolean {
+      const done = originalOnUpdate(elapsed);
+      if (done) {
+        for (const k of allKeys) {
+          animationsMap.delete(k);
+        }
+        tryLog('animation_complete', 'g_sonar_scan');
+      }
+      return done;
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // playDepthChargeBlast — expanding shockwave from center, then settle to Hit/Miss
   // Phase 1 (0–200ms): center cell full ORANGE flash
   // Phase 2 (200–700ms): rings expand outward staggered by 80ms per Manhattan ring
@@ -684,10 +811,10 @@ export class AnimationManager {
     for (let i = 0; i < anim.entries.length; i++) {
       const entry = anim.entries[i]!;
 
-      // Drone scan: restore each cell to its correct positive/negative state
+      // Drone scan / g_sonar_scan: restore each cell to its correct positive/negative state
       // Depth charge blast: restore each cell to Hit or Miss based on hitFlags
       let restoreState: CellState;
-      if (anim.type === 'drone_scan' && anim.positiveFlags) {
+      if ((anim.type === 'drone_scan' || anim.type === 'g_sonar_scan') && anim.positiveFlags) {
         restoreState = anim.positiveFlags[i] ? CellState.DronePositive : CellState.DroneNegative;
       } else if (anim.type === 'depth_charge_blast' && anim.hitFlags) {
         restoreState = anim.hitFlags[i] ? CellState.Hit : CellState.Miss;
@@ -730,7 +857,7 @@ export class AnimationManager {
         const entry = anim.entries[i]!;
 
         let restoreState: CellState;
-        if (anim.type === 'drone_scan' && anim.positiveFlags) {
+        if ((anim.type === 'drone_scan' || anim.type === 'g_sonar_scan') && anim.positiveFlags) {
           restoreState = anim.positiveFlags[i] ? CellState.DronePositive : CellState.DroneNegative;
         } else if (anim.type === 'depth_charge_blast' && anim.hitFlags) {
           restoreState = anim.hitFlags[i] ? CellState.Hit : CellState.Miss;

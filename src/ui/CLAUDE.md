@@ -42,7 +42,7 @@
 
 ## Combat Screen — Perk Integration
 
-- **CombatUIState** includes `storeOpen`, `pingMode`, `droneMode`, `depthChargeMode`, `silentRunningMode`, `turnSlots` fields.
+- **CombatUIState** includes `storeOpen`, `pingMode`, `droneMode`, `depthChargeMode`, `silentRunningMode`, `gSonarMode`, `turnSlots` fields.
 - **Store toggle**: STORE button in top-right toggles perk store panel visibility. Store accessible anytime during turn.
 - **Purchase flow**: `onPurchase` → `game.purchasePerk(perkId)` → refresh credits/inventory/store/action slots.
 - **Ping mode**: Selecting sonar_ping from inventory → `pingMode = true`, hint changes to "CLICK CELL TO PING". `handleCellClick()` routes to `handlePing(coord)` when in ping mode, else `handleFire(coord)`.
@@ -53,6 +53,10 @@
 - **SR overlay on own grid**: `updateSceneGrid()` clears SR overlay, then rebuilds from `player.silentRunningShips` when `boardView === 'own'` via `sceneManager.setSilentRunningOverlay(coords)`.
 - **Mode cancellation**: Switching board view or selecting a new inventory item cancels any active mode (ping/drone/depthCharge/silentRunning) and clears ghost cells.
 - **Audio integration**: `initAudioContext()` called on first user interaction (handleFire, handlePing, handleDroneScan, handleDepthChargeStrike, handleSilentRunningSelect, handleEndTurn). Sound functions fire-and-forget.
+- **G-SONAR mode**: Selecting `g_sonar` from inventory → `gSonarMode = true`, selectLabel changes to "SELECT DEPTH LAYER", hint changes to "CLICK D1-D8 TO SCAN ENTIRE DEPTH LAYER". `handleDepthChange()` intercepts when `gSonarMode` is true: clicking ANY numbered depth button (D1-D8, depth 0-7) routes to `handleGSonarScan(depth)`, clicking ALL (depth -1) is ignored. `handleGSonarScan()` calls `game.useGSonar(depth)`, plays `playGSonarSound()`, calls `sceneManager.playGSonarScanAnimation(writtenCells)` (only cells with `written: true`), shows status "G-SONAR: N CONTACTS ON LAYER Dn" / "G-SONAR: LAYER Dn CLEAR" / "G-SONAR: LAYER Dn SCAN JAMMED" (cloaked case), then resets UI and enables end turn.
+- **Acoustic Cloak**: Selecting `acoustic_cloak` from inventory → instant deploy via `game.useAcousticCloak()`, plays `playAcousticCloakSound()`, shows status "ACOUSTIC CLOAK: ALL SHIPS MASKED (2 TURNS)", refreshes inventory/action slots. Same instant-deploy pattern as `radar_jammer`.
 - **Radar jammer display**: `refreshInventory()` filters out `radar_jammer` instances when `player.abilities.radar_jammer.active` — deployed jammer disappears from tray until consumed by opponent action.
+- **Mode cancellation**: `gSonarMode` is cancelled (set to false + `inventoryTray.clearSelection()`) when switching board view via `handleBoardToggle()`, and cancelled (set to false) when selecting any new inventory item via `handleInventorySelect()`.
+- **Audio functions**: `playGSonarSound()` fires on G-SONAR scan; `playAcousticCloakSound()` fires on Acoustic Cloak deploy. Both imported from `../../audio/abilities`.
 - **End turn gating**: `turnSlots.attackUsed` required (unchanged from pre-perk behavior).
 - **Cleanup**: `perkStore.destroy()`, `inventoryTray.destroy()`, `actionSlotsComponent.destroy()` in `unmount()`.

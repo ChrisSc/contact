@@ -245,6 +245,10 @@ export class SceneManager {
     this.animations.playDepthChargeBlast(center, results);
   }
 
+  playGSonarScanAnimation(cells: Array<{coord: Coordinate; displayedResult: boolean}>): void {
+    this.animations.playGSonarScan(cells.map(c => ({coord: c.coord, positive: c.displayedResult})));
+  }
+
   setSilentRunningOverlay(coords: Coordinate[]): void {
     this.clearSilentRunningOverlay();
     for (const coord of coords) {

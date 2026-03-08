@@ -10,11 +10,13 @@
 - **`drone.test.ts`** — `executeReconDrone`: per-cell accuracy against defender grid (ship cells true, empty cells false), ship outside 3×3×3 range returns no contacts, existing Hit/Miss/Sunk cells not detected as ships, radar jammer forces all-false (not inversion), silent running masks per-cell (SR ship masked, decoy not masked, SR priority over jammer)
 - **`sonar.test.ts`** — `executeSonarPing`: empty cell, ship cell, decoy cell (false positive), radar jammer (inverts both ways), acoustic cloak (forces false), decoy+jammer interaction, silent running masks ship cell (SR ship masked, decoy not masked, SR priority over jammer, non-SR ship still affected by jammer)
 - **`depth-charge.test.ts`** — `calculateDepthChargeTargets`: empty area (all Empty/not resolved), ship in zone (Ship state, shipId set), multi-ship in zone, already-resolved cells (Hit/Miss/Sunk/DecoyHit flagged), decoy in zone (Decoy state, null shipId), corner clipping (fewer cells at grid edge), scan-state cells (SonarPositive/DroneNegative not resolved)
+- **`g-sonar.test.ts`** — `executeGSonar`: empty layer (all false), ships detected at correct depth, decoy false positive, SR ship masked, acoustic cloak masks all (cloaked=true), cells not marked as written, correct depth coordinates
+- **`acoustic-cloak.test.ts`** — GameController integration: deploy sets active+turnsRemaining, reject if already active, reject if no inventory, 2-turn countdown expiry, perk.expire event, masks sonar/drone/G-SONAR results, does NOT block torpedoes, does NOT block depth charges, perk.use event on deploy
 - **`silent-running.test.ts`** — `isShipSilentRunning` (active/inactive/empty), `decrementSilentRunning` (2→1 remaining, 1→0 expired, mixed entries, empty input, immutability)
 
 ## Architecture
 
-- **Unit tests** for pure functions (`grid.ts`, `fleet.ts`, `credits.ts`, `perks.ts`, `sonar.ts`, `drone.ts`): pass inputs, assert outputs.
+- **Unit tests** for pure functions (`grid.ts`, `fleet.ts`, `credits.ts`, `perks.ts`, `sonar.ts`, `drone.ts`, `g-sonar.ts`): pass inputs, assert outputs.
 - **Integration tests** for `GameController`: exercise full game flows through the public API.
 - Tests use `tests/setup.ts` for shared helpers and factory functions.
 
@@ -38,3 +40,5 @@
 - **Depth charge tests**: Use `createEmptyPlayerState` with manually set cell states. Verify `cellState`, `shipId`, `alreadyResolved` per cell.
 - **Silent running tests**: Pure unit tests for lookup and decrement helpers. Verify immutability of input arrays.
 - **SR integration tests**: Added to sonar, drone, and game test files. Use `silentRunningShips` on defender state to verify masking behavior and priority over jammer.
+- **G-SONAR tests**: Use `createTestPlayerState` with manually set cell states. Verify per-cell `rawResult`/`displayedResult`/`written` fields. No jammer interaction (distinct from drone). 64 cells per scan at specified depth.
+- **Acoustic Cloak tests**: GameController integration tests. Deploy via purchase+use, verify countdown timing matches SR pattern (counts opponent turns). Test masking across sonar, drone, and G-SONAR. Verify damage abilities (torpedo, depth charge) still work through cloak.

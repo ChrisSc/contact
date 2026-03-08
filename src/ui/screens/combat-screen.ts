@@ -27,6 +27,8 @@ import {
   playSonarPingSound,
   playReconDroneSound,
   playRadarJammerSound,
+  playGSonarSound,
+  playAcousticCloakSound,
 } from '../../audio/abilities';
 
 interface CombatUIState {
@@ -42,6 +44,7 @@ interface CombatUIState {
   droneMode: boolean;
   depthChargeMode: boolean;
   silentRunningMode: boolean;
+  gSonarMode: boolean;
   turnSlots: TurnSlots;
 }
 
@@ -64,6 +67,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     droneMode: false,
     depthChargeMode: false,
     silentRunningMode: false,
+    gSonarMode: false,
     turnSlots: { pingUsed: false, attackUsed: false, defendUsed: false },
   };
 
@@ -289,6 +293,13 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleDepthChange(depth: number): void {
+    if (uiState.gSonarMode && depth >= 0) {
+      handleGSonarScan(depth);
+      return;
+    }
+    if (uiState.gSonarMode && depth === -1) {
+      return;
+    }
     uiState.currentDepth = depth === -1 ? null : depth;
     sceneManager.setDepth(uiState.currentDepth);
     updateDepthButtons();
@@ -348,6 +359,10 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       uiState.silentRunningMode = false;
       inventoryTray.clearSelection();
     }
+    if (uiState.gSonarMode) {
+      uiState.gSonarMode = false;
+      inventoryTray.clearSelection();
+    }
     if (uiState.boardView === view) return;
     uiState.boardView = view;
 
@@ -366,6 +381,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       return;
     }
     if (uiState.boardView !== 'targeting') return;
+    if (uiState.gSonarMode) return; // G-SONAR uses depth buttons, not cell clicks
     if (uiState.depthChargeMode) {
       handleDepthChargeStrike(coord);
     } else if (uiState.droneMode) {
@@ -426,6 +442,9 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     if (uiState.silentRunningMode) {
       uiState.silentRunningMode = false;
     }
+    if (uiState.gSonarMode) {
+      uiState.gSonarMode = false;
+    }
 
     if (instance.perkId === 'sonar_ping') {
       uiState.pingMode = true;
@@ -455,6 +474,22 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
         playRadarJammerSound();
         statusEl.className = 'combat-screen__status';
         statusEl.textContent = 'RADAR JAMMER DEPLOYED';
+        statusEl.classList.add('combat-screen__status--sonar-negative');
+        inventoryTray.clearSelection();
+        refreshInventory();
+        refreshActionSlots();
+        uiState.turnSlots = game.getTurnSlots();
+      }
+    } else if (instance.perkId === 'g_sonar') {
+      uiState.gSonarMode = true;
+      selectLabel.textContent = 'SELECT DEPTH LAYER';
+      hint.textContent = 'CLICK D1-D8 TO SCAN ENTIRE DEPTH LAYER';
+    } else if (instance.perkId === 'acoustic_cloak') {
+      const deployed = game.useAcousticCloak();
+      if (deployed) {
+        playAcousticCloakSound();
+        statusEl.className = 'combat-screen__status';
+        statusEl.textContent = 'ACOUSTIC CLOAK: ALL SHIPS MASKED (2 TURNS)';
         statusEl.classList.add('combat-screen__status--sonar-negative');
         inventoryTray.clearSelection();
         refreshInventory();
@@ -526,6 +561,50 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       statusEl.classList.add('combat-screen__status--sonar-positive');
     } else {
       statusEl.textContent = 'DRONE SCAN: NO CONTACTS';
+      statusEl.classList.add('combat-screen__status--sonar-negative');
+    }
+
+    // Refresh UI
+    selectLabel.textContent = 'SELECT TARGET';
+    hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO FIRE';
+    inventoryTray.clearSelection();
+    refreshInventory();
+    refreshActionSlots();
+    uiState.turnSlots = game.getTurnSlots();
+
+    // Enable end turn (attack slot used)
+    endTurnBtn.disabled = false;
+  }
+
+  function handleGSonarScan(depth: number): void {
+    initAudioContext();
+    const result = game.useGSonar(depth);
+    if (!result) return;
+
+    uiState.gSonarMode = false;
+
+    playGSonarSound();
+
+    // Update scene grid first so materials are set
+    updateSceneGrid();
+
+    // Only animate cells actually written to the targeting grid
+    const writtenCells = result.cells.filter(c => c.written);
+
+    // Play G-SONAR scan animation
+    sceneManager.playGSonarScanAnimation(writtenCells);
+
+    // Status message
+    const contacts = writtenCells.filter(c => c.displayedResult).length;
+    statusEl.className = 'combat-screen__status';
+    if (result.cloaked) {
+      statusEl.textContent = `G-SONAR: LAYER D${depth + 1} SCAN JAMMED`;
+      statusEl.classList.add('combat-screen__status--sonar-negative');
+    } else if (contacts > 0) {
+      statusEl.textContent = `G-SONAR: ${contacts} CONTACT${contacts !== 1 ? 'S' : ''} ON LAYER D${depth + 1}`;
+      statusEl.classList.add('combat-screen__status--sonar-positive');
+    } else {
+      statusEl.textContent = `G-SONAR: LAYER D${depth + 1} CLEAR`;
       statusEl.classList.add('combat-screen__status--sonar-negative');
     }
 
