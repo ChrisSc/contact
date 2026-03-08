@@ -26,6 +26,7 @@
 - Glow effects via `text-shadow` / `box-shadow` with rgba green values.
 - Green phosphor palette: dark backgrounds (`#0a0a0a`), green text/borders (`#00ff41`, `#003b00`). Extended palette: `--crt-green-dark`, `--crt-orange`, `--crt-yellow`, `--crt-amber`.
 - **Ship roster decoy entry** uses amber (`--crt-amber`) for distinct visual identity: disabled/hover/selected/placed states via `ship-roster__entry--decoy*` modifiers.
+- **Auto deploy button** (`.setup-screen__auto-deploy`): amber-bordered CRT-style button in roster panel for random fleet placement.
 - Grid uses CSS Grid layout; responsive sizing via `clamp()` or viewport units.
 - **Canvas-dominant overlay layout**: Both setup and combat screens use `position: absolute; inset: 0` for the 3D canvas, with UI elements as absolutely positioned overlays at `z-index: 10`. Top bar uses gradient fade background. Setup and combat share the same visual patterns (mode buttons, depth panel, coordinate display) with screen-specific class prefixes.
 

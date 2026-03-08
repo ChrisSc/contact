@@ -2,6 +2,7 @@ import type { Coordinate } from '../types/grid';
 import { CellState } from '../types/grid';
 import type { PlayerState } from '../types/game';
 import { getCell, isValidCoordinate } from './grid';
+import { isShipSilentRunning } from './silent-running';
 
 export interface DroneScanCellResult {
   coord: Coordinate;
@@ -49,8 +50,14 @@ export function executeReconDrone(
     const cell = getCell(defender.ownGrid, coord);
     const rawResult = cell != null && (cell.state === CellState.Ship || cell.state === CellState.Decoy);
 
+    // Check if ship is silent running (only affects actual ships, not decoys)
+    const silentRunning = rawResult && cell?.shipId != null
+      && isShipSilentRunning(defender.silentRunningShips, cell.shipId);
+
     let displayedResult = rawResult;
-    if (cloaked) {
+    if (silentRunning) {
+      displayedResult = false;
+    } else if (cloaked) {
       displayedResult = false;
     } else if (jammed) {
       // GDD 5.4: Jammer "returns false scan results for the drone's area"

@@ -79,7 +79,7 @@ Top-level state tracks:
 - `currentPlayer` (0=ALPHA | 1=BRAVO)
 - `turnCount`
 - `phase` (setup_p1 | setup_p2 | combat | victory)
-- Per-player: `abilities` (earned/used), `ships[]` (health, cells, sunk flag)
+- Per-player: `abilities` (earned/used), `ships[]` (health, cells, sunk flag), `silentRunningShips[]` (active SR entries with turnsRemaining)
 - Win condition: all 5 ships of one player sunk
 
 ---

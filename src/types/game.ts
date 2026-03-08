@@ -18,6 +18,11 @@ export const PLAYER_DESIGNATIONS: Record<PlayerIndex, PlayerDesignation> = {
   1: 'BRAVO',
 };
 
+export interface SilentRunningEntry {
+  shipId: string;
+  turnsRemaining: number;
+}
+
 export interface PlayerState {
   index: PlayerIndex;
   designation: PlayerDesignation;
@@ -31,6 +36,7 @@ export interface PlayerState {
   credits: number;
   inventory: PerkInstance[];
   lastTurnHit: boolean;
+  silentRunningShips: SilentRunningEntry[];
 }
 
 export interface TurnSlots {

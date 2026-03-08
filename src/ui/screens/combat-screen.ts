@@ -1,12 +1,13 @@
 import type { ScreenContext, ScreenCleanup } from '../screen-router';
 import type { Coordinate } from '../../types/grid';
 import { DEPTH_LABELS } from '../../types/grid';
-import type { FireResult } from '../../engine/game';
+import { CellState } from '../../types/grid';
+import type { FireResult, DepthChargeResult } from '../../engine/game';
 import type { TurnSlots } from '../../types/game';
 import { GamePhase, PLAYER_DESIGNATIONS } from '../../types/game';
 import type { PerkId, PerkInstance } from '../../types/abilities';
 import { FLEET_ROSTER } from '../../types/fleet';
-import { formatCoordinate } from '../../engine/grid';
+import { formatCoordinate, getCell } from '../../engine/grid';
 import { getInventoryBySlot } from '../../engine/perks';
 import { calculateScanArea } from '../../engine/drone';
 import { SceneManager } from '../../renderer/scene';
@@ -15,6 +16,18 @@ import { getLogger } from '../../observability/logger';
 import { PerkStore } from '../components/perk-store';
 import { InventoryTray } from '../components/inventory-tray';
 import { ActionSlots } from '../components/action-slots';
+import { initAudioContext } from '../../audio/audio-manager';
+import {
+  playDepthChargeSound,
+  playSilentRunningActivate,
+  playTorpedoFireSound,
+  playTorpedoHitSound,
+  playTorpedoMissSound,
+  playTorpedoSunkSound,
+  playSonarPingSound,
+  playReconDroneSound,
+  playRadarJammerSound,
+} from '../../audio/abilities';
 
 interface CombatUIState {
   currentDepth: number | null;
@@ -27,6 +40,8 @@ interface CombatUIState {
   storeOpen: boolean;
   pingMode: boolean;
   droneMode: boolean;
+  depthChargeMode: boolean;
+  silentRunningMode: boolean;
   turnSlots: TurnSlots;
 }
 
@@ -47,6 +62,8 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     storeOpen: false,
     pingMode: false,
     droneMode: false,
+    depthChargeMode: false,
+    silentRunningMode: false,
     turnSlots: { pingUsed: false, attackUsed: false, defendUsed: false },
   };
 
@@ -294,7 +311,22 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   function updateSceneGrid(): void {
     const player = game.getCurrentPlayer();
     const grid = uiState.boardView === 'targeting' ? player.targetingGrid : player.ownGrid;
+    sceneManager.clearSilentRunningOverlay();
     sceneManager.updateGrid(grid);
+
+    // Show SR overlay when viewing own grid
+    if (uiState.boardView === 'own') {
+      const srCoords: Coordinate[] = [];
+      for (const entry of player.silentRunningShips) {
+        const ship = player.ships.find(s => s.id === entry.shipId);
+        if (ship) {
+          srCoords.push(...ship.cells);
+        }
+      }
+      if (srCoords.length > 0) {
+        sceneManager.setSilentRunningOverlay(srCoords);
+      }
+    }
   }
 
   function handleBoardToggle(view: 'targeting' | 'own'): void {
@@ -305,6 +337,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     if (uiState.droneMode) {
       uiState.droneMode = false;
       sceneManager.clearGhostCells();
+      inventoryTray.clearSelection();
+    }
+    if (uiState.depthChargeMode) {
+      uiState.depthChargeMode = false;
+      sceneManager.clearGhostCells();
+      inventoryTray.clearSelection();
+    }
+    if (uiState.silentRunningMode) {
+      uiState.silentRunningMode = false;
       inventoryTray.clearSelection();
     }
     if (uiState.boardView === view) return;
@@ -320,8 +361,14 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleCellClick(coord: Coordinate): void {
+    if (uiState.silentRunningMode && uiState.boardView === 'own') {
+      handleSilentRunningSelect(coord);
+      return;
+    }
     if (uiState.boardView !== 'targeting') return;
-    if (uiState.droneMode) {
+    if (uiState.depthChargeMode) {
+      handleDepthChargeStrike(coord);
+    } else if (uiState.droneMode) {
       handleDroneScan(coord);
     } else if (uiState.pingMode) {
       handlePing(coord);
@@ -334,7 +381,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     uiState.hoveredCoord = coord;
     coordDisplay.textContent = coord ? formatCoordinate(coord) : '\u2014 \u2014';
 
-    if (uiState.droneMode) {
+    if (uiState.depthChargeMode || uiState.droneMode) {
       if (coord) {
         const scanCoords = calculateScanArea(coord);
         sceneManager.setGhostCells(scanCoords, true);
@@ -372,6 +419,13 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       uiState.droneMode = false;
       sceneManager.clearGhostCells();
     }
+    if (uiState.depthChargeMode) {
+      uiState.depthChargeMode = false;
+      sceneManager.clearGhostCells();
+    }
+    if (uiState.silentRunningMode) {
+      uiState.silentRunningMode = false;
+    }
 
     if (instance.perkId === 'sonar_ping') {
       uiState.pingMode = true;
@@ -381,9 +435,24 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       uiState.droneMode = true;
       selectLabel.textContent = 'SELECT SCAN CENTER';
       hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK TO SCAN 3x3x3';
+    } else if (instance.perkId === 'depth_charge') {
+      uiState.depthChargeMode = true;
+      selectLabel.textContent = 'SELECT STRIKE CENTER';
+      hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK TO STRIKE 3x3x3';
+    } else if (instance.perkId === 'silent_running') {
+      // Switch to own grid view directly (bypass handleBoardToggle to avoid mode cancellation)
+      uiState.boardView = 'own';
+      targetingBtn.classList.remove('combat-screen__toggle-btn--active');
+      ownFleetBtn.classList.add('combat-screen__toggle-btn--active');
+      sceneManager.setBoardType('own');
+      updateSceneGrid();
+      uiState.silentRunningMode = true;
+      selectLabel.textContent = 'SELECT SHIP TO CLOAK';
+      hint.textContent = 'CLICK ON YOUR SHIP TO ACTIVATE SILENT RUNNING';
     } else if (instance.perkId === 'radar_jammer') {
       const deployed = game.useRadarJammer();
       if (deployed) {
+        playRadarJammerSound();
         statusEl.className = 'combat-screen__status';
         statusEl.textContent = 'RADAR JAMMER DEPLOYED';
         statusEl.classList.add('combat-screen__status--sonar-negative');
@@ -396,10 +465,13 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handlePing(coord: Coordinate): void {
+    initAudioContext();
     const result = game.useSonarPing(coord);
     if (!result) return;
 
     uiState.pingMode = false;
+
+    playSonarPingSound();
 
     // Play sonar animation
     sceneManager.playSonarAnimation(coord, result.displayedResult);
@@ -425,12 +497,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleDroneScan(coord: Coordinate): void {
+    initAudioContext();
     const result = game.useReconDrone(coord);
     if (!result) return;
 
     // Reset drone mode
     uiState.droneMode = false;
     sceneManager.clearGhostCells();
+
+    playReconDroneSound();
 
     // Update scene grid first so materials are set
     updateSceneGrid();
@@ -467,10 +542,13 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleFire(coord: Coordinate): void {
+    initAudioContext();
     if (uiState.boardView !== 'targeting') return;
 
     const result = game.fireTorpedo(coord);
     if (result === null) return;
+
+    playTorpedoFireSound();
 
     uiState.lastFireResult = result;
     uiState.turnSlots = game.getTurnSlots();
@@ -487,12 +565,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       statusText = `TORPEDO: SUNK - ${shipName}`;
       statusEl.classList.add('combat-screen__status--sunk');
       if (result.shipId) uiState.sunkShipIds.push(result.shipId);
+      playTorpedoSunkSound();
     } else if (result.result === 'hit') {
       statusText = 'TORPEDO: HIT';
       statusEl.classList.add('combat-screen__status--hit');
+      playTorpedoHitSound();
     } else {
       statusText = 'TORPEDO: MISS';
       statusEl.classList.add('combat-screen__status--miss');
+      playTorpedoMissSound();
     }
 
     statusEl.textContent = statusText;
@@ -525,7 +606,100 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     }
   }
 
+  function handleDepthChargeStrike(coord: Coordinate): void {
+    initAudioContext();
+    const result: DepthChargeResult | null = game.useDepthCharge(coord);
+    if (!result) return;
+
+    uiState.depthChargeMode = false;
+    sceneManager.clearGhostCells();
+
+    // Update scene grid
+    updateSceneGrid();
+
+    // Map results for animation (hit = true for 'hit' and 'sunk' results)
+    const animResults = result.cellResults
+      .filter(r => r.result !== 'already_resolved')
+      .map(r => ({
+        coord: r.coord,
+        hit: r.result === 'hit' || r.result === 'sunk',
+      }));
+
+    sceneManager.playDepthChargeAnimation(coord, animResults);
+    playDepthChargeSound();
+
+    // Status message
+    const hits = result.cellResults.filter(r => r.result === 'hit' || r.result === 'sunk').length;
+    const sinks = result.shipsSunk.length;
+    statusEl.className = 'combat-screen__status';
+
+    if (sinks > 0) {
+      statusEl.textContent = `DEPTH CHARGE: ${hits} HIT${hits !== 1 ? 'S' : ''}, ${sinks} SUNK`;
+      statusEl.classList.add('combat-screen__status--sunk');
+      for (const shipId of result.shipsSunk) {
+        if (!uiState.sunkShipIds.includes(shipId)) {
+          uiState.sunkShipIds.push(shipId);
+        }
+      }
+    } else if (hits > 0) {
+      statusEl.textContent = `DEPTH CHARGE: ${hits} HIT${hits !== 1 ? 'S' : ''}`;
+      statusEl.classList.add('combat-screen__status--hit');
+    } else {
+      statusEl.textContent = 'DEPTH CHARGE: NO HITS';
+      statusEl.classList.add('combat-screen__status--miss');
+    }
+
+    // Refresh
+    selectLabel.textContent = 'SELECT TARGET';
+    hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO FIRE';
+    inventoryTray.clearSelection();
+    refreshInventory();
+    refreshActionSlots();
+    refreshFleetStatus();
+    refreshCredits();
+    refreshBottomBar();
+    uiState.turnSlots = game.getTurnSlots();
+    endTurnBtn.disabled = false;
+
+    if (game.getState().phase === GamePhase.Victory) {
+      router.navigate('victory');
+    }
+  }
+
+  function handleSilentRunningSelect(coord: Coordinate): void {
+    initAudioContext();
+    // Find shipId at this coordinate on own grid
+    const player = game.getCurrentPlayer();
+    const cell = getCell(player.ownGrid, coord);
+    if (!cell || cell.state !== CellState.Ship || !cell.shipId) return;
+
+    const success = game.useSilentRunning(cell.shipId);
+    if (!success) return;
+
+    playSilentRunningActivate();
+
+    // Find ship name for status
+    const ship = player.ships.find(s => s.id === cell.shipId);
+    const shipName = ship ? ship.name.toUpperCase() : (cell.shipId ?? 'UNKNOWN').toUpperCase();
+
+    statusEl.className = 'combat-screen__status';
+    statusEl.textContent = `SILENT RUNNING: ${shipName} CLOAKED (2 TURNS)`;
+    statusEl.classList.add('combat-screen__status--sonar-negative');
+
+    uiState.silentRunningMode = false;
+
+    // Switch back to targeting grid
+    handleBoardToggle('targeting');
+
+    // Refresh UI
+    inventoryTray.clearSelection();
+    refreshInventory();
+    refreshActionSlots();
+    uiState.turnSlots = game.getTurnSlots();
+  }
+
   function handleEndTurn(): void {
+    initAudioContext();
     game.endTurn();
     router.navigate('handoff');
   }

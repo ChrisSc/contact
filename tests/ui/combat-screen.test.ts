@@ -25,6 +25,12 @@ const mockSceneManager = {
   playSunkAnimation: vi.fn(),
   playMissAnimation: vi.fn(),
   playSonarAnimation: vi.fn(),
+  playDroneScanAnimation: vi.fn(),
+  playDepthChargeAnimation: vi.fn(),
+  setSilentRunningOverlay: vi.fn(),
+  clearSilentRunningOverlay: vi.fn(),
+  clearGhostCells: vi.fn(),
+  setGhostCells: vi.fn(),
   onCellClick: vi.fn((cb: (coord: Coordinate) => void) => { cellClickCb = cb; }),
   onCellHover: vi.fn((cb: (coord: Coordinate | null) => void) => { cellHoverCb = cb; }),
   views: {
@@ -36,6 +42,24 @@ const mockSceneManager = {
 
 vi.mock('../../src/renderer/scene', () => ({
   SceneManager: vi.fn(() => mockSceneManager),
+}));
+
+vi.mock('../../src/audio/audio-manager', () => ({
+  initAudioContext: vi.fn(),
+  isAudioReady: vi.fn(() => false),
+}));
+
+vi.mock('../../src/audio/abilities', () => ({
+  playDepthChargeSound: vi.fn(),
+  playSilentRunningActivate: vi.fn(),
+  playSilentRunningExpire: vi.fn(),
+  playTorpedoFireSound: vi.fn(),
+  playTorpedoHitSound: vi.fn(),
+  playTorpedoMissSound: vi.fn(),
+  playTorpedoSunkSound: vi.fn(),
+  playSonarPingSound: vi.fn(),
+  playReconDroneSound: vi.fn(),
+  playRadarJammerSound: vi.fn(),
 }));
 
 class MockResizeObserver {

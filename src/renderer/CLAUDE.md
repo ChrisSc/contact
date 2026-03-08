@@ -3,11 +3,11 @@
 ## Files
 
 - **`materials.ts`** — `CRT_COLORS` palette (includes CYAN for recon states), `MaterialSet`/`MaterialDef` interfaces, `MATERIAL_DEFS` lookup, `MaterialPool` class (normal + dimmed + ghost material pools per `CellState`)
-- **`orbit.ts`** — Custom `OrbitControls` (spherical coords, pointer/wheel/pinch events, damping). Exports pure helpers: `sphericalToCartesian`, `clampPhi`, `clampDistance`. Public `dragging` getter for live drag state; `wasDragging` getter + `consumeDrag()` for post-drag click suppression (5px movement threshold).
+- **`orbit.ts`** — Custom `OrbitControls` (spherical coords, pointer/wheel/pinch events, damping). Exports pure helpers: `sphericalToCartesian`, `clampPhi`, `clampDistance`. Public `dragging` getter for live drag state; `wasDragging` getter + `consumeDrag()` for post-drag click suppression (5px movement threshold). Default camera: `initialPhi: π/3`, `initialTheta: π×1.15` (elevated oblique view).
 - **`cube.ts`** — `GridCube` class (512 `BoxGeometry` + `EdgesGeometry` meshes in 8x8x8 layout), `coordToPosition` helper, layer helpers (`getCellMeshesAtDepth`, `getAllCellMeshes`, `setLayerVisible`)
 - **`views.ts`** — `ViewManager` class: three view modes (CUBE, SLICE, X-RAY), depth layer control, board type, smooth opacity transitions, interactable mesh filtering
 - **`raycaster.ts`** — `GridRaycaster` class: wraps `THREE.Raycaster` for cell picking via NDC normalization, configurable mesh source
-- **`animations.ts`** — `AnimationManager` class: combat and perk animation effects (hit flash, sunk cascade, miss fade, sonar sweep, drone scan). Private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop. Multi-key animations (sunk cascade, drone scan) share one `ActiveAnimation` object across all cell keys; `update(dt)` deduplicates via `processed` Set to avoid N× speedup.
+- **`animations.ts`** — `AnimationManager` class: combat and perk animation effects (hit flash, sunk cascade, miss fade, sonar sweep, drone scan, depth charge blast). Private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop. Multi-key animations (sunk cascade, drone scan, depth charge blast) share one `ActiveAnimation` object across all cell keys; `update(dt)` deduplicates via `processed` Set to avoid N× speedup.
 - **`scene.ts`** — `SceneManager` orchestrator (scene, camera, renderer, orbit, cube, views, animations, raycaster, render loop with delta time, pointer events, ghost cell overlay, resize, dispose)
 
 ## Architecture
@@ -22,7 +22,7 @@
   - SLICE: selected visible+normal, ±1 visible+ghost, rest hidden
   - X-RAY: only non-empty cells visible (filtered by board type)
 - **GridRaycaster** picks cells via `THREE.Raycaster`, mesh source filtered by ViewManager.
-- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`, `playSonarAnimation(coord, positive)`.
+- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Silent Running overlay via `setSilentRunningOverlay(coords)` / `clearSilentRunningOverlay()` (CYAN, separate from ghost cells). Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`, `playSonarAnimation(coord, positive)`, `playDepthChargeAnimation(center, results)`.
 - **ResizeObserver** handles responsive canvas sizing. `devicePixelRatio` capped at 2.
 
 ## Ghost Cell Overlay
@@ -42,11 +42,21 @@
 | **Miss Fade** | `playMissFade(coord)` | 300ms | Linear fade-in from 0 to target opacity (0.15 fill, 0.2 edge). Completes → restores pooled Miss materials |
 | **Sonar Sweep** | `playSonarSweep(coord, positive)` | 500ms | Two-phase: 0–300ms pulse opacity up (0→0.8), 300–500ms settle to target. CYAN if positive, GREEN_DIM if negative. Completes → restores pooled SonarPositive or SonarNegative materials |
 | **Drone Scan** | `playDroneScan(results)` | `30ms × (n-1) + 500ms` | Staggered per-cell pulse (same two-phase as sonar). CYAN if positive, GREEN_DIM if negative. Stores `positiveFlags` for correct per-cell cancel restore. Completes → restores pooled DronePositive or DroneNegative materials per cell |
+| **Depth Charge Blast** | `playDepthChargeBlast(center, results)` | ~1200ms | Three-phase: (1) 0–200ms center cell ORANGE flash, (2) 200–700ms expanding shockwave by Manhattan distance (80ms per ring), (3) 700–1200ms settle to final state. Stores `hitFlags` for per-cell cancel restore. Completes → restores pooled Hit (hits) or Miss (misses) materials |
 
 - Duplicate animation on same cell cancels previous and disposes its materials.
-- Combat screen wires animations in `handleFire()`: hit→`playHitAnimation`, sunk→`playSunkAnimation` (using ship cells from opponent state), miss→`playMissAnimation`. Sonar wired in `handlePing()`: `playSonarAnimation(coord, result.displayedResult)`. Drone wired in `handleDroneScan()`: `playDroneScanAnimation(writtenCells)` — only cells actually written to targeting grid, not skipped Hit/Sunk cells.
+- Combat screen wires animations in `handleFire()`: hit→`playHitAnimation`, sunk→`playSunkAnimation` (using ship cells from opponent state), miss→`playMissAnimation`. Sonar wired in `handlePing()`: `playSonarAnimation(coord, result.displayedResult)`. Drone wired in `handleDroneScan()`: `playDroneScanAnimation(writtenCells)` — only cells actually written to targeting grid, not skipped Hit/Sunk cells. Depth charge wired in `handleDepthChargeStrike()`: `playDepthChargeAnimation(center, animResults)` — filters out already_resolved cells.
 - Logger emits `view.change` with `animation_start`/`animation_complete` actions.
-- `_cancelKey` restore state mapping: hit_flash→Hit, sunk_cascade→Sunk, sonar_sweep→SonarPositive, drone_scan→per-cell DronePositive/DroneNegative (via `positiveFlags`), miss_fade→Miss.
+- `_cancelKey` restore state mapping: hit_flash→Hit, sunk_cascade→Sunk, sonar_sweep→SonarPositive, drone_scan→per-cell DronePositive/DroneNegative (via `positiveFlags`), depth_charge_blast→per-cell Hit/Miss (via `hitFlags`), miss_fade→Miss.
+
+## Silent Running Overlay
+
+- `setSilentRunningOverlay(coords)` temporarily swaps materials on specified cells to CYAN (fill opacity 0.2, edge opacity 0.4)
+- `clearSilentRunningOverlay()` restores original materials
+- Separate storage from ghost cells (`srOverlayEntries` vs `ghostEntries`) — both can coexist
+- Used by combat screen when viewing own grid to highlight SR'd ship cells
+- `updateSceneGrid()` calls `clearSilentRunningOverlay()` before `updateGrid()`, then rebuilds if viewing own grid
+- SR overlay materials created once in SceneManager constructor, disposed on cleanup
 
 ## Recon State Colors
 

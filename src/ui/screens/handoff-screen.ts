@@ -1,5 +1,6 @@
 import type { ScreenContext, ScreenCleanup } from '../screen-router';
 import { GamePhase, PLAYER_DESIGNATIONS } from '../../types/game';
+import { initAudioContext } from '../../audio/audio-manager';
 
 export function mountHandoffScreen(container: HTMLElement, context: ScreenContext): ScreenCleanup {
   const { game, router } = context;
@@ -34,6 +35,7 @@ export function mountHandoffScreen(container: HTMLElement, context: ScreenContex
   btn.className = 'crt-button';
   btn.textContent = 'READY';
   btn.addEventListener('click', () => {
+    initAudioContext();
     router.navigate(nextScreen);
   });
   el.appendChild(btn);

@@ -22,6 +22,9 @@ import { executeSonarPing } from './sonar';
 import type { SonarPingResult } from './sonar';
 import { executeReconDrone } from './drone';
 import type { DroneScanResult } from './drone';
+import { calculateDepthChargeTargets } from './depth-charge';
+import type { DepthChargeTargets as _DepthChargeTargets } from './depth-charge';
+import { isShipSilentRunning, decrementSilentRunning } from './silent-running';
 
 const ALL_ABILITY_IDS: AbilityId[] = [
   'sonar_ping', 'radar_jammer', 'recon_drone', 'decoy',
@@ -50,12 +53,24 @@ function createPlayerState(index: PlayerIndex): PlayerState {
     credits: STARTING_CREDITS,
     inventory: [],
     lastTurnHit: false,
+    silentRunningShips: [],
   };
 }
 
 export interface FireResult {
   result: 'hit' | 'miss' | 'sunk';
   shipId?: string;
+}
+
+export interface DepthChargeResult {
+  center: Coordinate;
+  cellResults: Array<{
+    coord: Coordinate;
+    result: 'hit' | 'miss' | 'sunk' | 'already_resolved';
+    shipId?: string;
+  }>;
+  shipsSunk: string[];
+  totalCreditsAwarded: number;
 }
 
 export class GameController {
@@ -476,6 +491,196 @@ export class GameController {
     return true;
   }
 
+  useDepthCharge(center: Coordinate): DepthChargeResult | null {
+    if (this.state.phase !== GamePhase.Combat) return null;
+    if (this.turnSlots.attackUsed) return null;
+
+    const attacker = this.getCurrentPlayer();
+    const defender = this.getOpponent();
+
+    // Must have depth_charge in inventory
+    const dcInstance = attacker.inventory.find((p) => p.perkId === 'depth_charge');
+    if (!dcInstance) return null;
+
+    // Validate center coordinate
+    if (!isValidCoordinate(center)) return null;
+
+    const targets = calculateDepthChargeTargets(center, defender);
+
+    // Remove depth_charge instance from inventory
+    const updated = removeFromInventory(attacker, dcInstance.id);
+    const idx = attacker.index;
+    this.state.players[idx] = updated;
+
+    // Re-reference attacker/defender after immutable update
+    const currentAttacker = this.state.players[idx]!;
+    const defIdx: PlayerIndex = idx === 0 ? 1 : 0;
+    const currentDefender = this.state.players[defIdx]!;
+
+    const cellResults: DepthChargeResult['cellResults'] = [];
+    const shipsSunk: string[] = [];
+    let totalCreditsAwarded = 0;
+    let hitCount = 0;
+
+    for (const targetCell of targets.cells) {
+      if (targetCell.alreadyResolved) {
+        cellResults.push({ coord: targetCell.coord, result: 'already_resolved' });
+        continue;
+      }
+
+      const coordStr = formatCoordinate(targetCell.coord);
+
+      if (targetCell.cellState === CellState.Ship) {
+        const shipId = targetCell.shipId!;
+
+        // Update defender's ownGrid
+        currentDefender.ownGrid = setCell(currentDefender.ownGrid, targetCell.coord, {
+          state: CellState.Hit,
+          shipId,
+        });
+        // Update attacker's targetingGrid
+        currentAttacker.targetingGrid = setCell(currentAttacker.targetingGrid, targetCell.coord, {
+          state: CellState.Hit,
+          shipId: null,
+        });
+        currentAttacker.shotsHit++;
+
+        // Increment ship hits
+        const ship = currentDefender.ships.find((s) => s.id === shipId)!;
+        ship.hits++;
+
+        this.logger.emit('combat.hit', { player: idx, target: coordStr, ship: shipId });
+
+        // Check if ship sunk
+        const sunkResult = checkSunk(ship, currentDefender.ownGrid);
+        if (sunkResult.sunk) {
+          currentDefender.ownGrid = sunkResult.grid;
+          const shipIdx = currentDefender.ships.findIndex((s) => s.id === shipId);
+          currentDefender.ships[shipIdx] = sunkResult.ship;
+          currentAttacker.shipsSunk++;
+          shipsSunk.push(shipId);
+
+          this.logger.emit('combat.sunk', { player: idx, ship: shipId, remaining: 0 });
+          cellResults.push({ coord: targetCell.coord, result: 'sunk', shipId });
+        } else {
+          cellResults.push({ coord: targetCell.coord, result: 'hit', shipId });
+        }
+
+        // Award credits per hit
+        const wasConsecutive = hitCount > 0 || currentAttacker.lastTurnHit;
+        const fireResult: 'hit' | 'sunk' = sunkResult.sunk ? 'sunk' : 'hit';
+        const creditResult = calculateFireCredits(fireResult, wasConsecutive);
+        for (const award of creditResult.awards) {
+          currentAttacker.credits += award.amount;
+          totalCreditsAwarded += award.amount;
+          this.logger.emit('economy.credit', {
+            player: idx,
+            type: award.type,
+            amount: award.amount,
+            balance: currentAttacker.credits,
+          });
+        }
+        hitCount++;
+      } else if (targetCell.cellState === CellState.Decoy) {
+        // Decoy hit
+        currentDefender.ownGrid = setCell(currentDefender.ownGrid, targetCell.coord, {
+          state: CellState.DecoyHit,
+          shipId: null,
+        });
+        currentAttacker.targetingGrid = setCell(currentAttacker.targetingGrid, targetCell.coord, {
+          state: CellState.Hit,
+          shipId: null,
+        });
+        currentAttacker.shotsHit++;
+
+        // Award credits for decoy hit
+        const wasConsecutive = hitCount > 0 || currentAttacker.lastTurnHit;
+        const creditResult = calculateFireCredits('hit', wasConsecutive);
+        for (const award of creditResult.awards) {
+          currentAttacker.credits += award.amount;
+          totalCreditsAwarded += award.amount;
+          this.logger.emit('economy.credit', {
+            player: idx,
+            type: award.type,
+            amount: award.amount,
+            balance: currentAttacker.credits,
+          });
+        }
+        hitCount++;
+
+        cellResults.push({ coord: targetCell.coord, result: 'hit' });
+      } else {
+        // Miss (Empty, SonarPositive, SonarNegative, DronePositive, DroneNegative)
+        currentDefender.ownGrid = setCell(currentDefender.ownGrid, targetCell.coord, {
+          state: CellState.Miss,
+          shipId: null,
+        });
+        currentAttacker.targetingGrid = setCell(currentAttacker.targetingGrid, targetCell.coord, {
+          state: CellState.Miss,
+          shipId: null,
+        });
+
+        cellResults.push({ coord: targetCell.coord, result: 'miss' });
+      }
+    }
+
+    this.turnSlots.attackUsed = true;
+    this.currentTurnHit = hitCount > 0;
+
+    // Check victory after all sinks
+    if (shipsSunk.length > 0) {
+      this.checkVictory();
+    }
+
+    this.logger.emit('perk.use', {
+      player: idx,
+      perkId: 'depth_charge',
+      instanceId: dcInstance.id,
+      target: formatCoordinate(center),
+      result: `${hitCount} hits, ${shipsSunk.length} sunk`,
+    });
+
+    return { center, cellResults, shipsSunk, totalCreditsAwarded };
+  }
+
+  useSilentRunning(shipId: string): boolean {
+    if (this.state.phase !== GamePhase.Combat) return false;
+    if (this.turnSlots.defendUsed) return false;
+
+    const player = this.getCurrentPlayer();
+
+    // Must have silent_running in inventory
+    const srInstance = player.inventory.find((p) => p.perkId === 'silent_running');
+    if (!srInstance) return false;
+
+    // Validate ship exists, not sunk, not already SR'd
+    const ship = player.ships.find((s) => s.id === shipId);
+    if (!ship) return false;
+    if (ship.sunk) return false;
+    if (isShipSilentRunning(player.silentRunningShips, shipId)) return false;
+
+    // Add SR entry
+    player.silentRunningShips.push({ shipId, turnsRemaining: 2 });
+
+    // Remove instance from inventory
+    const updated = removeFromInventory(player, srInstance.id);
+    const idx = player.index;
+    this.state.players[idx] = updated;
+    // Restore silentRunningShips on the new state (removeFromInventory spreads player)
+    this.state.players[idx]!.silentRunningShips = player.silentRunningShips;
+
+    this.turnSlots.defendUsed = true;
+
+    this.logger.emit('perk.effect', {
+      player: idx,
+      perkId: 'silent_running',
+      shipId,
+      turnsRemaining: 2,
+    });
+
+    return true;
+  }
+
   endTurn(): boolean {
     if (this.state.phase !== GamePhase.Combat) return false;
     if (!this.turnSlots.attackUsed) return false;
@@ -493,6 +698,19 @@ export class GameController {
     this.state.turnCount++;
     this.turnSlots = { pingUsed: false, attackUsed: false, defendUsed: false };
     this.currentTurnHit = false;
+
+    // Decrement Silent Running for the new current player
+    // (their opponent just finished a turn, so one opponent turn has passed)
+    const srPlayer = this.state.players[this.state.currentPlayer];
+    const srResult = decrementSilentRunning(srPlayer.silentRunningShips);
+    srPlayer.silentRunningShips = srResult.remaining;
+    for (const expiredShipId of srResult.expired) {
+      this.logger.emit('perk.expire', {
+        player: this.state.currentPlayer,
+        perkId: 'silent_running',
+        shipId: expiredShipId,
+      });
+    }
 
     this.logger.emit('game.turn_start', {
       player: this.state.currentPlayer,

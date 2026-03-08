@@ -56,6 +56,7 @@ export function createEmptyPlayerState(index: 0 | 1): PlayerState {
     credits: 5,
     inventory: [],
     lastTurnHit: false,
+    silentRunningShips: [],
   };
 }
 
