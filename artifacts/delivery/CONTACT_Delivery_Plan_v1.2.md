@@ -1,13 +1,13 @@
 # CONTACT — Project Delivery Plan
 
-**Version 1.3 | March 2026**
-**Reference: CONTACT GDD v1.1**
+**Version 1.4 | March 2026**
+**Reference: CONTACT GDD v1.2**
 
 ---
 
 ## Overview
 
-CONTACT is a browser-based 3D naval combat game — Battleship reimagined in a volumetric 8×8×8 sonar cube. Two players take turns placing submarine fleets and firing torpedoes across 512 cells of three-dimensional space. An earned ability system (4 offensive/defensive pairs) compresses the search space as the game progresses, creating an arc that moves from blind searching to informed hunting to psychological warfare.
+CONTACT is a browser-based 3D naval combat game — Battleship reimagined in a volumetric 8×8×8 sonar cube. Two players take turns placing submarine fleets and firing torpedoes across 512 cells of three-dimensional space. A credit-based perk store lets players buy offensive and defensive abilities — spend on recon to find targets, save up for area attacks, or invest in defense to slow the opponent. The economy creates a dynamic game arc that moves from blind searching to informed hunting to psychological warfare.
 
 This delivery plan breaks the project into 7 sequential phases, each producing a shippable increment. The arc follows a deliberate layering strategy:
 
@@ -15,7 +15,7 @@ This delivery plan breaks the project into 7 sequential phases, each producing a
 
 **Phase 2 (3D Rendering)** replaces the flat slice grid with a production Three.js volumetric cube on both the setup and combat screens. All three GDD view modes (Cube, Slice, X-Ray) are implemented with custom orbit controls, raycasting for cell selection, state-driven materials with three opacity tiers, and a ghost cell overlay for 3D placement preview. This is the visual identity moment — the game starts looking like a Cold War sonar terminal.
 
-**Phase 3 (Ability System)** layers in the full 8-ability matrix. Each of the 4 offensive/defensive pairs is delivered as its own sprint, with the ability framework (earn conditions, turn costs, state tracking) built first. This is the mechanical depth layer — the thing that separates CONTACT from a Battleship skin.
+**Phase 3 (Credit Economy & Perk Store)** layers in the credit system (hit/consecutive hit/sink rewards), perk store UI, player inventory, and all 7 purchasable perks plus the Decoy. The credit engine and store are built first, then perks are delivered in pairs (offensive + defensive counter). This is the mechanical depth layer — the thing that separates CONTACT from a Battleship skin.
 
 **Phase 4 (Audio)** adds the Tone.js synthesized soundscape: action effects, ambient submarine hum, and phase-responsive tension scaling. Audio is deferred to this point because it has zero dependencies on prior phases and can be developed in parallel once the ability system is stable.
 
@@ -88,8 +88,9 @@ Every log entry is a single JSON object on one line, with a consistent envelope:
 {"ts":"2026-03-15T20:14:12.887Z","seq":2,"event":"fleet.place","session":"a1b2c3","data":{"player":0,"ship":"typhoon","origin":"C-2-D4","axis":"col-depth"}}
 {"ts":"2026-03-15T20:15:44.201Z","seq":3,"event":"combat.fire","session":"a1b2c3","data":{"player":0,"target":"E-5-D3","result":"miss"}}
 {"ts":"2026-03-15T20:16:01.558Z","seq":4,"event":"combat.fire","session":"a1b2c3","data":{"player":1,"target":"C-2-D4","result":"hit","ship":"typhoon","remaining":4}}
-{"ts":"2026-03-15T20:18:33.742Z","seq":5,"event":"ability.unlock","session":"a1b2c3","data":{"player":1,"ability":"sonar_ping","trigger":"first_hit"}}
-{"ts":"2026-03-15T20:18:40.109Z","seq":6,"event":"ability.use","session":"a1b2c3","data":{"player":1,"ability":"sonar_ping","quadrant":"Q5","result":"positive","jammed":false}}
+{"ts":"2026-03-15T20:18:33.742Z","seq":5,"event":"economy.credit","session":"a1b2c3","data":{"player":1,"amount":1,"reason":"hit","balance":6}}
+{"ts":"2026-03-15T20:18:40.109Z","seq":6,"event":"economy.purchase","session":"a1b2c3","data":{"player":1,"perk":"sonar_ping","cost":3,"balance":3}}
+{"ts":"2026-03-15T20:18:45.201Z","seq":7,"event":"perk.use","session":"a1b2c3","data":{"player":1,"perk":"sonar_ping","cell":"E-5-D3","result":"positive","jammed":false}}
 ```
 
 | Field | Type | Description |
@@ -107,7 +108,8 @@ Every log entry is a single JSON object on one line, with a consistent envelope:
 | `game.*` | `game.start`, `game.phase_change`, `game.turn_start`, `game.turn_end`, `game.victory` | Turn & Session Controller |
 | `fleet.*` | `fleet.place`, `fleet.remove`, `fleet.decoy_place`, `fleet.confirm` | Fleet Model |
 | `combat.*` | `combat.fire`, `combat.hit`, `combat.miss`, `combat.sunk`, `combat.decoy_hit`, `combat.decoy_retract` | Combat Engine |
-| `ability.*` | `ability.unlock`, `ability.use`, `ability.effect`, `ability.expire` | Ability State Manager |
+| `economy.*` | `economy.credit`, `economy.purchase`, `economy.balance` | Credit Engine |
+| `perk.*` | `perk.use`, `perk.effect`, `perk.expire`, `perk.trigger` | Perk System |
 | `view.*` | `view.mode_change`, `view.depth_change`, `view.board_toggle` | UI Controllers |
 | `audio.*` | `audio.init`, `audio.mute`, `audio.phase_change` | Audio Manager |
 | `system.*` | `system.error`, `system.perf` | Global error handler, perf monitors |
@@ -125,13 +127,14 @@ contact/
 │   ├── types/
 │   │   ├── grid.ts             # Cell, CellState, Coordinate, Grid types
 │   │   ├── fleet.ts            # Ship, ShipPlacement, Decoy types
-│   │   ├── abilities.ts        # Ability, AbilityId, AbilityState types
+│   │   ├── abilities.ts        # PerkId, PerkDefinition, PerkInstance, CreditEvent, PlayerInventory types
 │   │   └── game.ts             # GameState, PlayerState, TurnAction types
 │   ├── engine/
 │   │   ├── grid.ts             # Grid creation, cell resolution, coordinate utils
 │   │   ├── fleet.ts            # Placement validation, health tracking, sunk detection
 │   │   ├── combat.ts           # Fire resolution, hit/miss/sunk logic
-│   │   ├── abilities.ts        # Ability earn conditions, activation, effect resolution
+│   │   ├── credits.ts          # Credit engine: awards, consecutive tracking, balance
+│   │   ├── perks.ts            # Perk store: catalog, purchase, inventory, deployment, effect resolution
 │   │   ├── turn.ts             # Turn state machine, action validation, no-pass enforcement
 │   │   └── game.ts             # Top-level game controller, phase transitions, win condition
 │   ├── observability/
@@ -465,97 +468,106 @@ Replace the flat slice grid with production Three.js rendering. Implement all th
 
 ---
 
-## Phase 3: Ability System
+## Phase 3: Credit Economy & Perk Store
 
-Implement all 4 ability pairs from GDD §5.2 with full game logic, UI integration, and visual feedback. Each pair is one sprint. The ability framework (earn conditions, turn costs, state tracking) is built first.
+Implement the credit economy, perk store, player inventory, and all 7 purchasable perks per GDD §5. The credit engine and store UI are built first (Sprint 3.1), then perks are delivered in pairs — offensive + defensive counter (Sprints 3.2–3.4). The Decoy is already implemented (placed during setup); this phase wires it into the perk interaction system.
 
-### Sprint 3.1 — Ability Framework & Pair 1 (Intelligence)
+### Sprint 3.1 — Credit Engine, Store UI & Sonar Ping
 
-**Component: Ability State Manager**
-- Define ability types in `types/abilities.ts`: id, name, type (offensive/defensive), earned condition, available flag, used flag, uses remaining
-- Implement earn-condition evaluator in `engine/abilities.ts`: map game events (first hit, first hit received, first sink, etc.) to ability unlocks
-- Implement ability unlock notification system
-- Implement turn-cost logic: FREE abilities don't consume attack turn, CONSUMES ATTACK abilities replace fire action
-- Implement ability use → mark consumed, log event
-- Instrument all ability lifecycle events: emit `ability.unlock`, `ability.use`, `ability.effect`, `ability.expire` events via Logger with full context (ability ID, player, trigger condition, affected cells/quadrants)
-- Write unit tests for all 8 earn conditions and turn-cost rules
+**Component: Credit Engine**
+- Define credit types in `types/abilities.ts`: `CreditEvent`, `PerkId`, `PerkDefinition`, `PerkInstance`, `PlayerInventory`
+- Implement credit tracker in `engine/credits.ts`: starting balance (5), credit awards (hit=1, consecutive hit=5, sink=10)
+- Implement consecutive hit detection: track per-player whether previous turn was a hit
+- Integrate credit awards into `GameController.fireTorpedo()`: award credits on hit/sink, check consecutive
+- Implement perk store logic in `engine/perks.ts`: purchase validation (sufficient credits), deduct credits, add to inventory
+- Define perk catalog with pricing: Sonar Ping (3), Recon Drone (10), Depth Charge (25), G-SONAR (18), Radar Jammer (5), Silent Running (10), Acoustic Cloak (6)
+- Instrument all economy events: emit `economy.credit`, `economy.purchase`, `economy.balance` events via Logger
+- Write unit tests for credit awards, consecutive hit detection, purchase flow, insufficient funds
 
-**Component: Ability Tray UI**
-- Render ability tray in `ui/components/ability-tray.ts`: all 8 abilities with earned/available/used states
-- Visual distinction: offensive (red accent) vs. defensive (green accent)
-- Disabled state for locked/used abilities
-- Implement click-to-activate with confirmation for attack-consuming abilities
-- Render "hold or use" decision context (tooltip or info panel)
+**Component: Store & Inventory UI**
+- Render credit display in combat screen top bar: current balance, prominently visible
+- Render perk store panel in `ui/components/perk-store.ts`: browse perks, show name/cost/description, purchase button
+- Grey out perks with insufficient credits
+- Render inventory tray in `ui/components/inventory-tray.ts`: purchased perks available for deployment
+- Visual distinction: offensive perks vs. defensive perks
+- Implement deploy-from-inventory flow: click to select, confirm to deploy
+- Integrate store/inventory into combat screen turn flow
 
-**Component: Sonar Ping (Offensive)**
-- Implement quadrant selector UI: divide grid into 4×4×4 quadrants (8 possible quadrants), let player choose one
-- Implement scan logic: binary yes/no — does any ship segment exist in the selected 4×4×4 quadrant (64 cells)?
-- Implement result display: full-screen sonar sweep animation, then YES/NO result overlay
+**Component: Turn Action Slots**
+- Refactor combat turn to support three action slots: Ping (optional) → Attack (required) → Defend (optional)
+- Implement action slot tracking in `engine/game.ts`: `pingUsed`, `attackUsed`, `defendUsed` per turn
+- Update End Turn validation: require attack action taken
+- Update combat screen UI to reflect available action slots
+
+**Component: Sonar Ping (Offensive — Ping Slot)**
+- Implement cell selector: player picks one cell to ping
+- Implement ping logic: binary yes/no — does a ship segment exist at this cell?
 - Check for active Radar Jammer on opponent → invert result if jammed
-- Mark ability consumed after use
-- Write unit tests for scan logic, jammer interaction
-- Emit `ability.use` event with quadrant ID, raw result, jammed flag, and displayed result (for jammer interaction forensics)
+- Check for active Acoustic Cloak on opponent → return negative if cloaked
+- Implement result display: sonar sweep animation, then YES/NO indicator on cell
+- Deduct from inventory on use; does NOT consume attack action
+- Write unit tests for ping logic, jammer interaction, cloak interaction
+- Emit `perk.use` event with cell, raw result, jammed/cloaked flags, displayed result
 
-**Component: Radar Jammer (Defensive)**
-- Implement activation: toggle jammer active state
-- Implement interaction: when opponent fires Sonar Ping, invert the result
+### Sprint 3.2 — Pair 1: Reconnaissance (Recon Drone + Radar Jammer)
+
+**Component: Recon Drone (Offensive — Attack Slot)**
+- Implement target selector UI: player picks center cell for 3×3×1 scan area (9 cells)
+- Render scan area preview (9 cells highlighted) before confirmation
+- Implement scan logic: reveal which cells in the 3×3×1 contain ship segments (not identity/orientation)
+- Handle decoy within scan area: decoy appears as occupied cell (poisons intel)
+- Check for active Radar Jammer → return false scan results if jammed
+- Check for active Acoustic Cloak → return all-negative for cloaked cells
+- Render scan results on targeting grid (CellState.DronePositive / DroneNegative)
+- Deduct from inventory; consumes attack action
+- Write unit tests for scan logic, decoy poisoning, jammer interaction, edge-of-grid scan areas
+
+**Component: Radar Jammer (Defensive — Defend Slot)**
+- Implement activation: deploy from inventory during defend slot
+- Implement interaction: when opponent uses Sonar Ping or Recon Drone, invert/falsify the result
 - Implement visual feedback: static burst animation on activation
-- Mark ability consumed after use
+- Jammer is consumed on trigger (not on deploy — persists until triggered or end of game)
+- Write unit tests for jammer trigger on ping, jammer trigger on drone, jammer expiry
 
-### Sprint 3.2 — Pair 2 (Reconnaissance)
+### Sprint 3.3 — Pair 2: Heavy Ordnance (Depth Charge + Silent Running)
 
-**Component: Recon Drone (Offensive)**
-- Implement target selector UI: let player pick center cell for 3×3×3 scan volume
-- Render scan volume preview (27 cells highlighted) before confirmation
-- Implement scan logic: reveal which cells in the 3×3×3 contain ship segments (not identity/orientation)
-- Handle decoy within scan volume: decoy appears as occupied cell (poisons intel)
-- Render scan results on targeting grid (temporary highlight or permanent markers)
-- Mark ability consumed; consumes attack turn
-- Write unit tests for scan logic, decoy poisoning, edge-of-grid scan volumes
-
-**Component: Decoy (Defensive)**
-- Implement decoy hit logic: return false "hit" confirmation to attacker
-- Implement delayed retraction: on attacker's next turn, decoy evaporates, hit marker removed
-- Implement decoy evaporation visual: yellow blink → fade to empty
-- Implement interaction with Recon Drone: decoy reads as occupied cell in scan results
-
-### Sprint 3.3 — Pair 3 (Heavy Ordnance)
-
-**Component: Depth Charge (Offensive)**
-- Implement column selector UI: player picks one Column-Row coordinate (fires through all 8 depth layers)
-- Render column strike preview (8 cells highlighted through all depth layers)
-- Implement strike logic: resolve hit/miss on every occupied cell in the column (effective against cross-slice ships using col-depth or row-depth axes)
+**Component: Depth Charge (Offensive — Attack Slot)**
+- Implement target selector UI: player picks center cell for 3×3×3 strike volume (27 cells)
+- Render strike volume preview (27 cells highlighted) before confirmation
+- Implement strike logic: resolve hit/miss on every occupied cell in the volume
 - Handle multiple hits in a single action (partial ship damage, possible multi-sink)
-- Render column strike animation: sequential flash from D1→D8
-- Mark ability consumed; consumes attack turn
-- Write unit tests for column strike, multi-hit, multi-sink edge cases
+- Render volume strike animation: expanding shockwave from center
+- Deduct from inventory; consumes attack action
+- Award credits for each hit/sink within the strike
+- Write unit tests for volume strike, multi-hit, multi-sink, credit awards
 
-**Component: Silent Running (Defensive)**
-- Implement activation trigger: can only activate in response to receiving a hit
-- Implement hit masking: replace "hit" result with "miss" on opponent's targeting grid for 2 turns
-- Implement turn countdown: after 2 turns, reveal the true hit to opponent
-- Implement visual state: masked cell shows as miss, then transitions to hit on expiry
-- Implement interaction with follow-up shots: opponent sees miss and may waste shots
-- Mark ability consumed after use
-- Emit `ability.effect` on activation (masked cell, turns remaining) and `ability.expire` on reveal (true hit exposed to opponent)
+**Component: Silent Running (Defensive — Defend Slot)**
+- Implement activation: deploy from inventory, select one own ship to hide
+- Implement ship masking: selected ship invisible to Sonar Ping, Recon Drone, and G-SONAR for 2 opponent turns
+- Implement turn countdown: cloak expires after 2 opponent turns
+- Torpedoes still hit normally — Silent Running only affects recon perks
+- Implement visual state: ship ghost effect on own grid during active period
+- Deduct from inventory on deploy
+- Emit `perk.effect` on activation (ship, turns remaining) and `perk.expire` on reveal
+- Write unit tests for recon masking, torpedo pass-through, turn countdown
 
-### Sprint 3.4 — Pair 4 (Global Intelligence)
+### Sprint 3.4 — Pair 3: Global Intelligence (G-SONAR + Acoustic Cloak)
 
-**Component: G-SONAR (Offensive)**
-- Implement scan logic: identify all rows (1–8) and columns (A–H) containing at least one live ship segment
-- Implement result display: highlight active rows and columns on targeting grid overlay
-- Check for active Acoustic Cloak → return all-negative if cloaked
-- Implement visual: sonar wash animation, then row/column highlight overlay
-- Mark ability consumed; consumes attack turn
-- Trigger opponent's Acoustic Cloak unlock condition
+**Component: G-SONAR (Offensive — Attack Slot)**
+- Implement depth selector UI: player picks one depth layer to scan (64 cells)
+- Implement scan logic: reveal which cells at the selected depth contain ship segments
+- Check for active Acoustic Cloak → return all-negative for cloaked cells
+- Render scan results on targeting grid at selected depth
+- Deduct from inventory; consumes attack action
 - Write unit tests for scan logic, cloak interaction, sunk-ship exclusion from results
 
-**Component: Acoustic Cloak (Defensive)**
-- Implement activation: mask all own ship segments for next 2 opponent turns
-- Implement interaction: any G-SONAR, Sonar Ping, or Recon Drone returns negative/empty during cloak window
-- Implement turn countdown: cloak expires after 2 opponent actions
+**Component: Acoustic Cloak (Defensive — Defend Slot)**
+- Implement activation: deploy from inventory, masks all own ship segments
+- Implement interaction: any G-SONAR, Sonar Ping, or Recon Drone returns negative during cloak window
+- Implement turn countdown: cloak expires after 2 opponent turns
 - Implement visual feedback: brief fade-to-silence effect on activation
-- Mark ability consumed after use
+- Deduct from inventory on deploy
+- Write unit tests for cloak vs. each recon type, turn countdown, stacking with other defensives
 
 ---
 
@@ -584,16 +596,18 @@ Implement full Tone.js audio system per GDD §7.4. All audio synthesized program
 - Synthesize periodic sonar sweep (timed ping with reverb tail)
 - Implement phase-responsive layering: add tension layers as game progresses (more frequent pings, deeper hum, subtle noise floor increase)
 
-### Sprint 4.2 — Ability Audio & Phase Scaling
+### Sprint 4.2 — Perk Audio & Phase Scaling
 
-**Component: Ability Sound Effects**
-- Synthesize Sonar Ping deploy sound (full-screen sweep tone) in `audio/abilities.ts`
+**Component: Perk Sound Effects**
+- Synthesize Sonar Ping deploy sound (focused sweep tone) in `audio/abilities.ts`
 - Synthesize Recon Drone scan sound (scanning wash, left-to-right pan)
 - Synthesize Radar Jammer activation (static burst / white noise crack)
 - Synthesize Silent Running activation (fade-to-silence, low pass filter sweep)
-- Synthesize Depth Charge sound (sequential detonation tones, D1→D8)
-- Synthesize G-SONAR sound (broad spectrum sweep)
+- Synthesize Depth Charge sound (deep detonation with expanding reverb)
+- Synthesize G-SONAR sound (broad spectrum sweep across full layer)
 - Synthesize Acoustic Cloak sound (reverse reverb / absorption effect)
+- Synthesize purchase sound (credit deduction confirmation tone)
+- Synthesize insufficient-funds rejection sound (error buzz)
 
 **Component: Dynamic Audio Scaling**
 - Implement game phase detection (early/mid/escalation/endgame per GDD §6.1)

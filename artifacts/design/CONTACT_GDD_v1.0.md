@@ -5,7 +5,7 @@
 
 Game Design Document
 
-Version 1.1
+Version 1.2
 
 March 2026
 
@@ -21,13 +21,13 @@ CONTACT is a 3D evolution of classic naval combat (Battleship). Players command 
 
 ## **1.2 Elevator Pitch**
 
-*"Battleship, but in three dimensions."* Navigate depth layers, deploy sonar drones, jam enemy radar, and hunt submarines across a 512-cell volumetric grid. Earned offensive and defensive abilities compress the search space, creating a dynamic game arc that gets smarter as it progresses.
+*"Battleship, but in three dimensions."* Navigate depth layers, deploy sonar drones, jam enemy radar, and hunt submarines across a 512-cell volumetric grid. A credit-based perk store lets players buy offensive and defensive abilities — spend on recon to find targets, save up for a depth charge, or invest in defense to slow the opponent. The economy creates a dynamic game arc that gets smarter as it progresses.
 
 ## **1.3 Core Pillars**
 
 * **Spatial Reasoning:** Players must build and maintain a mental model of 3D space, tracking hits and misses across depth layers.
 
-* **Earned Abilities:** Offensive and defensive tools are earned through gameplay milestones, not given at start. Every offensive tool has a paired defensive counter.
+* **Credit Economy:** Players earn credits through combat performance (hits, consecutive hits, sinks) and spend them in a perk store. Every offensive tool has a paired defensive counter. Players choose their own loadout — no two games play the same.
 
 * **Escalating Tension:** The game arc moves from blind searching to informed hunting to psychological warfare as abilities unlock.
 
@@ -128,84 +128,102 @@ Six orientation axes are available, organized into two categories:
 
 1. **Setup Phase:** Both players place their fleet and Decoy on their own 8×8×8 grid using the full 3D sonar cube interface (CUBE/SLICE/X-RAY view modes available during placement). Screen handoff between placements.
 
-2. **Combat Phase:** Players alternate turns. On each turn, a player may either fire a torpedo at one cell OR deploy an earned ability (if available).
+2. **Combat Phase:** Players alternate turns. Each turn has up to three action slots: an optional Sonar Ping, a required attack action (fire torpedo or deploy an offensive perk), and an optional defensive perk. Players can buy perks from the store at any point during their turn.
 
 3. **Resolution:** The game ends when all of one player’s ships are sunk. The surviving player wins.
 
 ## **4.2 Turn Actions**
 
-On each turn, the active player performs exactly one action:
+Each turn has three action slots, resolved in order:
 
-* **Fire Torpedo:** Select a depth layer (Slice view recommended), then click a cell to fire. Result is immediately revealed as Hit or Miss.
+1. **Sonar Ping** (optional, costs 3 credits): Check one cell — binary yes/no for ship presence. If positive, the player has intel to act on immediately. Does not consume the attack action.
 
-* **Deploy Ability:** Use one earned ability instead of firing. Ability is consumed on use. Some abilities (Sonar Ping, Radar Jammer) do not cost the attack turn — see Section 5\.
+2. **Attack** (required): Either **Fire Torpedo** at a single cell, OR deploy one **offensive perk** (Recon Drone, Depth Charge, or G-SONAR). Exactly one attack action per turn.
 
-* **No Pass:** Players must act on every turn. No skipping.
+3. **Defend** (optional): Deploy one **defensive perk** (Radar Jammer, Silent Running, or Acoustic Cloak). Does not consume the attack action. Maximum one defensive perk per turn.
+
+**Perk Store:** Players may purchase perks from the store at any point during their turn. Purchased perks are added to the player's inventory and can be deployed immediately or saved for a future turn. Multiple copies of the same perk can be purchased.
+
+**No Pass:** Players must perform an attack action every turn. No skipping.
 
 ## **4.3 Screen Handoff (Hot-Seat)**
 
 Between turns, the screen displays a neutral handoff state: a blank CRT screen with the next player’s designation (ALPHA or BRAVO). The incoming player confirms readiness before their board is revealed. This prevents accidental intel leaks during local two-player sessions.
 
-**5\. EARNED ABILITIES**
+**5\. CREDIT ECONOMY & PERK STORE**
 
 ## **5.1 Design Principle**
 
-Every offensive ability has a paired defensive counter. Offensive tools are earned by succeeding (scoring hits, sinking ships). Defensive tools are earned by taking damage (receiving hits, losing ships). This creates a natural comeback mechanic: the trailing player gains defensive tools to slow the leader.
+Players earn credits through combat performance and spend them in a perk store to purchase offensive and defensive abilities. Every offensive perk has a paired defensive counter. Players choose their own loadout — multiple copies of the same perk can be purchased, and purchasing decisions create strategic differentiation between players.
 
-Abilities compress the effective search space, making the 512-cell grid tractable without reducing it to brute-force searching. They also introduce a decision layer: use the ability now, or hold it to counter a future threat?
+Perks compress the effective search space, making the 512-cell grid tractable without reducing it to brute-force searching. The credit economy introduces a resource management layer: spend early on recon to find targets faster, save up for devastating ordnance, or invest defensively when under pressure.
 
-## **5.2 Ability Matrix**
+## **5.2 Credit Economy**
 
-  **PAIR 1: INTELLIGENCE**
+| Accomplishment | Credits Earned |
+| :--- | :---: |
+| Hit | 1 |
+| Consecutive Hit (back-to-back hits on successive turns) | 5 |
+| Sink | 10 |
+| Starting Credits (each player) | 5 |
 
-| SONAR PING (Offensive) | RADAR JAMMER (Defensive) |
-| :---- | :---- |
-| Binary yes/no: is any ship present within a 4×4×4 quadrant? Does not reveal which cells or which ship. | When activated, the next enemy Sonar Ping returns a false result (yes reads as no, no reads as yes). |
-| Turn cost: FREE (does not consume attack) | Turn cost: FREE (does not consume attack) |
-| **Earned: Score your first hit** | **Earned: Receive your first hit** |
-| Uses: 1 | Uses: 1 |
+**Notes:**
+* A hit to a Decoy still rewards credits (1 for the hit).
+* Consecutive Hit bonus triggers when a player scores a hit on the turn immediately following a hit (regardless of target ship). The bonus is in addition to the base 1-credit hit reward, for 6 total.
+* Total base credits available per player: 5 (starting) + 18 (hits including decoy) + 85 (5 sinks) = 108, plus consecutive hit bonuses.
 
-  **PAIR 2: RECONNAISSANCE**
+## **5.3 Perk Store**
 
-| RECON DRONE (Offensive) | DECOY (Defensive) |
-| :---- | :---- |
-| Reveals exact contents of a 3×3×3 sub-cube (27 cells). Shows which cells contain ship segments, but not ship identity or orientation. | A fake 1-cell “ship” placed during setup. When hit, returns a false hit confirmation. On the attacker’s next turn, the Decoy evaporates and the hit is retracted. Poisons drone intel if scanned. |
-| Turn cost: CONSUMES ATTACK | Turn cost: None (placed during setup) |
-| **Earned: Sink your first enemy ship** | **Earned: Free at setup (1 per player)** |
-| Uses: 1 | Uses: 1 (single placement) |
+### Offensive Perks
 
-  **PAIR 3: HEAVY ORDNANCE**
+| Perk | Effect | Cost | Turn Slot |
+| :--- | :--- | :---: | :--- |
+| **Sonar Ping** | Binary yes/no: is a ship present in a single cell? | 3 | Ping (does not consume attack) |
+| **Recon Drone** | Reveals contents of a 3×3×1 slice (9 cells). Shows which cells contain ship segments, but not ship identity. | 10 | Attack (consumes attack) |
+| **Depth Charge** | Strikes all occupied cells in a 3×3×3 volume (27 cells). Area denial. | 25 | Attack (consumes attack) |
+| **G-SONAR** | Scans an entire depth layer (64 cells). Reveals which cells contain ship segments. | 18 | Attack (consumes attack) |
 
-| DEPTH CHARGE (Offensive) | SILENT RUNNING (Defensive) |
-| :---- | :---- |
-| Fire once, striking ALL occupied cells in a single column through all 8 depth layers. Devastating if aimed at a depth-oriented ship. | Activate after taking a hit. Masks the hit for 2 turns (enemy sees “miss” instead of “hit”). The hit is revealed after 2 turns. Enemy loses confirmation and wastes follow-up shots. |
-| Turn cost: CONSUMES ATTACK | Turn cost: FREE (activated in response) |
-| **Earned: Sink your second enemy ship** | **Earned: Lose your first ship** |
-| Uses: 1 | Uses: 1 |
+### Defensive Perks
 
-**PAIR 4: GLOBAL INTELLIGENCE** abilities: G-SONAR and ACOUSTIC CLOAK.
+| Perk | Effect | Cost | Turn Slot |
+| :--- | :--- | :---: | :--- |
+| **Radar Jammer** | When activated, the next enemy Sonar Ping or Recon Drone returns an inverted/false result. | 5 | Defend (free action) |
+| **Silent Running** | Masks a ship for 2 opponent turns — enemy recon and G-SONAR cannot detect it. | 10 | Defend (free action) |
+| **Acoustic Cloak** | All own ship segments are masked for 2 opponent turns. Any G-SONAR, Sonar Ping, or Recon Drone returns negative. | 6 | Defend (free action) |
 
-| G-SONAR (Offensive) | ACOUSTIC CLOAK (Defensive) |
-| :---- | :---- |
-| Reveals which **Rows (1-8)** and which **Columns (A-H)** contain at least one enemy ship segment. Effectively reduces search to a 2D plane. | When activated, all of your ship segments are acoustically masked for the next two turns. This causes any G-SONAR, Sonar Ping, or Recon Drone used against you to return a negative (miss/no ship present) result. |
-| Turn cost: CONSUMES ATTACK | Turn cost: FREE (activated in response) |
-| **Earned: Sink your third enemy ship** | **Earned: Enemy uses G-SONAR** |
-| Uses: 1 | Uses: 1 |
+### Decoy (Special)
+
+The **Decoy** is not purchased — it is placed for free during setup (1 per player). A fake 1-cell “ship” that returns a false hit confirmation when struck. Poisons drone/sonar intel if scanned. Credits are still awarded to the attacker for hitting a Decoy.
+
+## **5.4 Perk Interactions**
+
+* **Radar Jammer vs. Sonar Ping:** Jammer inverts the ping result (yes→no, no→yes). Jammer is consumed on trigger.
+* **Radar Jammer vs. Recon Drone:** Jammer returns false scan results for the drone’s area. Jammer is consumed on trigger.
+* **Acoustic Cloak vs. G-SONAR:** G-SONAR returns all-negative for cloaked player. Cloak continues for remaining turns.
+* **Acoustic Cloak vs. Sonar Ping/Drone:** Returns negative for cloaked cells. Cloak continues for remaining turns.
+* **Silent Running:** Hides a specific ship from recon for 2 turns. Torpedoes still hit normally — Silent Running only affects recon abilities.
+* **Decoy vs. Recon Drone:** Decoy appears as an occupied cell in scan results.
+* **Stacking:** Multiple defensive perks of different types can be active simultaneously (e.g., Acoustic Cloak + Radar Jammer), but only one defensive perk can be deployed per turn.
 
 **6\. GAME ARC**
 
 ## **6.1 Phase Progression**
 
-| Phase | Duration | Gameplay | Abilities Active |
+| Phase | Duration | Credits Available | Typical Spending |
 | :---- | :---- | :---- | :---- |
-| **Early** | First 15–25 shots | Blind searching. Pattern firing across depth slices. Pure spatial reasoning. | Decoy only |
-| **Mid** | First hits scored | Sonar Ping unlocks. Players begin narrowing quadrants. Intel vs. counter-intel dynamic begins. | \+ Sonar Ping, Radar Jammer |
-| **Escalation** | First ships sunk | Recon Drone and Depth Charge unlock. Surgical strikes. Decoys may be revealed. Silent Running masks intel. | \+ Recon Drone, Depth Charge, Silent Running |
-| **Endgame** | 1–2 ships remaining | G-SONAR unlocks. Total battlespace compression. High-stakes final hunt. | \+ G-SONAR, Acoustic Cloak (All others likely consumed) |
+| **Early** | First 15–25 shots | 5 starting credits | 1–2 Sonar Pings to scout. Cheap intel. |
+| **Mid** | First hits scored | ~10–15 credits | Sonar Pings to confirm targets. Radar Jammers to disrupt opponent's recon. |
+| **Escalation** | First ships sunk | ~30–50 credits | Recon Drones for area scanning. Silent Running to protect damaged ships. |
+| **Endgame** | 1–2 ships remaining | ~60–100+ credits | G-SONAR for full-layer scans. Depth Charges for area denial. Acoustic Cloak for final defense. |
 
-## **6.2 Comeback Mechanics**
+## **6.2 Economic Tension**
 
-The staggered earn timing ensures the trailing player always has defensive tools before the leading player gains offensive ones. Defensive abilities (Radar Jammer, Silent Running) are triggered by taking damage, giving the losing player tools to slow the opponent. This prevents blowouts and keeps both players engaged through the full session.
+The credit economy creates natural decision points throughout the game:
+
+* **Spend vs. Save:** 3 credits for a Sonar Ping now, or save for a 10-credit Recon Drone later?
+* **Offense vs. Defense:** A dominant player can invest in Depth Charges (25 credits) for devastating area attacks, but a defensive Radar Jammer (5 credits) can poison their recon at a fraction of the cost.
+* **Consecutive Hit Bonus:** Rewards players who chase a found ship rather than scattershot — 6 credits per consecutive hit (1 base + 5 bonus) funds a Sonar Ping every other turn for free.
+* **Losing player economy:** Even a trailing player earns credits from hits. Cheap defensive perks (Radar Jammer at 5, Acoustic Cloak at 6) let them disrupt the leader's intelligence advantage.
 
 **7\. UI/UX DESIGN**
 
@@ -251,7 +269,11 @@ Both setup and combat screens share a canvas-dominant overlay layout: the 3D son
 
 * **End Turn Button (overlay, bottom right):** Enabled after firing.
 
-* **Ability Tray:** Bottom-left or contextual. Shows earned abilities with availability state.
+* **Credit Display (overlay, top):** Current credit balance, prominently visible.
+
+* **Perk Store (overlay, left or contextual):** Browse and purchase perks. Shows perk name, cost, description. Greyed out if insufficient credits.
+
+* **Inventory Tray (overlay, bottom-left):** Shows purchased perks available for deployment. Offensive perks highlighted separately from defensive. Click to deploy.
 
 ## **7.3 Player Feedback**
 
@@ -289,7 +311,7 @@ Each player maintains two 8×8×8 grids:
 
 * **Targeting Grid:** Outgoing shots (hits/misses), drone scan results.
 
-Game state includes: current player, turn count, ability availability per player, ship health per vessel, win condition tracking.
+Game state includes: current player, turn count, credit balance per player, perk inventory per player, active perk effects (cloak/jammer/silent running with turn counters), ship health per vessel, consecutive hit tracking, win condition tracking.
 
 ## **8.3 Rendering Architecture**
 
@@ -311,4 +333,4 @@ Game state includes: current player, turn count, ability availability per player
 
 **END OF DOCUMENT**
 
-SUBMARINE // GDD v1.1 // March 2026
+SUBMARINE // GDD v1.2 // March 2026
