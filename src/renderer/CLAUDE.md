@@ -3,7 +3,7 @@
 ## Files
 
 - **`materials.ts`** — `CRT_COLORS` palette (includes CYAN for recon states), `MaterialSet`/`MaterialDef` interfaces, `MATERIAL_DEFS` lookup, `MaterialPool` class (normal + dimmed + ghost material pools per `CellState`)
-- **`orbit.ts`** — Custom `OrbitControls` (spherical coords, pointer/wheel/pinch events, damping). Exports pure helpers: `sphericalToCartesian`, `clampPhi`, `clampDistance`. Public `dragging` getter.
+- **`orbit.ts`** — Custom `OrbitControls` (spherical coords, pointer/wheel/pinch events, damping). Exports pure helpers: `sphericalToCartesian`, `clampPhi`, `clampDistance`. Public `dragging` getter for live drag state; `wasDragging` getter + `consumeDrag()` for post-drag click suppression (5px movement threshold).
 - **`cube.ts`** — `GridCube` class (512 `BoxGeometry` + `EdgesGeometry` meshes in 8x8x8 layout), `coordToPosition` helper, layer helpers (`getCellMeshesAtDepth`, `getAllCellMeshes`, `setLayerVisible`)
 - **`views.ts`** — `ViewManager` class: three view modes (CUBE, SLICE, X-RAY), depth layer control, board type, smooth opacity transitions, interactable mesh filtering
 - **`raycaster.ts`** — `GridRaycaster` class: wraps `THREE.Raycaster` for cell picking via NDC normalization, configurable mesh source
@@ -22,7 +22,7 @@
   - SLICE: selected visible+normal, ±1 visible+ghost, rest hidden
   - X-RAY: only non-empty cells visible (filtered by board type)
 - **GridRaycaster** picks cells via `THREE.Raycaster`, mesh source filtered by ViewManager.
-- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression. Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`.
+- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`.
 - **ResizeObserver** handles responsive canvas sizing. `devicePixelRatio` capped at 2.
 
 ## Ghost Cell Overlay

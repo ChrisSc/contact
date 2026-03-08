@@ -64,6 +64,11 @@ export class OrbitControls {
   private activePointers: Map<number, { x: number; y: number }> = new Map();
   private lastPinchDistance = 0;
 
+  private pointerDownPos = { x: 0, y: 0 };
+  private dragMoved = false;
+  private _wasDragging = false;
+  private static readonly DRAG_THRESHOLD = 5;
+
   private boundOnPointerDown: (e: PointerEvent) => void;
   private boundOnPointerMove: (e: PointerEvent) => void;
   private boundOnPointerUp: (e: PointerEvent) => void;
@@ -104,6 +109,9 @@ export class OrbitControls {
     if (this.activePointers.size === 1) {
       this.isDragging = true;
       this.previousPointer = { x: e.clientX, y: e.clientY };
+      this.pointerDownPos = { x: e.clientX, y: e.clientY };
+      this.dragMoved = false;
+      this._wasDragging = false;
       this.velocityTheta = 0;
       this.velocityPhi = 0;
     } else if (this.activePointers.size === 2) {
@@ -129,6 +137,14 @@ export class OrbitControls {
 
     if (!this.isDragging || this.activePointers.size !== 1) return;
 
+    if (!this.dragMoved) {
+      const distX = e.clientX - this.pointerDownPos.x;
+      const distY = e.clientY - this.pointerDownPos.y;
+      if (Math.sqrt(distX * distX + distY * distY) > OrbitControls.DRAG_THRESHOLD) {
+        this.dragMoved = true;
+      }
+    }
+
     const dx = e.clientX - this.previousPointer.x;
     const dy = e.clientY - this.previousPointer.y;
 
@@ -143,6 +159,10 @@ export class OrbitControls {
 
     if (this.activePointers.size === 0 && this.isDragging) {
       this.isDragging = false;
+      if (this.dragMoved) {
+        this._wasDragging = true;
+        this.dragMoved = false;
+      }
       try {
         getLogger().emit('view.rotate', {
           theta: this.theta,
@@ -200,6 +220,14 @@ export class OrbitControls {
 
   get dragging(): boolean {
     return this.isDragging;
+  }
+
+  get wasDragging(): boolean {
+    return this._wasDragging;
+  }
+
+  consumeDrag(): void {
+    this._wasDragging = false;
   }
 
   setEnabled(enabled: boolean): void {
