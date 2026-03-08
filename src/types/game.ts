@@ -1,6 +1,6 @@
 import type { Grid } from './grid';
 import type { Ship } from './fleet';
-import type { AbilityId, AbilityState } from './abilities';
+import type { AbilityId, AbilityState, PerkInstance } from './abilities';
 
 export enum GamePhase {
   SetupP1 = 'setup_p1',
@@ -28,6 +28,15 @@ export interface PlayerState {
   shipsSunk: number;
   shotsFired: number;
   shotsHit: number;
+  credits: number;
+  inventory: PerkInstance[];
+  lastTurnHit: boolean;
+}
+
+export interface TurnSlots {
+  pingUsed: boolean;
+  attackUsed: boolean;
+  defendUsed: boolean;
 }
 
 export interface GameState {

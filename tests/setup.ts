@@ -53,6 +53,9 @@ export function createEmptyPlayerState(index: 0 | 1): PlayerState {
     shipsSunk: 0,
     shotsFired: 0,
     shotsHit: 0,
+    credits: 5,
+    inventory: [],
+    lastTurnHit: false,
   };
 }
 

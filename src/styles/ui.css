@@ -862,3 +862,274 @@
   gap: var(--spacing-md);
   margin-top: var(--spacing-lg);
 }
+
+/* Perk Store */
+.perk-store {
+  position: absolute;
+  left: 70px;
+  top: 60px;
+  bottom: 60px;
+  width: 280px;
+  z-index: 20;
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  padding: var(--spacing-md);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-sm);
+}
+
+.perk-store__title {
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--crt-green);
+  letter-spacing: 2px;
+  text-align: center;
+  padding-bottom: var(--spacing-sm);
+  border-bottom: 1px solid rgba(0, 255, 65, 0.2);
+}
+
+.perk-store__close {
+  position: absolute;
+  top: var(--spacing-sm);
+  right: var(--spacing-sm);
+  font-family: var(--font-display);
+  font-size: 10px;
+  background: none;
+  border: 1px solid rgba(0, 255, 65, 0.3);
+  color: var(--crt-green-dim);
+  cursor: pointer;
+  padding: 2px 6px;
+}
+
+.perk-store__close:hover {
+  color: var(--crt-green);
+  border-color: var(--crt-green);
+}
+
+.perk-store__section-label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  letter-spacing: 1px;
+  margin-top: var(--spacing-sm);
+}
+
+.perk-store__section-label--offensive { color: var(--crt-red); }
+.perk-store__section-label--defensive { color: var(--crt-green); }
+
+.perk-store__item {
+  padding: var(--spacing-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.perk-store__item--offensive { border: 1px solid rgba(255, 0, 64, 0.3); }
+.perk-store__item--defensive { border: 1px solid rgba(0, 255, 65, 0.3); }
+
+.perk-store__item--disabled {
+  opacity: 0.4;
+}
+
+.perk-store__item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.perk-store__name {
+  font-family: var(--font-display);
+  font-size: 8px;
+  color: var(--crt-green);
+  letter-spacing: 1px;
+}
+
+.perk-store__cost {
+  font-family: var(--font-display);
+  font-size: 8px;
+  color: var(--crt-amber);
+  padding: 1px 4px;
+  border: 1px solid rgba(255, 176, 0, 0.3);
+}
+
+.perk-store__desc {
+  font-family: var(--font-body);
+  font-size: 12px;
+  color: var(--crt-green-dim);
+  line-height: 1.3;
+}
+
+.perk-store__buy-btn {
+  font-family: var(--font-display);
+  font-size: 8px;
+  padding: 3px 8px;
+  background: transparent;
+  border: 1px solid var(--crt-amber);
+  color: var(--crt-amber);
+  cursor: pointer;
+  letter-spacing: 1px;
+  align-self: flex-end;
+  transition: all 0.1s;
+}
+
+.perk-store__buy-btn:hover:not(:disabled) {
+  background: rgba(255, 176, 0, 0.15);
+  box-shadow: 0 0 8px rgba(255, 176, 0, 0.2);
+}
+
+.perk-store__buy-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Inventory Tray */
+.inventory-tray {
+  position: absolute;
+  bottom: 46px;
+  left: var(--spacing-md);
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+}
+
+.inventory-tray__empty {
+  font-family: var(--font-display);
+  font-size: 7px;
+  color: var(--crt-green-dim);
+  opacity: 0.4;
+  letter-spacing: 1px;
+}
+
+.inventory-tray__item {
+  padding: 4px 8px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(10, 10, 10, 0.8);
+  transition: all 0.1s;
+}
+
+.inventory-tray__item--offensive { border: 1px solid rgba(255, 0, 64, 0.3); }
+.inventory-tray__item--defensive { border: 1px solid rgba(0, 255, 65, 0.3); }
+
+.inventory-tray__item--selected {
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.4);
+}
+
+.inventory-tray__item--selected.inventory-tray__item--offensive {
+  border-color: var(--crt-red);
+  box-shadow: 0 0 8px rgba(255, 0, 64, 0.4);
+}
+
+.inventory-tray__item--selected.inventory-tray__item--defensive {
+  border-color: var(--crt-green);
+}
+
+.inventory-tray__item-name {
+  font-family: var(--font-display);
+  font-size: 6px;
+  color: var(--crt-green);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.inventory-tray__item-info {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.inventory-tray__slot-badge {
+  font-family: var(--font-display);
+  font-size: 5px;
+  letter-spacing: 1px;
+  padding: 1px 3px;
+}
+
+.inventory-tray__count {
+  font-family: var(--font-display);
+  font-size: 7px;
+  color: var(--crt-amber);
+  letter-spacing: 1px;
+}
+
+.inventory-tray__slot-badge--ping { color: var(--crt-amber); border: 1px solid rgba(255, 176, 0, 0.3); }
+.inventory-tray__slot-badge--attack { color: var(--crt-red); border: 1px solid rgba(255, 0, 64, 0.3); }
+.inventory-tray__slot-badge--defend { color: var(--crt-green); border: 1px solid rgba(0, 255, 65, 0.3); }
+
+/* Action Slots */
+.action-slots {
+  position: absolute;
+  top: 56px;
+  left: var(--spacing-md);
+  z-index: 10;
+  display: flex;
+  gap: 4px;
+}
+
+.action-slots__slot {
+  font-family: var(--font-display);
+  font-size: 7px;
+  padding: 2px 6px;
+  letter-spacing: 1px;
+  border: 1px solid rgba(0, 255, 65, 0.2);
+  background: rgba(10, 10, 10, 0.7);
+}
+
+.action-slots__slot--available {
+  color: var(--crt-green-dim);
+  border-color: rgba(0, 255, 65, 0.3);
+}
+
+.action-slots__slot--used {
+  color: var(--crt-green);
+  border-color: var(--crt-green);
+  background: rgba(0, 255, 65, 0.1);
+  text-shadow: 0 0 6px var(--crt-green-glow);
+}
+
+.action-slots__slot--unavailable {
+  color: rgba(0, 255, 65, 0.15);
+  border-color: rgba(0, 255, 65, 0.08);
+  opacity: 0.5;
+}
+
+/* Credit Display */
+.combat-screen__credits {
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--crt-amber);
+  letter-spacing: 1px;
+  text-shadow: 0 0 6px rgba(255, 176, 0, 0.3);
+}
+
+/* Store Button */
+.combat-screen__store-btn {
+  font-family: var(--font-display);
+  font-size: 8px;
+  padding: 3px 8px;
+  background: rgba(10, 10, 10, 0.7);
+  border: 1px solid rgba(255, 176, 0, 0.3);
+  color: var(--crt-amber);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.1s;
+}
+
+.combat-screen__store-btn:hover {
+  border-color: var(--crt-amber);
+  background: rgba(255, 176, 0, 0.1);
+}
+
+.combat-screen__store-btn--active {
+  border-color: var(--crt-amber);
+  background: rgba(255, 176, 0, 0.15);
+}
+
+/* Sonar status modifiers */
+.combat-screen__status--sonar-positive { color: #33ffcc; text-shadow: 0 0 8px rgba(51, 255, 204, 0.4); }
+.combat-screen__status--sonar-negative { color: var(--crt-green-dim); }

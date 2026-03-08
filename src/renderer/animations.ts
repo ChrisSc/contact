@@ -18,7 +18,7 @@ interface AnimEntry {
 }
 
 interface ActiveAnimation {
-  type: 'hit_flash' | 'sunk_cascade' | 'miss_fade';
+  type: 'hit_flash' | 'sunk_cascade' | 'miss_fade' | 'sonar_sweep';
   elapsed: number;
   entries: AnimEntry[];
   onUpdate(elapsed: number): boolean; // returns true when complete
@@ -301,6 +301,80 @@ export class AnimationManager {
   }
 
   // -------------------------------------------------------------------------
+  // playSonarSweep — pulse up then settle, restore pooled SonarPositive/Negative
+  // -------------------------------------------------------------------------
+
+  playSonarSweep(coord: Coordinate, positive: boolean): void {
+    const key = coordKey(coord);
+
+    if (this.animations.has(key)) {
+      this._cancelKey(key);
+    }
+
+    const cell = this.cube.getCellMesh(coord);
+    if (!cell) return;
+
+    const color = positive ? CRT_COLORS.CYAN : CRT_COLORS.GREEN_DIM;
+    const targetState = positive ? CellState.SonarPositive : CellState.SonarNegative;
+    const targetFillOpacity = positive ? 0.4 : 0.1;
+    const targetEdgeOpacity = positive ? 0.6 : 0.15;
+
+    const fill = new THREE.MeshBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0,
+      depthWrite: false,
+    });
+    const edge = new THREE.LineBasicMaterial({
+      color,
+      transparent: true,
+      opacity: 0,
+    });
+
+    cell.box.material = fill;
+    cell.edges.material = edge;
+
+    const entry: AnimEntry = { coord, cell, fill, edge };
+    const pool = this.materialPool;
+    const animationsMap = this.animations;
+
+    const anim: ActiveAnimation = {
+      type: 'sonar_sweep',
+      elapsed: 0,
+      entries: [entry],
+      onUpdate(elapsed: number): boolean {
+        if (elapsed <= 0.3) {
+          // Phase 1: pulse up (0–300ms)
+          const t = clamp(elapsed / 0.3, 0, 1);
+          fill.opacity = t * 0.8;
+          edge.opacity = t * 1.0;
+        } else if (elapsed <= 0.5) {
+          // Phase 2: settle to target (300–500ms)
+          const t = clamp((elapsed - 0.3) / 0.2, 0, 1);
+          fill.opacity = 0.8 + t * (targetFillOpacity - 0.8);
+          edge.opacity = 1.0 + t * (targetEdgeOpacity - 1.0);
+        }
+
+        if (elapsed >= 0.5) {
+          // Restore pooled materials
+          const mats = pool.getMaterials(targetState);
+          entry.cell.box.material = mats.fill;
+          entry.cell.edges.material = mats.edge;
+          fill.dispose();
+          edge.dispose();
+          animationsMap.delete(key);
+          tryLog('animation_complete', 'sonar_sweep');
+          return true;
+        }
+        return false;
+      },
+    };
+
+    this.animations.set(key, anim);
+    tryLog('animation_start', 'sonar_sweep');
+  }
+
+  // -------------------------------------------------------------------------
   // cancelAt — remove animation, dispose private materials, restore pool mats
   // -------------------------------------------------------------------------
 
@@ -317,6 +391,7 @@ export class AnimationManager {
     const restoreState =
       anim.type === 'hit_flash' ? CellState.Hit :
       anim.type === 'sunk_cascade' ? CellState.Sunk :
+      anim.type === 'sonar_sweep' ? CellState.SonarPositive :
       CellState.Miss;
 
     const pooledMats = this.materialPool.getMaterials(restoreState);
@@ -352,6 +427,7 @@ export class AnimationManager {
       const restoreState =
         anim.type === 'hit_flash' ? CellState.Hit :
         anim.type === 'sunk_cascade' ? CellState.Sunk :
+        anim.type === 'sonar_sweep' ? CellState.SonarPositive :
         CellState.Miss;
 
       const pooledMats = this.materialPool.getMaterials(restoreState);
