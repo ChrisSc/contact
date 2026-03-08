@@ -8,7 +8,7 @@
 - **`views.ts`** — `ViewManager` class: three view modes (CUBE, SLICE, X-RAY), depth layer control, board type, smooth opacity transitions, interactable mesh filtering
 - **`raycaster.ts`** — `GridRaycaster` class: wraps `THREE.Raycaster` for cell picking via NDC normalization, configurable mesh source
 - **`animations.ts`** — `AnimationManager` class: combat and perk animation effects (hit flash, sunk cascade, miss fade, sonar sweep, drone scan, g-sonar scan, depth charge blast). Private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop. Multi-key animations (sunk cascade, drone scan, g_sonar_scan, depth charge blast) share one `ActiveAnimation` object across all cell keys; `update(dt)` deduplicates via `processed` Set to avoid N× speedup.
-- **`scene.ts`** — `SceneManager` orchestrator (scene, camera, renderer, orbit, cube, views, animations, raycaster, render loop with delta time, pointer events, ghost cell overlay, resize, dispose)
+- **`scene.ts`** — `SceneManager` orchestrator (scene, camera, renderer, orbit, cube, views, animations, raycaster, render loop with delta time, pointer events, ghost cell overlay, friendly fleet overlay, resize, dispose)
 
 ## Architecture
 
@@ -22,7 +22,7 @@
   - SLICE: selected visible+normal, ±1 visible+ghost, rest hidden
   - X-RAY: only non-empty cells visible (filtered by board type)
 - **GridRaycaster** picks cells via `THREE.Raycaster`, mesh source filtered by ViewManager.
-- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Silent Running overlay via `setSilentRunningOverlay(coords)` / `clearSilentRunningOverlay()` (CYAN, separate from ghost cells). Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`, `playSonarAnimation(coord, positive)`, `playDepthChargeAnimation(center, results)`, `playGSonarScanAnimation(cells)`. Screen shake via `playScreenShake(intensity?, duration?)`.
+- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Silent Running overlay via `setSilentRunningOverlay(coords)` / `clearSilentRunningOverlay()` (CYAN, separate from ghost cells). Friendly fleet overlay via `setFriendlyFleetOverlay(coords)` / `clearFriendlyFleetOverlay()` (GREEN, separate from ghost/SR overlays). Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`, `playSonarAnimation(coord, positive)`, `playDepthChargeAnimation(center, results)`, `playGSonarScanAnimation(cells)`. Screen shake via `playScreenShake(intensity?, duration?)`.
 - **ResizeObserver** handles responsive canvas sizing. `devicePixelRatio` capped at 2.
 
 ## Ghost Cell Overlay
@@ -60,6 +60,15 @@
 - Used by combat screen when viewing own grid to highlight SR'd ship cells
 - `updateSceneGrid()` calls `clearSilentRunningOverlay()` before `updateGrid()`, then rebuilds if viewing own grid
 - SR overlay materials created once in SceneManager constructor, disposed on cleanup
+
+## Friendly Fleet Overlay
+
+- `setFriendlyFleetOverlay(coords)` temporarily swaps materials on specified cells to GREEN (fill opacity 0.3, edge opacity 0.6)
+- `clearFriendlyFleetOverlay()` restores original materials
+- Separate storage from ghost cells and SR overlay (`friendlyOverlayEntries`) — all three can coexist
+- Used by combat screen on F key hold to reveal friendly ship positions on any board view
+- `updateGrid()` calls `clearFriendlyFleetOverlay()` to prevent stale materials
+- Friendly overlay materials created once in SceneManager constructor, disposed on cleanup
 
 ## Recon State Colors
 

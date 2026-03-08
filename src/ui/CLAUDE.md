@@ -17,7 +17,7 @@
 - **`components/notification-banner.ts`** — `NotificationBanner` class: queued CRT notification overlay. `show(config)` displays text banner with optional CSS class and duration (default 2500ms). Queues notifications if one is active; auto-dismisses and shows next. `destroy()` cleans up.
 - **`screens/setup-screen.ts`** — `mountSetupScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), depth panel, 8-axis selector, ship roster overlay, ghost cell preview via raycaster hover, ship/decoy placement via raycaster click, R key to cycle axes, AUTO DEPLOY button (random valid placement of all ships + decoy), confirm flow. Placement phases: `ships` → `decoy-pending` → `decoy` → `confirm`. Decoy requires explicit roster selection before placement.
 - **`screens/handoff-screen.ts`** — `mountHandoffScreen()`: player transition with ready confirmation
-- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations, coordinate hover feedback, HUD stats, enemy fleet status, credit display (amber), STORE button, perk store panel, inventory tray, action slots, notification banner, ability deployment overlays, ping mode flow, drone mode flow, depth charge mode flow, silent running mode flow, screen shake on hit/sunk, audio integration, end turn
+- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations, coordinate hover feedback, HUD stats, friendly fleet status (per-pip damage), enemy fleet status, F key fleet reveal overlay, credit display (amber), STORE button, perk store panel, inventory tray, action slots, notification banner, ability deployment overlays, ping mode flow, drone mode flow, depth charge mode flow, silent running mode flow, screen shake on hit/sunk, audio integration, end turn
 - **`screens/victory-screen.ts`** — `mountVictoryScreen()`: winner display, stats summary, session export, new engagement restart
 
 ## Architecture
@@ -66,7 +66,10 @@
 - **Mode cancellation**: `gSonarMode` is cancelled (set to false + `inventoryTray.clearSelection()`) when switching board view via `handleBoardToggle()`, and cancelled (set to false) when selecting any new inventory item via `handleInventorySelect()`.
 - **Audio functions**: `playGSonarSound()` fires on G-SONAR scan; `playAcousticCloakSound()` fires on Acoustic Cloak deploy. Both imported from `../../audio/abilities`.
 - **End turn gating**: `turnSlots.attackUsed` required (unchanged from pre-perk behavior).
-- **Cleanup**: `overlays.dispose()`, `perkStore.destroy()`, `inventoryTray.destroy()`, `actionSlotsComponent.destroy()`, `notifications.destroy()`, `stopAmbient()` in `unmount()`.
+- **Friendly fleet status**: `refreshFriendlyFleetStatus()` renders FRIENDLY FLEET section above ENEMY FLEET in the fleet panel. Each ship shows name + per-pip damage: intact pips green, damaged pips red (from right to left based on `ship.hits`), sunk = all red + strikethrough. Uses dedicated `friendlyFleetContainer` div (enemy uses `enemyFleetContainer`) to prevent cross-contamination during refresh. Called on mount.
+- **F key fleet reveal**: `keydown F` gathers all `player.ships[].cells` coordinates, calls `sceneManager.setFriendlyFleetOverlay(coords)` to highlight friendly ship positions in the 3D cube (green overlay). `keyup F` clears overlay. Works on both targeting and own board views. Key listeners added on mount, removed on unmount.
+- **Fleet panel structure**: `fleetPanel` contains `friendlyFleetContainer` → separator → `enemyFleetContainer`. Each container scopes its own `refreshFleetStatus` / `refreshFriendlyFleetStatus` queries to avoid removing the other's entries.
+- **Cleanup**: `overlays.dispose()`, `perkStore.destroy()`, `inventoryTray.destroy()`, `actionSlotsComponent.destroy()`, `notifications.destroy()`, `stopAmbient()`, F key listeners removed in `unmount()`.
 
 ## CRT Effects (Persistent)
 

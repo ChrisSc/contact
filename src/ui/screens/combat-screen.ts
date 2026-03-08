@@ -257,14 +257,31 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   const overlays = new AbilityOverlayManager();
   el.appendChild(overlays.render());
 
-  // --- Enemy fleet (bottom-right overlay) ---
+  // --- Fleet panel (bottom-right overlay) ---
   const fleetPanel = document.createElement('div');
   fleetPanel.className = 'combat-screen__fleet-panel';
+
+  const friendlyTitle = document.createElement('div');
+  friendlyTitle.className = 'combat-screen__fleet-title';
+  friendlyTitle.textContent = 'FRIENDLY FLEET';
+  fleetPanel.appendChild(friendlyTitle);
+
+  const friendlyFleetContainer = document.createElement('div');
+  friendlyFleetContainer.className = 'combat-screen__friendly-fleet';
+  fleetPanel.appendChild(friendlyFleetContainer);
+
+  const fleetSeparator = document.createElement('div');
+  fleetSeparator.className = 'combat-screen__fleet-separator';
+  fleetPanel.appendChild(fleetSeparator);
 
   const fleetTitle = document.createElement('div');
   fleetTitle.className = 'combat-screen__fleet-title';
   fleetTitle.textContent = 'ENEMY FLEET';
   fleetPanel.appendChild(fleetTitle);
+
+  const enemyFleetContainer = document.createElement('div');
+  enemyFleetContainer.className = 'combat-screen__enemy-fleet';
+  fleetPanel.appendChild(enemyFleetContainer);
 
   el.appendChild(fleetPanel);
 
@@ -284,7 +301,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   // --- Controls hint ---
   const hint = document.createElement('div');
   hint.className = 'combat-screen__hint';
-  hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO FIRE';
+  hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO FIRE \u00b7 F = SHOW FLEET';
   el.appendChild(hint);
 
   container.appendChild(el);
@@ -301,8 +318,37 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   updateSceneGrid();
   sceneManager.start();
 
+  // --- F key: show friendly fleet overlay ---
+  let friendlyOverlayActive = false;
+
+  function handleKeyDown(e: KeyboardEvent): void {
+    if (e.key === 'f' || e.key === 'F') {
+      if (friendlyOverlayActive) return;
+      friendlyOverlayActive = true;
+      const player = game.getCurrentPlayer();
+      const coords: Coordinate[] = [];
+      for (const ship of player.ships) {
+        coords.push(...ship.cells);
+      }
+      if (coords.length > 0) {
+        sceneManager.setFriendlyFleetOverlay(coords);
+      }
+    }
+  }
+
+  function handleKeyUp(e: KeyboardEvent): void {
+    if (e.key === 'f' || e.key === 'F') {
+      friendlyOverlayActive = false;
+      sceneManager.clearFriendlyFleetOverlay();
+    }
+  }
+
+  document.addEventListener('keydown', handleKeyDown);
+  document.addEventListener('keyup', handleKeyUp);
+
   refreshHeader();
   refreshBottomBar();
+  refreshFriendlyFleetStatus();
   refreshFleetStatus();
   refreshCredits();
   refreshInventory();
@@ -940,8 +986,45 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     }
   }
 
+  function refreshFriendlyFleetStatus(): void {
+    const entries = friendlyFleetContainer.querySelectorAll('.combat-screen__fleet-entry');
+    for (const entry of entries) entry.remove();
+
+    const player = game.getCurrentPlayer();
+    for (const rosterEntry of FLEET_ROSTER) {
+      const ship = player.ships.find(s => s.id === rosterEntry.id);
+      const entryEl = document.createElement('div');
+      entryEl.className = 'combat-screen__fleet-entry';
+
+      const isSunk = ship ? ship.sunk : false;
+      const hits = ship ? ship.hits : 0;
+      if (isSunk) entryEl.classList.add('combat-screen__fleet-entry--sunk');
+
+      const nameEl = document.createElement('span');
+      nameEl.textContent = rosterEntry.name.toUpperCase();
+
+      const pips = document.createElement('span');
+      pips.className = 'combat-screen__fleet-pips';
+      for (let i = 0; i < rosterEntry.size; i++) {
+        const pip = document.createElement('span');
+        if (isSunk) {
+          pip.className = 'combat-screen__pip combat-screen__pip--sunk';
+        } else if (i >= rosterEntry.size - hits) {
+          pip.className = 'combat-screen__pip combat-screen__pip--hit';
+        } else {
+          pip.className = 'combat-screen__pip';
+        }
+        pips.appendChild(pip);
+      }
+
+      entryEl.appendChild(nameEl);
+      entryEl.appendChild(pips);
+      friendlyFleetContainer.appendChild(entryEl);
+    }
+  }
+
   function refreshFleetStatus(): void {
-    const entries = fleetPanel.querySelectorAll('.combat-screen__fleet-entry');
+    const entries = enemyFleetContainer.querySelectorAll('.combat-screen__fleet-entry');
     for (const entry of entries) entry.remove();
 
     for (const rosterEntry of FLEET_ROSTER) {
@@ -965,12 +1048,14 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
       entryEl.appendChild(nameEl);
       entryEl.appendChild(pips);
-      fleetPanel.appendChild(entryEl);
+      enemyFleetContainer.appendChild(entryEl);
     }
   }
 
   return {
     unmount(): void {
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keyup', handleKeyUp);
       stopAmbient();
       perkStore.destroy();
       inventoryTray.destroy();

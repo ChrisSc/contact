@@ -30,6 +30,8 @@ const mockSceneManager = {
   playScreenShake: vi.fn(),
   setSilentRunningOverlay: vi.fn(),
   clearSilentRunningOverlay: vi.fn(),
+  setFriendlyFleetOverlay: vi.fn(),
+  clearFriendlyFleetOverlay: vi.fn(),
   clearGhostCells: vi.fn(),
   setGhostCells: vi.fn(),
   onCellClick: vi.fn((cb: (coord: Coordinate) => void) => { cellClickCb = cb; }),
@@ -213,10 +215,17 @@ describe('Combat Screen', () => {
   });
 
   it('renders enemy fleet with health pips', () => {
-    const entries = container.querySelectorAll('.combat-screen__fleet-entry');
-    expect(entries.length).toBe(5);
-    const pips = container.querySelectorAll('.combat-screen__pip');
-    expect(pips.length).toBe(17); // 5+4+3+3+2
+    const enemyEntries = container.querySelectorAll('.combat-screen__enemy-fleet .combat-screen__fleet-entry');
+    expect(enemyEntries.length).toBe(5);
+    const enemyPips = container.querySelectorAll('.combat-screen__enemy-fleet .combat-screen__pip');
+    expect(enemyPips.length).toBe(17); // 5+4+3+3+2
+  });
+
+  it('renders friendly fleet with health pips', () => {
+    const friendlyEntries = container.querySelectorAll('.combat-screen__friendly-fleet .combat-screen__fleet-entry');
+    expect(friendlyEntries.length).toBe(5);
+    const friendlyPips = container.querySelectorAll('.combat-screen__friendly-fleet .combat-screen__pip');
+    expect(friendlyPips.length).toBe(17); // 5+4+3+3+2
   });
 
   it('end turn button is disabled initially', () => {
