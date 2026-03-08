@@ -226,6 +226,10 @@ export class SceneManager {
     this.animations.playMissFade(coord);
   }
 
+  playSonarAnimation(coord: Coordinate, positive: boolean): void {
+    this.animations.playSonarSweep(coord, positive);
+  }
+
   dispose(): void {
     this.stop();
     this.clearGhostCells();

@@ -24,6 +24,7 @@ const mockSceneManager = {
   playHitAnimation: vi.fn(),
   playSunkAnimation: vi.fn(),
   playMissAnimation: vi.fn(),
+  playSonarAnimation: vi.fn(),
   onCellClick: vi.fn((cb: (coord: Coordinate) => void) => { cellClickCb = cb; }),
   onCellHover: vi.fn((cb: (coord: Coordinate | null) => void) => { cellHoverCb = cb; }),
   views: {
@@ -225,5 +226,94 @@ describe('Combat Screen', () => {
     mockSceneManager.dispose.mockClear();
     router.navigate('handoff');
     expect(mockSceneManager.dispose).toHaveBeenCalled();
+  });
+
+  it('renders credit display in top bar', () => {
+    const credits = container.querySelector('.combat-screen__credits');
+    expect(credits).not.toBeNull();
+    expect(credits?.textContent).toBe('CR: 5');
+  });
+
+  it('renders store button', () => {
+    const storeBtn = container.querySelector('.combat-screen__store-btn');
+    expect(storeBtn).not.toBeNull();
+    expect(storeBtn?.textContent).toBe('STORE');
+  });
+
+  it('store button toggles perk store visibility', () => {
+    const storeBtn = container.querySelector('.combat-screen__store-btn') as HTMLElement;
+    storeBtn.click();
+    const store = container.querySelector('.perk-store') as HTMLElement;
+    expect(store.style.display).not.toBe('none');
+    storeBtn.click();
+    expect(store.style.display).toBe('none');
+  });
+
+  it('purchasing a perk deducts credits and updates display', () => {
+    // Open store
+    const storeBtn = container.querySelector('.combat-screen__store-btn') as HTMLElement;
+    storeBtn.click();
+
+    // Buy sonar ping (cost 3, starting credits 5)
+    const buyBtn = container.querySelector('.perk-store__buy-btn') as HTMLButtonElement;
+    buyBtn.click();
+
+    const credits = container.querySelector('.combat-screen__credits');
+    expect(credits?.textContent).toBe('CR: 2');
+  });
+
+  it('purchased perk appears in inventory tray', () => {
+    // Buy sonar ping
+    const storeBtn = container.querySelector('.combat-screen__store-btn') as HTMLElement;
+    storeBtn.click();
+    const buyBtn = container.querySelector('.perk-store__buy-btn') as HTMLButtonElement;
+    buyBtn.click();
+
+    const items = container.querySelectorAll('.inventory-tray__item');
+    expect(items.length).toBe(1);
+  });
+
+  it('selecting sonar ping from inventory enables ping mode', () => {
+    // Buy and select sonar ping
+    game.purchasePerk('sonar_ping');
+    // Need to re-navigate to refresh UI
+    router.navigate('handoff');
+    router.navigate('combat');
+    const cont = document.querySelector('.screen-container')!;
+
+    const item = cont.querySelector('.inventory-tray__item') as HTMLElement;
+    if (item) item.click();
+
+    const selectLabel = cont.querySelector('.combat-screen__select-label');
+    expect(selectLabel?.textContent).toBe('CLICK CELL TO PING');
+  });
+
+  it('ping mode: clicking cell calls useSonarPing and plays animation', () => {
+    // Buy sonar ping
+    game.purchasePerk('sonar_ping');
+    // Navigate to refresh
+    router.navigate('handoff');
+    router.navigate('combat');
+    const cont = document.querySelector('.screen-container')!;
+
+    const item = cont.querySelector('.inventory-tray__item') as HTMLElement;
+    if (item) item.click();
+
+    // Trigger cell click for ping
+    mockSceneManager.playSonarAnimation.mockClear();
+    cellClickCb!({ col: 7, row: 7, depth: 7 });
+
+    expect(mockSceneManager.playSonarAnimation).toHaveBeenCalled();
+  });
+
+  it('renders action slots', () => {
+    const slots = container.querySelectorAll('.action-slots__slot');
+    expect(slots.length).toBe(3);
+  });
+
+  it('hit awards credits and updates display', () => {
+    cellClickCb!({ col: 0, row: 0, depth: 0 }); // hit
+    const credits = container.querySelector('.combat-screen__credits');
+    expect(credits?.textContent).toBe('CR: 6'); // 5 + 1
   });
 });

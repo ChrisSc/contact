@@ -1,5 +1,5 @@
 import type { PlayerIndex } from './game';
-import type { AbilityId } from './abilities';
+import type { AbilityId, PerkId } from './abilities';
 import type { PlacementAxis } from './fleet';
 
 export type LogEventType =
@@ -35,6 +35,12 @@ export type LogEventType =
   | 'audio.init'
   | 'audio.play'
   | 'audio.mute'
+  // Economy
+  | 'economy.credit'
+  | 'economy.purchase'
+  | 'economy.balance'
+  // Perks
+  | 'perk.use'
   // System
   | 'system.init'
   | 'system.error'
@@ -86,4 +92,26 @@ export interface GameVictoryPayload {
   winner: PlayerIndex;
   designation: string;
   turnCount: number;
+}
+
+export interface EconomyCreditPayload {
+  player: PlayerIndex;
+  type: 'hit' | 'consecutive_hit' | 'sink';
+  amount: number;
+  balance: number;
+}
+
+export interface EconomyPurchasePayload {
+  player: PlayerIndex;
+  perkId: PerkId;
+  cost: number;
+  balance: number;
+}
+
+export interface PerkUsePayload {
+  player: PlayerIndex;
+  perkId: PerkId;
+  instanceId: string;
+  target?: string;
+  result?: string;
 }

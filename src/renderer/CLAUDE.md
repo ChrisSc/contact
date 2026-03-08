@@ -7,7 +7,7 @@
 - **`cube.ts`** — `GridCube` class (512 `BoxGeometry` + `EdgesGeometry` meshes in 8x8x8 layout), `coordToPosition` helper, layer helpers (`getCellMeshesAtDepth`, `getAllCellMeshes`, `setLayerVisible`)
 - **`views.ts`** — `ViewManager` class: three view modes (CUBE, SLICE, X-RAY), depth layer control, board type, smooth opacity transitions, interactable mesh filtering
 - **`raycaster.ts`** — `GridRaycaster` class: wraps `THREE.Raycaster` for cell picking via NDC normalization, configurable mesh source
-- **`animations.ts`** — `AnimationManager` class: combat animation effects (hit flash, sunk cascade, miss fade). Private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop.
+- **`animations.ts`** — `AnimationManager` class: combat and perk animation effects (hit flash, sunk cascade, miss fade, sonar sweep). Private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop.
 - **`scene.ts`** — `SceneManager` orchestrator (scene, camera, renderer, orbit, cube, views, animations, raycaster, render loop with delta time, pointer events, ghost cell overlay, resize, dispose)
 
 ## Architecture
@@ -22,7 +22,7 @@
   - SLICE: selected visible+normal, ±1 visible+ghost, rest hidden
   - X-RAY: only non-empty cells visible (filtered by board type)
 - **GridRaycaster** picks cells via `THREE.Raycaster`, mesh source filtered by ViewManager.
-- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`.
+- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`, `playSonarAnimation(coord, positive)`.
 - **ResizeObserver** handles responsive canvas sizing. `devicePixelRatio` capped at 2.
 
 ## Ghost Cell Overlay
@@ -40,10 +40,12 @@
 | **Hit Flash** | `playHitFlash(coord)` | Infinite (looping) | 200ms full red opacity, then sinusoidal pulse 0.5–1.0, period 1.5s |
 | **Sunk Cascade** | `playSunkCascade(coords)` | `125ms × (n-1) + 300ms` | Sequential RED→ORANGE color lerp per cell, 125ms stagger. Completes → restores pooled Sunk materials |
 | **Miss Fade** | `playMissFade(coord)` | 300ms | Linear fade-in from 0 to target opacity (0.15 fill, 0.2 edge). Completes → restores pooled Miss materials |
+| **Sonar Sweep** | `playSonarSweep(coord, positive)` | 500ms | Two-phase: 0–300ms pulse opacity up (0→0.8), 300–500ms settle to target. CYAN if positive, GREEN_DIM if negative. Completes → restores pooled SonarPositive or SonarNegative materials |
 
 - Duplicate animation on same cell cancels previous and disposes its materials.
-- Combat screen wires animations in `handleFire()`: hit→`playHitAnimation`, sunk→`playSunkAnimation` (using ship cells from opponent state), miss→`playMissAnimation`.
+- Combat screen wires animations in `handleFire()`: hit→`playHitAnimation`, sunk→`playSunkAnimation` (using ship cells from opponent state), miss→`playMissAnimation`. Sonar wired in `handlePing()`: `playSonarAnimation(coord, result.displayedResult)`.
 - Logger emits `view.change` with `animation_start`/`animation_complete` actions.
+- `_cancelKey` restore state mapping: hit_flash→Hit, sunk_cascade→Sunk, sonar_sweep→SonarPositive, miss_fade→Miss.
 
 ## Recon State Colors
 

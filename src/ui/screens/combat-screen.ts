@@ -2,12 +2,18 @@ import type { ScreenContext, ScreenCleanup } from '../screen-router';
 import type { Coordinate } from '../../types/grid';
 import { DEPTH_LABELS } from '../../types/grid';
 import type { FireResult } from '../../engine/game';
+import type { TurnSlots } from '../../types/game';
 import { GamePhase, PLAYER_DESIGNATIONS } from '../../types/game';
+import type { PerkId, PerkInstance } from '../../types/abilities';
 import { FLEET_ROSTER } from '../../types/fleet';
 import { formatCoordinate } from '../../engine/grid';
+import { getInventoryBySlot } from '../../engine/perks';
 import { SceneManager } from '../../renderer/scene';
 import type { ViewMode } from '../../renderer/views';
 import { getLogger } from '../../observability/logger';
+import { PerkStore } from '../components/perk-store';
+import { InventoryTray } from '../components/inventory-tray';
+import { ActionSlots } from '../components/action-slots';
 
 interface CombatUIState {
   currentDepth: number | null;
@@ -15,9 +21,11 @@ interface CombatUIState {
   viewMode: ViewMode;
   hoveredCoord: Coordinate | null;
   lastFireResult: FireResult | null;
-  actionTaken: boolean;
   sunkShipIds: string[];
   gameLog: string[];
+  storeOpen: boolean;
+  pingMode: boolean;
+  turnSlots: TurnSlots;
 }
 
 export function mountCombatScreen(container: HTMLElement, context: ScreenContext): ScreenCleanup {
@@ -32,9 +40,11 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     viewMode: 'cube',
     hoveredCoord: null,
     lastFireResult: null,
-    actionTaken: false,
     sunkShipIds: initialSunkIds,
     gameLog: [],
+    storeOpen: false,
+    pingMode: false,
+    turnSlots: { pingUsed: false, attackUsed: false, defendUsed: false },
   };
 
   // Root — fills viewport, positions everything absolute
@@ -71,7 +81,19 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   const topRight = document.createElement('div');
   topRight.className = 'combat-screen__top-right';
-  topRight.textContent = '3D SONAR ARRAY // 8\u00d78\u00d78 // 512 CELLS';
+
+  // Credit display
+  const creditsDisplay = document.createElement('span');
+  creditsDisplay.className = 'combat-screen__credits';
+  topRight.appendChild(creditsDisplay);
+
+  // Store button
+  const storeBtn = document.createElement('button');
+  storeBtn.className = 'combat-screen__store-btn';
+  storeBtn.textContent = 'STORE';
+  storeBtn.addEventListener('click', handleStoreToggle);
+  topRight.appendChild(storeBtn);
+
   topBar.appendChild(topRight);
 
   el.appendChild(topBar);
@@ -99,6 +121,10 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   boardToggle.appendChild(ownFleetBtn);
 
   el.appendChild(boardToggle);
+
+  // --- Action Slots (below board toggle) ---
+  const actionSlotsComponent = new ActionSlots();
+  el.appendChild(actionSlotsComponent.render());
 
   // --- View mode selector (left edge overlay) ---
   const viewModes = document.createElement('div');
@@ -151,6 +177,24 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   statusEl.className = 'combat-screen__status';
   el.appendChild(statusEl);
 
+  // --- Perk Store component ---
+  const perkStore = new PerkStore({
+    onPurchase: handlePurchase,
+    onClose: () => {
+      uiState.storeOpen = false;
+      perkStore.render().style.display = 'none';
+      storeBtn.classList.remove('combat-screen__store-btn--active');
+    },
+  });
+  perkStore.render().style.display = 'none';
+  el.appendChild(perkStore.render());
+
+  // --- Inventory Tray component ---
+  const inventoryTray = new InventoryTray({
+    onSelect: handleInventorySelect,
+  });
+  el.appendChild(inventoryTray.render());
+
   // --- Enemy fleet (bottom-right overlay) ---
   const fleetPanel = document.createElement('div');
   fleetPanel.className = 'combat-screen__fleet-panel';
@@ -198,6 +242,9 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   refreshHeader();
   refreshBottomBar();
   refreshFleetStatus();
+  refreshCredits();
+  refreshInventory();
+  refreshActionSlots();
 
   // --- Handlers ---
 
@@ -262,12 +309,71 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handleCellClick(coord: Coordinate): void {
     if (uiState.boardView !== 'targeting') return;
-    handleFire(coord);
+    if (uiState.pingMode) {
+      handlePing(coord);
+    } else {
+      handleFire(coord);
+    }
   }
 
   function handleCellHover(coord: Coordinate | null): void {
     uiState.hoveredCoord = coord;
     coordDisplay.textContent = coord ? formatCoordinate(coord) : '\u2014 \u2014';
+  }
+
+  function handleStoreToggle(): void {
+    uiState.storeOpen = !uiState.storeOpen;
+    perkStore.render().style.display = uiState.storeOpen ? '' : 'none';
+    storeBtn.classList.toggle('combat-screen__store-btn--active', uiState.storeOpen);
+    if (uiState.storeOpen) {
+      perkStore.update(game.getCurrentPlayer().credits);
+    }
+  }
+
+  function handlePurchase(perkId: PerkId): void {
+    const instance = game.purchasePerk(perkId);
+    if (!instance) return;
+    refreshCredits();
+    refreshInventory();
+    perkStore.update(game.getCurrentPlayer().credits);
+    refreshActionSlots();
+  }
+
+  function handleInventorySelect(instance: PerkInstance): void {
+    if (instance.perkId === 'sonar_ping') {
+      uiState.pingMode = true;
+      selectLabel.textContent = 'CLICK CELL TO PING';
+      hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO PING';
+    }
+  }
+
+  function handlePing(coord: Coordinate): void {
+    const result = game.useSonarPing(coord);
+    if (!result) return;
+
+    uiState.pingMode = false;
+
+    // Play sonar animation
+    sceneManager.playSonarAnimation(coord, result.displayedResult);
+
+    // Update status
+    statusEl.className = 'combat-screen__status';
+    if (result.displayedResult) {
+      statusEl.textContent = 'SONAR: CONTACT';
+      statusEl.classList.add('combat-screen__status--sonar-positive');
+    } else {
+      statusEl.textContent = 'SONAR: NEGATIVE';
+      statusEl.classList.add('combat-screen__status--sonar-negative');
+    }
+
+    // Refresh UI
+    selectLabel.textContent = 'SELECT TARGET';
+    hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO FIRE';
+    inventoryTray.clearSelection();
+    updateSceneGrid();
+    refreshInventory();
+    refreshActionSlots();
+    uiState.turnSlots = game.getTurnSlots();
   }
 
   function handleFire(coord: Coordinate): void {
@@ -276,8 +382,8 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     const result = game.fireTorpedo(coord);
     if (result === null) return;
 
-    uiState.actionTaken = true;
     uiState.lastFireResult = result;
+    uiState.turnSlots = game.getTurnSlots();
 
     const coordStr = formatCoordinate(coord);
     const state = game.getState();
@@ -320,6 +426,8 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
     refreshBottomBar();
     refreshFleetStatus();
+    refreshCredits();
+    refreshActionSlots();
     endTurnBtn.disabled = false;
 
     if (game.getState().phase === GamePhase.Victory) {
@@ -337,6 +445,26 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     const state = game.getState();
     playerBadge.textContent = PLAYER_DESIGNATIONS[player.index];
     turnLabel.textContent = `TURN ${state.turnCount}`;
+  }
+
+  function refreshCredits(): void {
+    const player = game.getCurrentPlayer();
+    creditsDisplay.textContent = `CR: ${player.credits}`;
+  }
+
+  function refreshInventory(): void {
+    const player = game.getCurrentPlayer();
+    inventoryTray.update(player.inventory);
+  }
+
+  function refreshActionSlots(): void {
+    const player = game.getCurrentPlayer();
+    const slots = game.getTurnSlots();
+    actionSlotsComponent.update(slots, {
+      ping: getInventoryBySlot(player.inventory, 'ping').length > 0,
+      attack: true, // Attack (torpedo) is always available
+      defend: getInventoryBySlot(player.inventory, 'defend').length > 0,
+    });
   }
 
   function refreshBottomBar(): void {
@@ -407,6 +535,9 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   return {
     unmount(): void {
+      perkStore.destroy();
+      inventoryTray.destroy();
+      actionSlotsComponent.destroy();
       sceneManager.dispose();
       el.remove();
     },

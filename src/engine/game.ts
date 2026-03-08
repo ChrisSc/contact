@@ -1,4 +1,4 @@
-import type { GameState, PlayerState, PlayerIndex } from '../types/game';
+import type { GameState, PlayerState, PlayerIndex, TurnSlots } from '../types/game';
 import { GamePhase, PLAYER_DESIGNATIONS } from '../types/game';
 import type { Coordinate } from '../types/grid';
 import { CellState } from '../types/grid';
@@ -14,7 +14,12 @@ import {
 } from './fleet';
 import { initLogger } from '../observability/logger';
 import type { Logger } from '../observability/logger';
-import type { AbilityId, AbilityState } from '../types/abilities';
+import type { AbilityId, AbilityState, PerkId, PerkInstance } from '../types/abilities';
+import { STARTING_CREDITS } from '../types/abilities';
+import { calculateFireCredits } from './credits';
+import { purchasePerk as purchasePerkFn, removeFromInventory } from './perks';
+import { executeSonarPing } from './sonar';
+import type { SonarPingResult } from './sonar';
 
 const ALL_ABILITY_IDS: AbilityId[] = [
   'sonar_ping', 'radar_jammer', 'recon_drone', 'decoy',
@@ -40,6 +45,9 @@ function createPlayerState(index: PlayerIndex): PlayerState {
     shipsSunk: 0,
     shotsFired: 0,
     shotsHit: 0,
+    credits: STARTING_CREDITS,
+    inventory: [],
+    lastTurnHit: false,
   };
 }
 
@@ -51,7 +59,8 @@ export interface FireResult {
 export class GameController {
   private state: GameState;
   private logger: Logger;
-  private actionTaken: boolean = false;
+  private turnSlots: TurnSlots = { pingUsed: false, attackUsed: false, defendUsed: false };
+  private currentTurnHit: boolean = false;
 
   constructor(sessionId?: string) {
     this.logger = initLogger(sessionId);
@@ -171,7 +180,7 @@ export class GameController {
 
   fireTorpedo(coord: Coordinate): FireResult | null {
     if (this.state.phase !== GamePhase.Combat) return null;
-    if (this.actionTaken) return null;
+    if (this.turnSlots.attackUsed) return null;
 
     const attacker = this.getCurrentPlayer();
     const defender = this.getOpponent();
@@ -179,19 +188,24 @@ export class GameController {
     const targetCell = getCell(defender.ownGrid, coord);
     if (!targetCell) return null;
 
-    // Already targeted this cell
+    // Already targeted this cell (but allow firing on sonar-scanned cells)
     const attackerTargetCell = getCell(attacker.targetingGrid, coord);
     if (
       attackerTargetCell &&
-      attackerTargetCell.state !== CellState.Empty
+      attackerTargetCell.state !== CellState.Empty &&
+      attackerTargetCell.state !== CellState.SonarPositive &&
+      attackerTargetCell.state !== CellState.SonarNegative
     ) {
       return null;
     }
 
-    this.actionTaken = true;
+    this.turnSlots.attackUsed = true;
     attacker.shotsFired++;
 
     const coordStr = formatCoordinate(coord);
+
+    let fireResult: 'hit' | 'miss' | 'sunk' = 'miss';
+    let resultShipId: string | undefined;
 
     if (targetCell.state === CellState.Ship) {
       // Hit a ship
@@ -226,15 +240,13 @@ export class GameController {
           remaining: 0,
         });
 
-        this.checkVictory();
-
-        return { result: 'sunk', shipId };
+        fireResult = 'sunk';
+        resultShipId = shipId;
+      } else {
+        fireResult = 'hit';
+        resultShipId = shipId;
       }
-
-      return { result: 'hit', shipId };
-    }
-
-    if (targetCell.state === CellState.Decoy) {
+    } else if (targetCell.state === CellState.Decoy) {
       // Decoy hit — appears as hit to attacker
       defender.ownGrid = setCell(defender.ownGrid, coord, {
         state: CellState.DecoyHit,
@@ -248,28 +260,125 @@ export class GameController {
 
       this.logger.emit('combat.fire', { player: attacker.index, target: coordStr, result: 'hit' });
 
-      return { result: 'hit' };
+      fireResult = 'hit';
+    } else {
+      // Miss
+      defender.ownGrid = setCell(defender.ownGrid, coord, {
+        state: CellState.Miss,
+        shipId: null,
+      });
+      attacker.targetingGrid = setCell(attacker.targetingGrid, coord, {
+        state: CellState.Miss,
+        shipId: null,
+      });
+
+      this.logger.emit('combat.fire', { player: attacker.index, target: coordStr, result: 'miss' });
+      this.logger.emit('combat.miss', { player: attacker.index, target: coordStr });
+
+      fireResult = 'miss';
     }
 
-    // Miss
-    defender.ownGrid = setCell(defender.ownGrid, coord, {
-      state: CellState.Miss,
-      shipId: null,
-    });
-    attacker.targetingGrid = setCell(attacker.targetingGrid, coord, {
-      state: CellState.Miss,
-      shipId: null,
+    // Credit awards
+    const creditResult = calculateFireCredits(fireResult, attacker.lastTurnHit);
+    for (const award of creditResult.awards) {
+      attacker.credits += award.amount;
+      this.logger.emit('economy.credit', {
+        player: attacker.index,
+        type: award.type,
+        amount: award.amount,
+        balance: attacker.credits,
+      });
+    }
+
+    // Track hit for consecutive bonus
+    this.currentTurnHit = fireResult === 'hit' || fireResult === 'sunk';
+
+    if (fireResult === 'sunk') {
+      this.checkVictory();
+      return { result: 'sunk', shipId: resultShipId };
+    }
+
+    return { result: fireResult, shipId: resultShipId };
+  }
+
+  getTurnSlots(): TurnSlots {
+    return { ...this.turnSlots };
+  }
+
+  purchasePerk(perkId: PerkId): PerkInstance | null {
+    if (this.state.phase !== GamePhase.Combat) return null;
+
+    const attacker = this.getCurrentPlayer();
+    const result = purchasePerkFn(attacker, perkId, this.state.turnCount);
+    if (!result) return null;
+
+    // Apply the updated player state
+    const idx = attacker.index;
+    this.state.players[idx] = result.player;
+
+    const cost = attacker.credits - result.player.credits;
+    this.logger.emit('economy.purchase', {
+      player: idx,
+      perkId,
+      cost,
+      balance: result.player.credits,
     });
 
-    this.logger.emit('combat.fire', { player: attacker.index, target: coordStr, result: 'miss' });
-    this.logger.emit('combat.miss', { player: attacker.index, target: coordStr });
+    return result.instance;
+  }
 
-    return { result: 'miss' };
+  useSonarPing(coord: Coordinate): SonarPingResult | null {
+    if (this.state.phase !== GamePhase.Combat) return null;
+    if (this.turnSlots.pingUsed) return null;
+
+    const attacker = this.getCurrentPlayer();
+    const defender = this.getOpponent();
+
+    // Must have sonar_ping in inventory
+    const pingInstance = attacker.inventory.find((p) => p.perkId === 'sonar_ping');
+    if (!pingInstance) return null;
+
+    // Block re-ping on cell that already has sonar result
+    const existingCell = getCell(attacker.targetingGrid, coord);
+    if (existingCell && (existingCell.state === CellState.SonarPositive || existingCell.state === CellState.SonarNegative)) {
+      return null;
+    }
+
+    const result = executeSonarPing(coord, attacker, defender);
+
+    // Remove instance from inventory
+    const updated = removeFromInventory(attacker, pingInstance.id);
+    const idx = attacker.index;
+    this.state.players[idx] = updated;
+
+    // Write result to targeting grid
+    const sonarState = result.displayedResult ? CellState.SonarPositive : CellState.SonarNegative;
+    this.state.players[idx]!.targetingGrid = setCell(
+      this.state.players[idx]!.targetingGrid,
+      coord,
+      { state: sonarState, shipId: null },
+    );
+
+    this.turnSlots.pingUsed = true;
+
+    this.logger.emit('perk.use', {
+      player: idx,
+      perkId: 'sonar_ping',
+      instanceId: pingInstance.id,
+      target: formatCoordinate(coord),
+      result: result.displayedResult ? 'positive' : 'negative',
+    });
+
+    return result;
   }
 
   endTurn(): boolean {
     if (this.state.phase !== GamePhase.Combat) return false;
-    if (!this.actionTaken) return false;
+    if (!this.turnSlots.attackUsed) return false;
+
+    // Set lastTurnHit for consecutive tracking
+    const currentPlayer = this.getCurrentPlayer();
+    currentPlayer.lastTurnHit = this.currentTurnHit;
 
     this.logger.emit('game.turn_end', {
       player: this.state.currentPlayer,
@@ -278,7 +387,8 @@ export class GameController {
 
     this.state.currentPlayer = this.state.currentPlayer === 0 ? 1 : 0;
     this.state.turnCount++;
-    this.actionTaken = false;
+    this.turnSlots = { pingUsed: false, attackUsed: false, defendUsed: false };
+    this.currentTurnHit = false;
 
     this.logger.emit('game.turn_start', {
       player: this.state.currentPlayer,

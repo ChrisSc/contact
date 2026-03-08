@@ -7,7 +7,7 @@
 - **`cube.test.ts`** — coordToPosition mapping, 512 mesh creation, getCellMesh/coordFromMesh lookups, updateCell material swap, updateFromGrid bulk update, cell positioning, getCellMeshesAtDepth, getAllCellMeshes, setLayerVisible, dispose cleanup
 - **`views.test.ts`** — CUBE/SLICE/XRAY mode visibility, depth selection, material tier assignment, boardType filtering, getInteractableMeshes counts, transitions, mode/depth state changes
 - **`raycaster.test.ts`** — NDC normalization, no-intersection handling, mesh source filtering, default mesh source fallback, dispose
-- **`animations.test.ts`** — hit flash (private materials, full opacity start, pulse after 200ms, infinite loop), sunk cascade (multi-cell entries, stagger timing, RED→ORANGE lerp, completion with pooled restore), miss fade (zero start, target opacity at 300ms, one-shot completion), cancelAt/cancelAll, isAnimating, duplicate cancellation, dispose cleanup
+- **`animations.test.ts`** — hit flash (private materials, full opacity start, pulse after 200ms, infinite loop), sunk cascade (multi-cell entries, stagger timing, RED→ORANGE lerp, completion with pooled restore), miss fade (zero start, target opacity at 300ms, one-shot completion), sonar sweep (private materials, zero start, pulse phase, completion restores pooled SonarPositive/SonarNegative, negative variant), cancelAt/cancelAll, isAnimating, duplicate cancellation, dispose cleanup
 - **`scene.test.ts`** — sub-component wiring, AnimationManager instantiation, ViewManager/Raycaster instantiation, canvas appended, start/stop rAF, animations.update in render loop, setViewMode/setDepth/setBoardType delegation, dispose cleanup (including animations.dispose), callback registration
 
 ## Architecture
@@ -30,3 +30,4 @@
 - **View mode assertions**: Check `group.visible` and `box.material` references against expected pool tier (normal/dimmed/ghost).
 - **Mock WebGLRenderer**: Avoids real WebGL context in jsdom; returns a real `<canvas>` element as `domElement`.
 - **MockResizeObserver**: Stub with `observe`/`unobserve`/`disconnect` as `vi.fn()`.
+- **Animation completion assertions**: Advance time past duration, verify `isAnimating` returns false and cell materials match pooled state (e.g., `SonarPositive`, `SonarNegative`, `Sunk`, `Miss`).

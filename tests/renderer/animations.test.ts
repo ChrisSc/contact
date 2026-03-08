@@ -260,6 +260,62 @@ describe('AnimationManager', () => {
     expect(manager.isAnimating(c1)).toBe(false);
     expect(manager.isAnimating(c2)).toBe(false);
   });
+
+  // --- Sonar Sweep ---
+
+  // 17
+  it('playSonarSweep creates private materials on cell', () => {
+    const emptyFill = pooledFill(CellState.Empty);
+    manager.playSonarSweep(coord, true);
+    const cell = getCell();
+    expect(cell.box.material).not.toBe(emptyFill);
+    expect(cell.box.material).not.toBe(pooledFill(CellState.SonarPositive));
+  });
+
+  // 18
+  it('Sonar sweep starts at zero opacity', () => {
+    manager.playSonarSweep(coord, true);
+    const cell = getCell();
+    const fill = cell.box.material as THREE.MeshBasicMaterial;
+    expect(fill.opacity).toBeCloseTo(0);
+  });
+
+  // 19
+  it('Sonar sweep pulses up during first 300ms', () => {
+    manager.playSonarSweep(coord, true);
+    manager.update(0.15);
+    const cell = getCell();
+    const fill = cell.box.material as THREE.MeshBasicMaterial;
+    // At t=0.15, opacity = (0.15/0.3) * 0.8 = 0.4
+    expect(fill.opacity).toBeCloseTo(0.4, 1);
+  });
+
+  // 20
+  it('Sonar sweep completes and restores pooled SonarPositive materials', () => {
+    manager.playSonarSweep(coord, true);
+    manager.update(0.55);
+    expect(manager.isAnimating(coord)).toBe(false);
+    const cell = getCell();
+    expect(cell.box.material).toBe(pooledFill(CellState.SonarPositive));
+    expect(cell.edges.material).toBe(pooledEdge(CellState.SonarPositive));
+  });
+
+  // 21
+  it('Sonar sweep negative restores pooled SonarNegative materials', () => {
+    manager.playSonarSweep(coord, false);
+    manager.update(0.55);
+    expect(manager.isAnimating(coord)).toBe(false);
+    const cell = getCell();
+    expect(cell.box.material).toBe(pooledFill(CellState.SonarNegative));
+    expect(cell.edges.material).toBe(pooledEdge(CellState.SonarNegative));
+  });
+
+  // 22
+  it('Sonar sweep is one-shot (auto-completes)', () => {
+    manager.playSonarSweep(coord, true);
+    manager.update(0.6);
+    expect(manager.isAnimating(coord)).toBe(false);
+  });
 });
 
 // ---------------------------------------------------------------------------
