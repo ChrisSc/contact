@@ -21,6 +21,9 @@ const mockSceneManager = {
   start: vi.fn(),
   stop: vi.fn(),
   dispose: vi.fn(),
+  playHitAnimation: vi.fn(),
+  playSunkAnimation: vi.fn(),
+  playMissAnimation: vi.fn(),
   onCellClick: vi.fn((cb: (coord: Coordinate) => void) => { cellClickCb = cb; }),
   onCellHover: vi.fn((cb: (coord: Coordinate | null) => void) => { cellHoverCb = cb; }),
   views: {

@@ -130,4 +130,30 @@ describe('SceneManager', () => {
     manager.onCellHover(cb);
     expect(() => manager.onCellHover(cb)).not.toThrow();
   });
+
+  it('has animations property (AnimationManager)', () => {
+    expect(manager.animations).toBeDefined();
+  });
+
+  it('animations.update called during render loop', () => {
+    const spy = vi.spyOn(manager.animations, 'update');
+    let capturedCallback: FrameRequestCallback | null = null;
+    const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
+      // Capture the first callback; do not invoke immediately to avoid recursion
+      if (!capturedCallback) capturedCallback = cb as FrameRequestCallback;
+      return 1;
+    });
+    manager.start();
+    // Invoke the captured loop callback exactly once
+    capturedCallback!(performance.now() + 16);
+    expect(spy).toHaveBeenCalled();
+    manager.stop();
+    rafSpy.mockRestore();
+  });
+
+  it('dispose calls animations.dispose', () => {
+    const spy = vi.spyOn(manager.animations, 'dispose');
+    manager.dispose();
+    expect(spy).toHaveBeenCalled();
+  });
 });

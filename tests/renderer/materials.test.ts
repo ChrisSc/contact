@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { CellState } from '../../src/types/grid';
-import { MaterialPool, CRT_COLORS } from '../../src/renderer/materials';
+import { MaterialPool, CRT_COLORS, MATERIAL_DEFS } from '../../src/renderer/materials';
 
 describe('MaterialPool', () => {
   let pool: MaterialPool;
@@ -130,5 +130,29 @@ describe('MaterialPool', () => {
     pool2.getDimmedMaterials(CellState.Hit);
     pool2.getGhostMaterials(CellState.Hit);
     expect(() => pool2.dispose()).not.toThrow();
+  });
+
+  it('CRT_COLORS.CYAN exists and equals 0x33ffcc', () => {
+    expect(CRT_COLORS.CYAN).toBe(0x33ffcc);
+  });
+
+  it('DronePositive materials use CYAN color', () => {
+    const { fill, edge } = pool.getMaterials(CellState.DronePositive);
+    expect(fill.color.getHex()).toBe(CRT_COLORS.CYAN);
+    expect(edge.color.getHex()).toBe(CRT_COLORS.CYAN);
+  });
+
+  it('SonarPositive materials use CYAN color', () => {
+    const { fill, edge } = pool.getMaterials(CellState.SonarPositive);
+    expect(fill.color.getHex()).toBe(CRT_COLORS.CYAN);
+    expect(edge.color.getHex()).toBe(CRT_COLORS.CYAN);
+  });
+
+  it('MATERIAL_DEFS is exported and contains all CellState keys', () => {
+    for (const state of Object.values(CellState)) {
+      expect(MATERIAL_DEFS[state]).toBeDefined();
+      expect(MATERIAL_DEFS[state].fillColor).toBeTypeOf('number');
+      expect(MATERIAL_DEFS[state].edgeColor).toBeTypeOf('number');
+    }
   });
 });
