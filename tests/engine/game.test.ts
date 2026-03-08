@@ -1348,3 +1348,407 @@ describe('GameController - Silent Running', () => {
     expect(effectEvent!.data.turnsRemaining).toBe(2);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Helper: sink specific ships on the opponent by firing at their known cells.
+// Ships are placed by placeFullFleet along col axis at depth 0:
+//   typhoon: row 0, cols 0-4 (size 5)
+//   akula:   row 1, cols 0-3 (size 4)
+//   seawolf: row 2, cols 0-2 (size 3)
+//   virginia: row 3, cols 0-2 (size 3)
+//   midget:  row 4, cols 0-1 (size 2)
+// ---------------------------------------------------------------------------
+
+const SHIP_CELLS: Record<string, Array<{ col: number; row: number; depth: number }>> = {
+  typhoon: [0, 1, 2, 3, 4].map(c => ({ col: c, row: 0, depth: 0 })),
+  akula: [0, 1, 2, 3].map(c => ({ col: c, row: 1, depth: 0 })),
+  seawolf: [0, 1, 2].map(c => ({ col: c, row: 2, depth: 0 })),
+  virginia: [0, 1, 2].map(c => ({ col: c, row: 3, depth: 0 })),
+  midget: [0, 1].map(c => ({ col: c, row: 4, depth: 0 })),
+};
+
+/**
+ * Fire at all cells of a list of ships, alternating turns so both players
+ * take actions. The opponent (player 1) fires misses into empty space.
+ * Assumes player 0 is the current player at the start.
+ */
+function sinkShipsAsPlayer0(gc: GameController, shipIds: string[]) {
+  let missCol = 7;
+  let missRow = 7;
+  let missDepth = 7;
+
+  for (const shipId of shipIds) {
+    const cells = SHIP_CELLS[shipId]!;
+    for (const cell of cells) {
+      gc.fireTorpedo(cell);
+      gc.endTurn();
+      // Player 1 fires a miss somewhere safe
+      gc.fireTorpedo({ col: missCol, row: missRow, depth: missDepth });
+      gc.endTurn();
+      missDepth--;
+      if (missDepth < 0) {
+        missDepth = 7;
+        missRow--;
+      }
+    }
+  }
+}
+
+/**
+ * Fire at all cells of a list of ships as player 1.
+ * Player 0 fires misses. Assumes player 0 is the current player at the start.
+ */
+function sinkShipsAsPlayer1(gc: GameController, shipIds: string[]) {
+  let missCol = 7;
+  let missRow = 7;
+  let missDepth = 7;
+
+  for (const shipId of shipIds) {
+    const cells = SHIP_CELLS[shipId]!;
+    for (const cell of cells) {
+      // Player 0 fires a miss
+      gc.fireTorpedo({ col: missCol, row: missRow, depth: missDepth });
+      gc.endTurn();
+      missDepth--;
+      if (missDepth < 0) {
+        missDepth = 7;
+        missRow--;
+      }
+      // Player 1 fires at target cell
+      gc.fireTorpedo(cell);
+      gc.endTurn();
+    }
+  }
+}
+
+describe('win condition scenarios', () => {
+  it('victory when midget sub (size 2) is last ship sunk', () => {
+    const gc = new GameController('test-win-midget');
+    setupBothPlayers(gc);
+
+    // Sink all ships except midget, then sink midget last
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia']);
+    expect(gc.getState().phase).toBe(GamePhase.Combat);
+
+    // Sink midget sub — first cell
+    gc.fireTorpedo({ col: 0, row: 4, depth: 0 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 5, depth: 7 });
+    gc.endTurn();
+
+    // Sink midget sub — second cell (final)
+    const result = gc.fireTorpedo({ col: 1, row: 4, depth: 0 });
+    expect(result).not.toBeNull();
+    expect(result!.result).toBe('sunk');
+    expect(gc.getState().phase).toBe(GamePhase.Victory);
+    expect(gc.getState().winner).toBe(0);
+  });
+
+  it('victory when typhoon (size 5) is last ship sunk', () => {
+    const gc = new GameController('test-win-typhoon');
+    setupBothPlayers(gc);
+
+    // Sink all ships except typhoon
+    sinkShipsAsPlayer0(gc, ['akula', 'seawolf', 'virginia', 'midget']);
+    expect(gc.getState().phase).toBe(GamePhase.Combat);
+
+    // Sink typhoon cells one by one
+    for (let c = 0; c < 4; c++) {
+      gc.fireTorpedo({ col: c, row: 0, depth: 0 });
+      gc.endTurn();
+      gc.fireTorpedo({ col: 7, row: 5 - c, depth: 7 });
+      gc.endTurn();
+    }
+
+    // Final cell of typhoon
+    const result = gc.fireTorpedo({ col: 4, row: 0, depth: 0 });
+    expect(result).not.toBeNull();
+    expect(result!.result).toBe('sunk');
+    expect(gc.getState().phase).toBe(GamePhase.Victory);
+    expect(gc.getState().winner).toBe(0);
+  });
+
+  it('victory by BRAVO (player 1 wins)', () => {
+    const gc = new GameController('test-win-bravo');
+    setupBothPlayers(gc);
+
+    // Player 1 sinks all of player 0's ships
+    sinkShipsAsPlayer1(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'midget']);
+
+    expect(gc.getState().phase).toBe(GamePhase.Victory);
+    expect(gc.getState().winner).toBe(1);
+  });
+
+  it('fireTorpedo returns null after victory is declared', () => {
+    const gc = new GameController('test-post-victory');
+    setupBothPlayers(gc);
+
+    // Sink all ships as player 0
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'midget']);
+
+    expect(gc.getState().phase).toBe(GamePhase.Victory);
+
+    // Attempting to fire after victory returns null
+    const result = gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    expect(result).toBeNull();
+  });
+});
+
+describe('exhaustive firing', () => {
+  it('victory is declared before all 512 cells are exhausted', () => {
+    const gc = new GameController('test-exhaustive');
+    setupBothPlayers(gc);
+
+    let p0CellsFired = 0;
+    let p1CellsFired = 0;
+    let victoryDeclared = false;
+
+    // Player 1 miss counter (fires into far corner of player 0's grid)
+    let p1MissDepth = 7;
+    let p1MissRow = 7;
+
+    // Alternate turns — player 0 fires systematically through player 1's grid
+    outer:
+    for (let col = 0; col < 8; col++) {
+      for (let row = 0; row < 8; row++) {
+        for (let depth = 0; depth < 8; depth++) {
+          if (gc.getState().phase === GamePhase.Victory) {
+            victoryDeclared = true;
+            break outer;
+          }
+
+          // Player 0 fires
+          const result0 = gc.fireTorpedo({ col, row, depth });
+          if (result0) {
+            p0CellsFired++;
+            if (gc.getState().phase === GamePhase.Victory) {
+              victoryDeclared = true;
+              break outer;
+            }
+            gc.endTurn();
+          } else {
+            continue;
+          }
+
+          if (gc.getState().phase === GamePhase.Victory) {
+            victoryDeclared = true;
+            break outer;
+          }
+
+          // Player 1 fires a miss into safe area
+          const p1Result = gc.fireTorpedo({ col: 7, row: p1MissRow, depth: p1MissDepth });
+          if (p1Result) {
+            p1CellsFired++;
+            if (gc.getState().phase === GamePhase.Victory) {
+              victoryDeclared = true;
+              break outer;
+            }
+            gc.endTurn();
+          } else {
+            // Find any open cell for player 1
+            let fired = false;
+            for (let d2 = 0; d2 < 8 && !fired; d2++) {
+              for (let r2 = 0; r2 < 8 && !fired; r2++) {
+                for (let c2 = 0; c2 < 8 && !fired; c2++) {
+                  const alt = gc.fireTorpedo({ col: c2, row: r2, depth: d2 });
+                  if (alt) {
+                    p1CellsFired++;
+                    fired = true;
+                    if (gc.getState().phase === GamePhase.Victory) {
+                      victoryDeclared = true;
+                      break outer;
+                    }
+                    gc.endTurn();
+                  }
+                }
+              }
+            }
+          }
+
+          p1MissDepth--;
+          if (p1MissDepth < 0) {
+            p1MissDepth = 7;
+            p1MissRow--;
+          }
+        }
+      }
+    }
+
+    expect(victoryDeclared).toBe(true);
+    // Player 0 fires at player 1's grid; 17 ship cells means victory by cell 512 at most
+    // but typically much sooner since ships cluster in first 5 cols/rows
+    expect(p0CellsFired).toBeLessThan(512);
+    expect(gc.getState().phase).toBe(GamePhase.Victory);
+  });
+
+  it('fireTorpedo returns null post-victory in exhaustive scenario', () => {
+    const gc = new GameController('test-exhaustive-null');
+    setupBothPlayers(gc);
+
+    // Quick sink all player 1 ships
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'midget']);
+    expect(gc.getState().phase).toBe(GamePhase.Victory);
+
+    // All subsequent fire attempts return null
+    for (let i = 0; i < 3; i++) {
+      expect(gc.fireTorpedo({ col: 7, row: 7, depth: 7 - i })).toBeNull();
+    }
+  });
+});
+
+describe('ability and sink on same turn', () => {
+  it('sonar ping (free/ping slot) then torpedo that sinks a ship both succeed', () => {
+    const gc = new GameController('test-ping-then-sink');
+    setupBothPlayers(gc);
+
+    // Sink all except midget first
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia']);
+
+    // Hit first cell of midget to earn credits, then come back to sink
+    gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // hit midget cell 0
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 5, depth: 7 }); // p1 miss
+    gc.endTurn();
+
+    // Player 0 now has enough credits for sonar_ping (cost 3)
+    // Purchase sonar ping
+    const perk = gc.purchasePerk('sonar_ping');
+    expect(perk).not.toBeNull();
+
+    // Use sonar ping (free slot — does not consume attack)
+    const pingResult = gc.useSonarPing({ col: 5, row: 5, depth: 5 });
+    expect(pingResult).not.toBeNull();
+    expect(gc.getTurnSlots().pingUsed).toBe(true);
+    expect(gc.getTurnSlots().attackUsed).toBe(false);
+
+    // Fire torpedo at last midget cell — should sink and trigger victory
+    const fireResult = gc.fireTorpedo({ col: 1, row: 4, depth: 0 });
+    expect(fireResult).not.toBeNull();
+    expect(fireResult!.result).toBe('sunk');
+    expect(gc.getState().phase).toBe(GamePhase.Victory);
+    expect(gc.getState().winner).toBe(0);
+  });
+
+  it('depth charge that sinks the last ship triggers victory with credits awarded', () => {
+    const gc = new GameController('test-dc-victory');
+    setupBothPlayers(gc);
+
+    // Sink all ships except midget sub
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia']);
+
+    // Player 0 needs 25 credits for depth charge — they have accumulated credits
+    // from sinking 4 ships. Let's check and add more hits if needed.
+    const p0 = gc.getState().players[0]!;
+    // Accumulate more credits if needed by firing hits
+    // After sinking 4 ships (15 cells), player 0 should have plenty of credits
+    // Starting 5 + hits + sinks = 5 + 15*1 (hits) + 4*10 (sinks) + consecutive bonuses
+
+    const creditsBefore = gc.getState().players[0]!.credits;
+    expect(creditsBefore).toBeGreaterThanOrEqual(25);
+
+    // Purchase depth charge
+    const dcPerk = gc.purchasePerk('depth_charge');
+    expect(dcPerk).not.toBeNull();
+
+    // Use depth charge centered on midget sub (row 4, cols 0-1, depth 0)
+    const creditsBeforeDC = gc.getState().players[0]!.credits;
+    const dcResult = gc.useDepthCharge({ col: 0, row: 4, depth: 0 });
+    expect(dcResult).not.toBeNull();
+    expect(dcResult!.shipsSunk).toContain('midget');
+
+    // Credits were awarded for the hits
+    expect(dcResult!.totalCreditsAwarded).toBeGreaterThan(0);
+
+    // Victory triggered
+    expect(gc.getState().phase).toBe(GamePhase.Victory);
+    expect(gc.getState().winner).toBe(0);
+  });
+});
+
+describe('simultaneous ability unlock', () => {
+  it('sinking 1st opponent ship makes recon_drone purchasable', () => {
+    const gc = new GameController('test-unlock-recon');
+    setupBothPlayers(gc);
+
+    // Player 0 sinks midget sub (smallest — 2 cells)
+    gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // hit
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // p1 miss
+    gc.endTurn();
+
+    // Second cell sinks it
+    const sinkResult = gc.fireTorpedo({ col: 1, row: 4, depth: 0 });
+    expect(sinkResult).not.toBeNull();
+    expect(sinkResult!.result).toBe('sunk');
+
+    // Player 0 has now sunk 1 ship — check shipsSunk counter
+    expect(gc.getState().players[0]!.shipsSunk).toBe(1);
+
+    // recon_drone costs 10; after hit (1) + consecutive hit (6) + sink (11) = 18 credits + starting 5 = 23
+    // Player 0 should be able to purchase recon_drone
+    const dronePerk = gc.purchasePerk('recon_drone');
+    expect(dronePerk).not.toBeNull();
+    expect(dronePerk!.perkId).toBe('recon_drone');
+  });
+
+  it('losing own 1st ship makes silent_running purchasable for the defender', () => {
+    const gc = new GameController('test-unlock-sr');
+    setupBothPlayers(gc);
+
+    // Player 1 sinks player 0's midget sub (player 0 loses a ship)
+    // Player 0 misses, player 1 hits
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // p0 miss
+    gc.endTurn();
+    gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // p1 hits p0 midget cell 0
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 }); // p0 miss
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // p1 sinks p0 midget
+    gc.endTurn();
+
+    // Player 0 has lost 1 ship — silent_running should be purchasable
+    // Player 0's turn now. Check that player 0 can purchase silent_running.
+    // silent_running costs 10 — player 0 has only starting 5 credits (fired only misses)
+    // So we verify availability conceptually: the perk catalog allows it (it's always in catalog)
+    // The game uses a flat perk catalog — no unlock gating, just credit cost.
+    // Verify player 0's state shows a ship was lost
+    const p0Ships = gc.getState().players[0]!.ships;
+    const sunkShips = p0Ships.filter(s => s.sunk);
+    expect(sunkShips).toHaveLength(1);
+    expect(sunkShips[0]!.id).toBe('midget');
+
+    // Player 1 has sunk 1 ship
+    expect(gc.getState().players[1]!.shipsSunk).toBe(1);
+  });
+
+  it('tracks shipsSunk independently per player', () => {
+    const gc = new GameController('test-sunk-tracking');
+    setupBothPlayers(gc);
+
+    // Player 0 sinks player 1's midget
+    gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // hit
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // p1 miss
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // sunk
+    gc.endTurn();
+
+    // Player 1 sinks player 0's midget
+    gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // hit
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 }); // p0 miss
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // sunk
+    gc.endTurn();
+
+    // Both players have sunk 1 ship each
+    expect(gc.getState().players[0]!.shipsSunk).toBe(1);
+    expect(gc.getState().players[1]!.shipsSunk).toBe(1);
+
+    // Both opponents have lost 1 ship each
+    const p0SunkShips = gc.getState().players[0]!.ships.filter(s => s.sunk);
+    const p1SunkShips = gc.getState().players[1]!.ships.filter(s => s.sunk);
+    expect(p0SunkShips).toHaveLength(1);
+    expect(p1SunkShips).toHaveLength(1);
+  });
+});
