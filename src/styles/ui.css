@@ -1155,3 +1155,28 @@
 /* Sonar status modifiers */
 .combat-screen__status--sonar-positive { color: #33ffcc; text-shadow: 0 0 8px rgba(51, 255, 204, 0.4); }
 .combat-screen__status--sonar-negative { color: var(--crt-green-dim); }
+
+/* Mute Button */
+.combat-screen__mute-btn {
+  font-family: var(--font-display);
+  font-size: 8px;
+  padding: 3px 8px;
+  background: rgba(10, 10, 10, 0.7);
+  border: 1px solid rgba(0, 255, 65, 0.4);
+  color: var(--crt-green);
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: all 0.1s;
+}
+
+.combat-screen__mute-btn:hover {
+  border-color: var(--crt-green);
+  background: rgba(0, 255, 65, 0.1);
+  text-shadow: 0 0 6px var(--crt-green-glow);
+}
+
+.combat-screen__mute-btn--muted {
+  color: var(--crt-green-dim);
+  border-color: rgba(0, 255, 65, 0.2);
+  opacity: 0.6;
+}

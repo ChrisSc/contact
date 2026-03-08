@@ -47,6 +47,18 @@ vi.mock('../../src/renderer/scene', () => ({
 vi.mock('../../src/audio/audio-manager', () => ({
   initAudioContext: vi.fn(),
   isAudioReady: vi.fn(() => false),
+  setGamePhase: vi.fn(),
+  getGamePhase: vi.fn(() => 'setup'),
+  getAudioPhaseFromTurn: vi.fn(() => 'combat_early'),
+  toggleMute: vi.fn(),
+  isMuted: vi.fn(() => false),
+}));
+
+vi.mock('../../src/audio/ambient', () => ({
+  startAmbient: vi.fn(),
+  stopAmbient: vi.fn(),
+  updateAmbientPhase: vi.fn(),
+  isAmbientRunning: vi.fn(() => false),
 }));
 
 vi.mock('../../src/audio/abilities', () => ({

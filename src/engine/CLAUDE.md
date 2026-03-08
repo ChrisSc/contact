@@ -102,6 +102,7 @@
 - After player switch, decrements the **new current player's** SR entries (counts opponent turns elapsed).
 - Timing: ALPHA activates SR → turnsRemaining=2 → BRAVO ends turn → decrement to 1 → BRAVO ends next turn → decrement to 0 → expired.
 - Expired entries emit `perk.expire` event and are removed from `silentRunningShips`.
+- `getLastSRExpired(): string[]` returns the ship IDs that expired in the most recent `endTurn()` call (reset to `[]` at start of each `endTurn`).
 
 ### SR Interaction with Sonar/Drone
 

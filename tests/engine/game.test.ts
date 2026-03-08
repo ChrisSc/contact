@@ -1313,6 +1313,9 @@ describe('GameController - Silent Running', () => {
     // After P1 ends turn -> P0's turn starts -> P0's SR decrements to 0 (expired)
     expect(gc.getState().players[0]!.silentRunningShips).toHaveLength(0);
 
+    // Verify getLastSRExpired returns the expired ship IDs
+    expect(gc.getLastSRExpired()).toEqual(['typhoon']);
+
     // Verify the perk.expire event was emitted
     const logger = getLogger();
     const events = logger.getBuffer();

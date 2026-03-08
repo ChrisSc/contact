@@ -80,6 +80,7 @@ export class GameController {
   private logger: Logger;
   private turnSlots: TurnSlots = { pingUsed: false, attackUsed: false, defendUsed: false };
   private currentTurnHit: boolean = false;
+  private lastSRExpired: string[] = [];
 
   constructor(sessionId?: string) {
     this.logger = initLogger(sessionId);
@@ -790,9 +791,11 @@ export class GameController {
 
     // Decrement Silent Running for the new current player
     // (their opponent just finished a turn, so one opponent turn has passed)
+    this.lastSRExpired = [];
     const srPlayer = this.state.players[this.state.currentPlayer];
     const srResult = decrementSilentRunning(srPlayer.silentRunningShips);
     srPlayer.silentRunningShips = srResult.remaining;
+    this.lastSRExpired = srResult.expired;
     for (const expiredShipId of srResult.expired) {
       this.logger.emit('perk.expire', {
         player: this.state.currentPlayer,
@@ -819,6 +822,10 @@ export class GameController {
     });
 
     return true;
+  }
+
+  getLastSRExpired(): string[] {
+    return this.lastSRExpired;
   }
 
   checkVictory(): boolean {

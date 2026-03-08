@@ -25,7 +25,7 @@
 
 - `beforeEach` creates fresh DOM container + GameController + Logger for isolation.
 - **SceneManager mock pattern**: Shared across setup and combat tests — mock object with `vi.fn()` for all methods (including `playHitAnimation`/`playSunkAnimation`/`playMissAnimation`/`playSonarAnimation`/`playDroneScanAnimation`/`playDepthChargeAnimation`/`setSilentRunningOverlay`/`clearSilentRunningOverlay`/`setGhostCells`/`clearGhostCells`), `onCellClick`/`onCellHover` capture callbacks, `views` sub-object with `getInteractableMeshes`. `resetMocks()` helper clears state between tests.
-- **Audio mock pattern**: `vi.mock('../../src/audio/audio-manager')` and `vi.mock('../../src/audio/abilities')` to avoid Tone.js ESM import failures in jsdom. All audio functions mocked as no-ops.
+- **Audio mock pattern**: `vi.mock('../../src/audio/audio-manager')` (all exports including phase tracking + mute), `vi.mock('../../src/audio/abilities')` (all 12 SFX), and `vi.mock('../../src/audio/ambient')` (`startAmbient`, `stopAmbient`, `updateAmbientPhase`, `isAmbientRunning`) to avoid Tone.js ESM import failures in jsdom. All audio functions mocked as no-ops.
 - **Full user flow tests**: Select ship -> raycaster click -> verify placement in both DOM and engine. Buy perk -> select from inventory -> ping cell -> verify animation and status.
 - **Cleanup verification**: Confirm `dispose()` called on screen navigation (including perk store, inventory tray, action slots).
 - **CSS class assertions**: Visual state (hit, miss, ship, ghost) verified via `classList.contains()`.

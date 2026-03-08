@@ -10,8 +10,11 @@
 import * as Tone from 'tone';
 import { getLogger } from '../observability/logger';
 
+export type AudioPhase = 'setup' | 'combat_early' | 'combat_mid' | 'combat_escalation' | 'combat_endgame';
+
 let contextReady = false;
 let muted = false;
+let currentPhase: AudioPhase = 'setup';
 
 /**
  * Call this on the first user interaction (click/keydown) to start the
@@ -77,4 +80,40 @@ export function toggleMute(): boolean {
  */
 export function isMuted(): boolean {
   return muted;
+}
+
+/**
+ * Set the current audio phase. Emits `audio.phase_change` if the phase
+ * actually changes. Call this whenever game tension level shifts.
+ */
+export function setGamePhase(phase: AudioPhase): void {
+  if (phase === currentPhase) return;
+
+  const previous = currentPhase;
+  currentPhase = phase;
+
+  try {
+    getLogger().emit('audio.phase_change', { from: previous, to: phase });
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Returns the current audio phase.
+ */
+export function getGamePhase(): AudioPhase {
+  return currentPhase;
+}
+
+/**
+ * Pure mapper from turn count to AudioPhase.
+ * Turns 1-10 → combat_early, 11-20 → combat_mid,
+ * 21-30 → combat_escalation, 31+ → combat_endgame.
+ */
+export function getAudioPhaseFromTurn(turnCount: number): AudioPhase {
+  if (turnCount <= 10) return 'combat_early';
+  if (turnCount <= 20) return 'combat_mid';
+  if (turnCount <= 30) return 'combat_escalation';
+  return 'combat_endgame';
 }

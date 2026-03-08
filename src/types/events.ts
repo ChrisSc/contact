@@ -35,6 +35,7 @@ export type LogEventType =
   | 'audio.init'
   | 'audio.play'
   | 'audio.mute'
+  | 'audio.phase_change'
   // Economy
   | 'economy.credit'
   | 'economy.purchase'
