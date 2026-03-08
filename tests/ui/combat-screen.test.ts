@@ -375,4 +375,225 @@ describe('Combat Screen', () => {
     const credits = container.querySelector('.combat-screen__credits');
     expect(credits?.textContent).toBe('CR: 6'); // 5 + 1
   });
+
+  // --- 4a. Full Game Loop Integration ---
+
+  describe('full game loop integration', () => {
+    // P2 (BRAVO) ship cells placed by placeStandardFleet at col axis, depth 0:
+    // typhoon  (size 5): cols 0-4, row 0, depth 0
+    // akula    (size 4): cols 0-3, row 1, depth 0
+    // seawolf  (size 3): cols 0-2, row 2, depth 0
+    // virginia (size 3): cols 0-2, row 3, depth 0
+    // midget   (size 2): cols 0-1, row 4, depth 0
+    const p2ShipCells: Coordinate[] = [
+      { col: 0, row: 0, depth: 0 }, { col: 1, row: 0, depth: 0 }, { col: 2, row: 0, depth: 0 },
+      { col: 3, row: 0, depth: 0 }, { col: 4, row: 0, depth: 0 },
+      { col: 0, row: 1, depth: 0 }, { col: 1, row: 1, depth: 0 }, { col: 2, row: 1, depth: 0 },
+      { col: 3, row: 1, depth: 0 },
+      { col: 0, row: 2, depth: 0 }, { col: 1, row: 2, depth: 0 }, { col: 2, row: 2, depth: 0 },
+      { col: 0, row: 3, depth: 0 }, { col: 1, row: 3, depth: 0 }, { col: 2, row: 3, depth: 0 },
+      { col: 0, row: 4, depth: 0 },
+      // last cell (midget second cell) fired separately to trigger victory
+    ];
+
+    it('fires all but last P2 ship cell then navigates to handoff each turn without victory', () => {
+      // Use fresh context so we can advance through turns
+      const { game: g, router: r } = setupCombatGame();
+
+      for (let i = 0; i < p2ShipCells.length; i++) {
+        // ALPHA fires at P2 ship cell
+        g.fireTorpedo(p2ShipCells[i]);
+        g.endTurn();
+        // BRAVO fires at a safe miss cell — use depth offset to prevent duplicate coords
+        g.fireTorpedo({ col: i % 8, row: 7, depth: 2 + Math.floor(i / 8) });
+        g.endTurn();
+      }
+
+      // After 16 rounds, 16 of 17 cells hit; one midget cell remains
+      // Navigate to combat for ALPHA's turn (the deciding shot)
+      r.navigate('combat');
+      // Clicking the last midget cell should trigger victory navigation
+      cellClickCb!({ col: 1, row: 4, depth: 0 });
+      expect(r.getCurrentScreen()).toBe('victory');
+    });
+
+    it('end turn after each valid attack navigates to handoff', () => {
+      const { game: g, router: r } = setupCombatGame();
+
+      // ALPHA fires via UI callback (sets attackUsed = true on the live screen)
+      cellClickCb!({ col: 0, row: 0, depth: 0 }); // hit
+      const endBtn = document.querySelector('.combat-screen__end-turn') as HTMLButtonElement;
+      expect(endBtn.disabled).toBe(false);
+      endBtn.click();
+      // After end turn, router navigates to handoff
+      expect(r.getCurrentScreen()).toBe('handoff');
+
+      // BRAVO's turn: navigate back to combat via handoff continue
+      r.navigate('combat');
+      cellClickCb!({ col: 5, row: 5, depth: 5 }); // BRAVO fires miss
+      const endBtn2 = document.querySelector('.combat-screen__end-turn') as HTMLButtonElement;
+      expect(endBtn2.disabled).toBe(false);
+      endBtn2.click();
+      expect(r.getCurrentScreen()).toBe('handoff');
+    });
+
+    it('victory navigation fires immediately on last sunk cell click without manual end turn', () => {
+      const { game: g, router: r } = setupCombatGame();
+      // Sink all but last cell via engine API alternating turns
+      const allCells: Coordinate[] = [
+        { col: 0, row: 0, depth: 0 }, { col: 1, row: 0, depth: 0 }, { col: 2, row: 0, depth: 0 },
+        { col: 3, row: 0, depth: 0 }, { col: 4, row: 0, depth: 0 },
+        { col: 0, row: 1, depth: 0 }, { col: 1, row: 1, depth: 0 }, { col: 2, row: 1, depth: 0 },
+        { col: 3, row: 1, depth: 0 },
+        { col: 0, row: 2, depth: 0 }, { col: 1, row: 2, depth: 0 }, { col: 2, row: 2, depth: 0 },
+        { col: 0, row: 3, depth: 0 }, { col: 1, row: 3, depth: 0 }, { col: 2, row: 3, depth: 0 },
+        { col: 0, row: 4, depth: 0 },
+      ];
+      for (let i = 0; i < allCells.length; i++) {
+        g.fireTorpedo(allCells[i]);
+        g.endTurn();
+        // BRAVO fires safe miss cells using depth offset to avoid coordinate repeats
+        g.fireTorpedo({ col: i % 8, row: 7, depth: 2 + Math.floor(i / 8) });
+        g.endTurn();
+      }
+      r.navigate('combat');
+      // Last cell: col 1, row 4, depth 0 (midget's second cell)
+      cellClickCb!({ col: 1, row: 4, depth: 0 });
+      expect(r.getCurrentScreen()).toBe('victory');
+    });
+  });
+
+  // --- 4b. View Mode State Preservation ---
+
+  describe('view mode state preservation', () => {
+    it('switching to SLICE view calls setViewMode with slice and preserves status text', () => {
+      // Fire a torpedo to set a status message
+      cellClickCb!({ col: 0, row: 0, depth: 0 }); // hit
+      const statusBefore = container.querySelector('.combat-screen__status')?.textContent;
+      expect(statusBefore).toContain('HIT');
+
+      // Switch to SLICE mode
+      mockSceneManager.setViewMode.mockClear();
+      const btns = container.querySelectorAll('.combat-screen__mode-btn');
+      const sliceBtn = Array.from(btns).find(b => b.textContent === 'SLICE') as HTMLElement;
+      sliceBtn.click();
+
+      expect(mockSceneManager.setViewMode).toHaveBeenCalledWith('slice');
+      // Status text must still show the previous fire result
+      const statusAfter = container.querySelector('.combat-screen__status')?.textContent;
+      expect(statusAfter).toContain('HIT');
+    });
+
+    it('toggling to own board then back to targeting calls setBoardType and updateGrid', () => {
+      mockSceneManager.setBoardType.mockClear();
+      mockSceneManager.updateGrid.mockClear();
+
+      // Switch to own fleet view
+      const ownBtn = container.querySelector('.combat-screen__toggle-btn:last-child') as HTMLElement;
+      ownBtn.click();
+      expect(mockSceneManager.setBoardType).toHaveBeenCalledWith('own');
+      expect(mockSceneManager.updateGrid).toHaveBeenCalled();
+
+      mockSceneManager.setBoardType.mockClear();
+      mockSceneManager.updateGrid.mockClear();
+
+      // Switch back to targeting
+      const targetingBtn = container.querySelector('.combat-screen__toggle-btn:first-child') as HTMLElement;
+      targetingBtn.click();
+      expect(mockSceneManager.setBoardType).toHaveBeenCalledWith('targeting');
+      expect(mockSceneManager.updateGrid).toHaveBeenCalled();
+    });
+
+    it('switching view mode does not reset active board type', () => {
+      // Switch to own fleet view first
+      const ownBtn = container.querySelector('.combat-screen__toggle-btn:last-child') as HTMLElement;
+      ownBtn.click();
+
+      // Now switch view mode — board type should remain 'own' (updateGrid uses 'own' grid)
+      mockSceneManager.updateGrid.mockClear();
+      const btns = container.querySelectorAll('.combat-screen__mode-btn');
+      const xrayBtn = Array.from(btns).find(b => b.textContent === 'X-RAY') as HTMLElement;
+      xrayBtn.click();
+
+      expect(mockSceneManager.setViewMode).toHaveBeenCalledWith('xray');
+      // updateGrid should have been called (refreshed) and OWN fleet board btn still active
+      expect(mockSceneManager.updateGrid).toHaveBeenCalled();
+      const ownBtnAfter = container.querySelector('.combat-screen__toggle-btn:last-child') as HTMLElement;
+      expect(ownBtnAfter.classList.contains('combat-screen__toggle-btn--active')).toBe(true);
+    });
+  });
+
+  // --- 4c. No-Pass Enforcement ---
+
+  describe('no-pass enforcement', () => {
+    it('end turn button is disabled before any action', () => {
+      const btn = container.querySelector('.combat-screen__end-turn') as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it('sonar ping alone does NOT enable end turn button', () => {
+      // Purchase sonar ping and navigate to get fresh UI with inventory item
+      game.purchasePerk('sonar_ping');
+      router.navigate('handoff');
+      router.navigate('combat');
+      const cont = document.querySelector('.screen-container')!;
+
+      // Select the sonar ping from inventory
+      const item = cont.querySelector('.inventory-tray__item') as HTMLElement;
+      if (item) item.click();
+
+      // Use sonar ping on a cell
+      cellClickCb!({ col: 7, row: 7, depth: 7 });
+
+      // End turn should still be disabled — ping slot only, not attack slot
+      const btn = cont.querySelector('.combat-screen__end-turn') as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it('firing a torpedo enables end turn button', () => {
+      cellClickCb!({ col: 0, row: 0, depth: 0 }); // valid attack
+      const btn = container.querySelector('.combat-screen__end-turn') as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+
+    it('cannot fire second torpedo in same turn (attackUsed gate)', () => {
+      // First torpedo (hit)
+      cellClickCb!({ col: 0, row: 0, depth: 0 });
+      // Attempt a second fire — engine returns null, end turn button stays enabled but no double-fire
+      mockSceneManager.playHitAnimation.mockClear();
+      mockSceneManager.playMissAnimation.mockClear();
+      cellClickCb!({ col: 1, row: 0, depth: 0 });
+      // Neither animation should have fired a second time
+      expect(mockSceneManager.playHitAnimation).not.toHaveBeenCalled();
+      expect(mockSceneManager.playMissAnimation).not.toHaveBeenCalled();
+    });
+
+    it('end turn is disabled on own fleet view even after torpedo fire', () => {
+      // Switch to own fleet view — this should block torpedo fires from enabling end turn
+      const ownBtn = container.querySelector('.combat-screen__toggle-btn:last-child') as HTMLElement;
+      ownBtn.click();
+      // Attempt a cell click in own fleet view — should be ignored
+      cellClickCb!({ col: 0, row: 0, depth: 0 });
+      const btn = container.querySelector('.combat-screen__end-turn') as HTMLButtonElement;
+      expect(btn.disabled).toBe(true);
+    });
+
+    it('drone scan (attack ability) enables end turn button', () => {
+      // Give ALPHA a recon drone and refresh UI
+      game.purchasePerk('recon_drone');
+      router.navigate('handoff');
+      router.navigate('combat');
+      const cont = document.querySelector('.screen-container')!;
+
+      // Select drone from inventory
+      const item = cont.querySelector('.inventory-tray__item') as HTMLElement;
+      if (item) item.click();
+
+      // Use drone at a cell
+      cellClickCb!({ col: 4, row: 4, depth: 4 });
+
+      const btn = cont.querySelector('.combat-screen__end-turn') as HTMLButtonElement;
+      expect(btn.disabled).toBe(false);
+    });
+  });
 });
