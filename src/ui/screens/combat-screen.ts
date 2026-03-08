@@ -302,6 +302,19 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     uiState.gameLog.push(logLine);
 
     updateSceneGrid();
+
+    if (result.result === 'sunk' && result.shipId) {
+      const opponent = game.getOpponent();
+      const sunkShip = opponent.ships.find((s) => s.id === result.shipId);
+      if (sunkShip && sunkShip.cells.length > 0) {
+        sceneManager.playSunkAnimation(sunkShip.cells);
+      }
+    } else if (result.result === 'hit') {
+      sceneManager.playHitAnimation(coord);
+    } else {
+      sceneManager.playMissAnimation(coord);
+    }
+
     refreshBottomBar();
     refreshFleetStatus();
     endTurnBtn.disabled = false;

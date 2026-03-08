@@ -7,6 +7,7 @@ export const CRT_COLORS = {
   RED: 0xff3333,
   ORANGE: 0xff8833,
   YELLOW: 0xffff33,
+  CYAN: 0x33ffcc,
   BG: 0x0a0a0a,
   HOVER: 0x66ff66,
 } as const;
@@ -16,14 +17,14 @@ export interface MaterialSet {
   edge: THREE.LineBasicMaterial;
 }
 
-interface MaterialDef {
+export interface MaterialDef {
   fillColor: number;
   fillOpacity: number;
   edgeColor: number;
   edgeOpacity: number;
 }
 
-const MATERIAL_DEFS: Record<CellState, MaterialDef> = {
+export const MATERIAL_DEFS: Record<CellState, MaterialDef> = {
   [CellState.Empty]: { fillColor: CRT_COLORS.GREEN, fillOpacity: 0, edgeColor: CRT_COLORS.GREEN_DIM, edgeOpacity: 0.3 },
   [CellState.Ship]: { fillColor: CRT_COLORS.GREEN, fillOpacity: 0.6, edgeColor: CRT_COLORS.GREEN, edgeOpacity: 0.8 },
   [CellState.Hit]: { fillColor: CRT_COLORS.RED, fillOpacity: 0.7, edgeColor: CRT_COLORS.RED, edgeOpacity: 0.9 },
@@ -31,9 +32,9 @@ const MATERIAL_DEFS: Record<CellState, MaterialDef> = {
   [CellState.Sunk]: { fillColor: CRT_COLORS.ORANGE, fillOpacity: 0.7, edgeColor: CRT_COLORS.ORANGE, edgeOpacity: 0.9 },
   [CellState.Decoy]: { fillColor: CRT_COLORS.YELLOW, fillOpacity: 0.5, edgeColor: CRT_COLORS.YELLOW, edgeOpacity: 0.7 },
   [CellState.DecoyHit]: { fillColor: CRT_COLORS.YELLOW, fillOpacity: 0.3, edgeColor: CRT_COLORS.YELLOW, edgeOpacity: 0.5 },
-  [CellState.DronePositive]: { fillColor: CRT_COLORS.GREEN, fillOpacity: 0.4, edgeColor: CRT_COLORS.GREEN, edgeOpacity: 0.6 },
+  [CellState.DronePositive]: { fillColor: CRT_COLORS.CYAN, fillOpacity: 0.4, edgeColor: CRT_COLORS.CYAN, edgeOpacity: 0.6 },
   [CellState.DroneNegative]: { fillColor: CRT_COLORS.GREEN_DIM, fillOpacity: 0.1, edgeColor: CRT_COLORS.GREEN_DIM, edgeOpacity: 0.15 },
-  [CellState.SonarPositive]: { fillColor: CRT_COLORS.GREEN, fillOpacity: 0.4, edgeColor: CRT_COLORS.GREEN, edgeOpacity: 0.6 },
+  [CellState.SonarPositive]: { fillColor: CRT_COLORS.CYAN, fillOpacity: 0.4, edgeColor: CRT_COLORS.CYAN, edgeOpacity: 0.6 },
   [CellState.SonarNegative]: { fillColor: CRT_COLORS.GREEN_DIM, fillOpacity: 0.1, edgeColor: CRT_COLORS.GREEN_DIM, edgeOpacity: 0.15 },
 };
 

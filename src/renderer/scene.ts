@@ -7,6 +7,7 @@ import { OrbitControls } from './orbit';
 import { ViewManager } from './views';
 import type { ViewMode, BoardType } from './views';
 import { GridRaycaster } from './raycaster';
+import { AnimationManager } from './animations';
 import { getLogger } from '../observability/logger';
 
 export interface SceneConfig {
@@ -27,6 +28,7 @@ export class SceneManager {
   readonly cube: GridCube;
   readonly materialPool: MaterialPool;
   readonly views: ViewManager;
+  readonly animations: AnimationManager;
   readonly raycaster: GridRaycaster;
 
   private animationFrameId: number | null = null;
@@ -72,6 +74,7 @@ export class SceneManager {
     this.ghostInvalidEdge = new THREE.LineBasicMaterial({ color: CRT_COLORS.RED, transparent: true, opacity: 0.7 });
 
     this.views = new ViewManager(this.cube, this.materialPool);
+    this.animations = new AnimationManager(this.cube, this.materialPool);
     this.raycaster = new GridRaycaster(this.camera, this.renderer.domElement, this.cube);
     this.raycaster.setMeshSource(() => this.views.getInteractableMeshes());
 
@@ -175,6 +178,7 @@ export class SceneManager {
       const dt = (now - this.lastTime) / 1000;
       this.lastTime = now;
       this.views.update(dt);
+      this.animations.update(dt);
       this.orbit.update();
       this.renderer.render(this.scene, this.camera);
     };
@@ -204,6 +208,18 @@ export class SceneManager {
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   }
 
+  playHitAnimation(coord: Coordinate): void {
+    this.animations.playHitFlash(coord);
+  }
+
+  playSunkAnimation(coords: Coordinate[]): void {
+    this.animations.playSunkCascade(coords);
+  }
+
+  playMissAnimation(coord: Coordinate): void {
+    this.animations.playMissFade(coord);
+  }
+
   dispose(): void {
     this.stop();
     this.clearGhostCells();
@@ -217,6 +233,7 @@ export class SceneManager {
     this.ghostInvalidMat.dispose();
     this.ghostInvalidEdge.dispose();
 
+    this.animations.dispose();
     this.views.dispose();
     this.raycaster.dispose();
     this.orbit.dispose();

@@ -11,7 +11,7 @@
 - **`components/coordinate-display.ts`** — `CoordinateDisplay` class: shows hovered/selected cell coordinate
 - **`screens/setup-screen.ts`** — `mountSetupScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), depth panel, 6-axis selector, ship roster overlay, ghost cell preview via raycaster hover, ship/decoy placement via raycaster click, confirm flow
 - **`screens/handoff-screen.ts`** — `mountHandoffScreen()`: player transition with ready confirmation
-- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster, coordinate hover feedback, HUD stats (DEPTH/VISIBLE/SHOTS/HITS/SUNK/MODE), enemy fleet status, end turn
+- **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations (hit flash, sunk cascade, miss fade), coordinate hover feedback, HUD stats (DEPTH/VISIBLE/SHOTS/HITS/SUNK/MODE), enemy fleet status, end turn
 - **`screens/victory-screen.ts`** — `mountVictoryScreen()`: winner display, stats summary, session export, new engagement restart
 
 ## Architecture
@@ -35,3 +35,4 @@
 - **Options object** pattern for component configuration.
 - UI state lives in **screen closures**, NOT in GameController. Engine state and UI state are separate.
 - **SceneManager shared pattern**: Both setup and combat screens instantiate SceneManager with `{ container }`, wire `onCellClick`/`onCellHover`, call `start()`, and `dispose()` on unmount.
+- **Combat animation wiring**: `handleFire()` calls `sceneManager.playHitAnimation(coord)` on hit, `sceneManager.playSunkAnimation(ship.cells)` on sunk (cells from `game.getOpponent().ships`), `sceneManager.playMissAnimation(coord)` on miss. Animations run after `updateSceneGrid()` so they overwrite view materials.
