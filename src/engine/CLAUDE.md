@@ -4,18 +4,19 @@
 
 - **`grid.ts`** — 6 pure functions: `createGrid`, `getCell`, `setCell`, `parseCoordinate`, `formatCoordinate`, `isValidCoordinate`
 - **`fleet.ts`** — 8 functions: `calculateShipCells`, `validatePlacement`, `placeShip`, `removeShip`, `placeDecoy`, `isFleetComplete`, `checkSunk`, `getShipHealth`. Uses `AXIS_DELTAS` lookup table for cell offset computation.
-- **`game.ts`** — `GameController` class: setup flow, combat turns, victory detection, turn management, credit economy, perk purchasing, sonar ping, recon drone, radar jammer, depth charge, silent running
+- **`game.ts`** — `GameController` class: setup flow, combat turns, victory detection, turn management, credit economy, perk purchasing, sonar ping, recon drone, radar jammer, depth charge, silent running, G-SONAR, acoustic cloak
 - **`credits.ts`** — Pure `calculateFireCredits()` function. Award stacking: hit=1 CR, consecutive hit=+5 CR (if `wasLastTurnHit`), sink=+10 CR. A sunk with consecutive = 16 total.
 - **`perks.ts`** — Pure perk store functions: `getPerkDefinition`, `canPurchase`, `purchasePerk`, `removeFromInventory`, `getInventoryBySlot`, `generateInstanceId`. Returns new `PlayerState` (immutable pattern).
 - **`sonar.ts`** — Pure `executeSonarPing()` function. Checks defender grid for Ship/Decoy presence. Applies silent running (masks per-ship), jammer (inverts), and cloak (forces false) modifiers. `SonarPingResult` includes `silentRunning: boolean`.
 - **`drone.ts`** — Pure `executeReconDrone()` and `calculateScanArea()` functions. 3x3x3 volume scan centered on target. Returns per-cell results with raw/displayed/written booleans. Applies silent running (masks per-cell), jammer (forces all-false per GDD 5.4), and cloak (forces false) modifiers. `DroneScanResult` includes `jammerConsumed` flag.
 - **`depth-charge.ts`** — Pure `calculateDepthChargeTargets()` function. Reuses `calculateScanArea()` from drone.ts for 3x3x3 volume. Returns per-cell info with `cellState`, `shipId`, `alreadyResolved` (Hit/Miss/Sunk/DecoyHit cells skipped by GameController).
+- **`g-sonar.ts`** — Pure `executeGSonar(depth, attacker, defender)` function. Scans all 64 cells at a given depth layer. Returns per-cell results with raw/displayed/written booleans. Applies silent running (masks per-cell) and cloak (forces all-false) modifiers. No jammer interaction. `GSonarResult` includes `cloaked` flag.
 - **`silent-running.ts`** — Pure helpers: `isShipSilentRunning(entries, shipId)` (lookup), `decrementSilentRunning(entries)` (returns `{remaining, expired}` after decrementing turnsRemaining).
 
 ## Architecture
 
 - **Grid/Fleet**: Pure functions. No class state. Accept grid/state as parameters, return new data or mutation results.
-- **Credits/Perks/Sonar/Drone/DepthCharge/SilentRunning**: Pure functions. Accept player state, return new state or results. No side effects.
+- **Credits/Perks/Sonar/Drone/DepthCharge/SilentRunning/GSonar**: Pure functions. Accept player state, return new state or results. No side effects.
 - **GameController**: Single stateful orchestrator. Owns `GameState`, delegates to grid/fleet/credits/perks/sonar functions. Couples to Logger singleton (initialized at construction).
 - Engine has **zero DOM/UI dependencies**. It can be tested and used without any rendering layer.
 
@@ -109,6 +110,38 @@
 - Sonar: SR'd ship cell → `displayedResult = false`, `silentRunning = true`.
 - Drone: per-cell SR check — SR'd ship cells masked, other cells (including decoys) unaffected.
 - Torpedo fire and Depth Charge damage go through normally regardless of SR.
+
+## G-SONAR
+
+- `useGSonar(depth)`: validates phase, `!attackUsed`, inventory has `g_sonar`, depth 0-7.
+- Calls `executeGSonar(depth, attacker, defender)` to scan all 64 cells at the given depth layer.
+- Writes `DronePositive`/`DroneNegative` to attacker's targeting grid (reuses same CellStates as drone, no new enum values).
+- Skips cells already resolved (Hit/Miss/Sunk/DecoyHit/DronePositive/DroneNegative) — same skip logic as `useReconDrone`.
+- Consumes `attackUsed` slot and one `g_sonar` instance from inventory.
+- No jammer interaction (unlike drone/sonar).
+- Modifier priority: Silent Running > Acoustic Cloak > raw result.
+- Returns `GSonarResult { depth, cells: GSonarCellResult[], cloaked }` or `null` on validation failure.
+
+## Acoustic Cloak
+
+- `useAcousticCloak()`: validates phase, `!defendUsed`, inventory has `acoustic_cloak`, not already active.
+- Sets `player.abilities.acoustic_cloak.active = true` and `turnsRemaining = 2`.
+- Consumed from inventory on deploy (unlike `radar_jammer` which stays until triggered).
+- Consumes `defendUsed` slot.
+- Emits `perk.use` event with `result: 'deployed'`.
+
+### Acoustic Cloak Countdown (in endTurn)
+
+- After player switch, decrements the **new current player's** acoustic cloak `turnsRemaining`.
+- Timing: same pattern as SR — counts opponent turns elapsed.
+- When `turnsRemaining` reaches 0: sets `active = false`, `turnsRemaining = null`, emits `perk.expire` event.
+- Countdown runs after SR decrement, before `game.turn_start` event.
+
+### Acoustic Cloak Interactions
+
+- When active, forces `displayedResult = false` for sonar ping, recon drone, and G-SONAR (masks all recon).
+- Does NOT block torpedoes or depth charges (damage goes through normally).
+- Priority: SR > Cloak > Jammer. If cloak is active, jammer is not consumed (cloak takes priority).
 
 ## Placement Axes
 

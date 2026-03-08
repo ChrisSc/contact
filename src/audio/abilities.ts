@@ -16,6 +16,8 @@
  *   Depth Charge    — low-frequency noise burst (100–200 Hz) + sub-bass rumble (50 Hz), ~1 s
  *   Silent Running activate — descending tone (500→100 Hz) with low-pass filter sweep, ~500 ms
  *   Silent Running expire   — ascending tone (100→400 Hz), ~300 ms
+ *   G-SONAR         — deep bass sweep (200→400 Hz) + harmonic layer (600→1200 Hz) + delay echo, ~800 ms
+ *   Acoustic Cloak  — white noise through closing bandpass (1200→200 Hz) with LFO wobble, ~500 ms
  */
 
 import * as Tone from 'tone';
@@ -915,6 +917,199 @@ export function playRadarJammerSound(): void {
   } catch (err) {
     try {
       getLogger().emit('audio.play', { sound: 'radar_jammer', error: String(err) });
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// G-SONAR — global sonar sweep
+// ---------------------------------------------------------------------------
+
+/**
+ * Powerful active sonar flooding an entire depth layer: a deep bass sine sweep
+ * from 200→400 Hz as the main layer, layered with a quieter harmonic sine at
+ * 600→1200 Hz, and a FeedbackDelay echo to suggest the signal bouncing through
+ * the water column. More commanding and sustained than the standard sonar ping.
+ * ~800 ms total.
+ */
+export function playGSonarSound(): void {
+  if (!isAudioReady()) return;
+
+  logPlay('g_sonar');
+
+  try {
+    // ---- Layer 1: Main bass sweep — 200→400 Hz --------------------------
+    // The deep sweep is the dominant sonic element; it conveys the sense of a
+    // wide-area signal propagating through volume rather than a point source.
+    const mainVol = new Tone.Volume(-6).toDestination();
+    const mainEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.02,
+      decay: 0.45,
+      sustain: 0.35,
+      release: 0.3,
+    }).connect(mainVol);
+
+    const mainOsc = new Tone.Oscillator({
+      type: 'sine',
+      frequency: 200,
+    }).connect(mainEnv);
+
+    // ---- Layer 2: Harmonic layer — 600→1200 Hz --------------------------
+    // A quieter upper harmonic that adds brightness and reinforces the sense
+    // of an energetic, wide-spectrum sonar pulse.
+    const harmVol = new Tone.Volume(-14).toDestination();
+    const harmEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.03,
+      decay: 0.4,
+      sustain: 0.2,
+      release: 0.28,
+    }).connect(harmVol);
+
+    const harmOsc = new Tone.Oscillator({
+      type: 'sine',
+      frequency: 600,
+    }).connect(harmEnv);
+
+    // ---- Delay echo — applied to both layers via a shared send ----------
+    // Wet-only delay routed to destination independently; this avoids routing
+    // both layers through a single node which would complicate cleanup.
+    const delay = new Tone.FeedbackDelay({
+      delayTime: 0.32,
+      feedback: 0.28,
+      wet: 0.3,
+    }).toDestination();
+
+    mainOsc.connect(delay);
+    harmOsc.connect(delay);
+
+    // ---- Schedule playback -----------------------------------------------
+    const now = Tone.now();
+    const duration = 0.75;
+
+    mainOsc.start(now);
+    harmOsc.start(now);
+
+    // Bass sweep: 200 Hz → 400 Hz over the full duration — a slow, imposing
+    // upward movement that contrasts with the standard ping's V-shape.
+    mainOsc.frequency.setValueAtTime(200, now);
+    mainOsc.frequency.exponentialRampToValueAtTime(400, now + duration);
+
+    // Harmonic sweep: 600 Hz → 1200 Hz — rises in proportion to the bass layer.
+    harmOsc.frequency.setValueAtTime(600, now);
+    harmOsc.frequency.exponentialRampToValueAtTime(1200, now + duration);
+
+    mainEnv.triggerAttackRelease(duration, now);
+    harmEnv.triggerAttackRelease(duration - 0.05, now);
+
+    // ---- Cleanup after sound + echo tail complete ------------------------
+    setTimeout(() => {
+      mainOsc.stop();
+      harmOsc.stop();
+      mainOsc.disconnect();
+      harmOsc.disconnect();
+      mainEnv.disconnect();
+      harmEnv.disconnect();
+      delay.disconnect();
+      mainVol.disconnect();
+      harmVol.disconnect();
+      mainOsc.dispose();
+      harmOsc.dispose();
+      mainEnv.dispose();
+      harmEnv.dispose();
+      delay.dispose();
+      mainVol.dispose();
+      harmVol.dispose();
+    }, 1600);
+
+  } catch (err) {
+    try {
+      getLogger().emit('audio.play', { sound: 'g_sonar', error: String(err) });
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Acoustic Cloak — cloaking activation
+// ---------------------------------------------------------------------------
+
+/**
+ * Ships disappearing from sensors: white noise passed through a bandpass
+ * filter whose center frequency closes from 1200 Hz down to 200 Hz over
+ * ~500 ms, with an LFO providing subtle wobble throughout. The overall level
+ * is quieter than Silent Running activation — this is a stealth action that
+ * should feel ethereal rather than dramatic.
+ */
+export function playAcousticCloakSound(): void {
+  if (!isAudioReady()) return;
+
+  logPlay('acoustic_cloak');
+
+  try {
+    // ---- Bandpass-filtered noise — the dissolving sensor contact ---------
+    const vol = new Tone.Volume(-14).toDestination();
+    const env = new Tone.AmplitudeEnvelope({
+      attack: 0.06,     // medium attack — eases in gently
+      decay: 0.35,
+      sustain: 0.25,
+      release: 0.15,    // fades to nothing at the end
+    }).connect(vol);
+
+    const bandpass = new Tone.Filter({
+      type: 'bandpass',
+      frequency: 1200,
+      Q: 1.8,           // moderately resonant to give the noise tonal color
+    }).connect(env);
+
+    const noise = new Tone.Noise('white').connect(bandpass);
+
+    // ---- LFO for subtle wobble on the filter frequency ------------------
+    // 8 Hz modulation in a narrow range (±80 Hz around the sweep center)
+    // gives an unstable, ghostly quality without being distracting.
+    const lfo = new Tone.LFO({
+      type: 'sine',
+      frequency: 8,
+      min: -80,
+      max: 80,
+    });
+    lfo.connect(bandpass.detune);  // modulate via detune for additive offset
+
+    // ---- Schedule playback -----------------------------------------------
+    const now = Tone.now();
+    const duration = 0.5;
+
+    noise.start(now);
+    lfo.start(now);
+
+    // Bandpass sweeps downward: 1200→200 Hz, the sensor contact narrowing and
+    // dropping in frequency as the cloak engages.
+    bandpass.frequency.setValueAtTime(1200, now);
+    bandpass.frequency.exponentialRampToValueAtTime(200, now + duration);
+
+    env.triggerAttackRelease(duration, now);
+
+    // ---- Cleanup ----------------------------------------------------------
+    setTimeout(() => {
+      noise.stop();
+      lfo.stop();
+      noise.disconnect();
+      lfo.disconnect();
+      bandpass.disconnect();
+      env.disconnect();
+      vol.disconnect();
+      noise.dispose();
+      lfo.dispose();
+      bandpass.dispose();
+      env.dispose();
+      vol.dispose();
+    }, 900);
+
+  } catch (err) {
+    try {
+      getLogger().emit('audio.play', { sound: 'acoustic_cloak', error: String(err) });
     } catch {
       // ignore
     }

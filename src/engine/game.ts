@@ -25,6 +25,8 @@ import type { DroneScanResult } from './drone';
 import { calculateDepthChargeTargets } from './depth-charge';
 import type { DepthChargeTargets as _DepthChargeTargets } from './depth-charge';
 import { isShipSilentRunning, decrementSilentRunning } from './silent-running';
+import { executeGSonar } from './g-sonar';
+import type { GSonarResult } from './g-sonar';
 
 const ALL_ABILITY_IDS: AbilityId[] = [
   'sonar_ping', 'radar_jammer', 'recon_drone', 'decoy',
@@ -681,6 +683,93 @@ export class GameController {
     return true;
   }
 
+  useGSonar(depth: number): GSonarResult | null {
+    if (this.state.phase !== GamePhase.Combat) return null;
+    if (this.turnSlots.attackUsed) return null;
+
+    const attacker = this.getCurrentPlayer();
+    const defender = this.getOpponent();
+
+    // Must have g_sonar in inventory
+    const gsonarInstance = attacker.inventory.find((p) => p.perkId === 'g_sonar');
+    if (!gsonarInstance) return null;
+
+    // Validate depth
+    if (depth < 0 || depth > 7) return null;
+
+    const result = executeGSonar(depth, attacker, defender);
+
+    // Remove g_sonar instance from inventory
+    const updated = removeFromInventory(attacker, gsonarInstance.id);
+    const idx = attacker.index;
+    this.state.players[idx] = updated;
+
+    // Write results to targeting grid — skip cells already resolved
+    for (const cellResult of result.cells) {
+      const existing = getCell(this.state.players[idx]!.targetingGrid, cellResult.coord);
+      if (existing && existing.state !== CellState.Empty &&
+          existing.state !== CellState.SonarPositive &&
+          existing.state !== CellState.SonarNegative) {
+        continue; // Don't overwrite Hit/Miss/Sunk/DecoyHit/DronePositive/DroneNegative
+      }
+      cellResult.written = true;
+      const droneState = cellResult.displayedResult ? CellState.DronePositive : CellState.DroneNegative;
+      this.state.players[idx]!.targetingGrid = setCell(
+        this.state.players[idx]!.targetingGrid,
+        cellResult.coord,
+        { state: droneState, shipId: null },
+      );
+    }
+
+    this.turnSlots.attackUsed = true;
+
+    this.logger.emit('perk.use', {
+      player: idx,
+      perkId: 'g_sonar',
+      instanceId: gsonarInstance.id,
+      target: `depth_${depth}`,
+      result: `${result.cells.filter(c => c.written && c.displayedResult).length} contacts`,
+    });
+
+    return result;
+  }
+
+  useAcousticCloak(): boolean {
+    if (this.state.phase !== GamePhase.Combat) return false;
+    if (this.turnSlots.defendUsed) return false;
+
+    const player = this.getCurrentPlayer();
+
+    // Must have acoustic_cloak in inventory
+    const cloakInstance = player.inventory.find((p) => p.perkId === 'acoustic_cloak');
+    if (!cloakInstance) return false;
+
+    // No stacking
+    if (player.abilities.acoustic_cloak.active) return false;
+
+    // Activate and consume from inventory
+    player.abilities.acoustic_cloak.active = true;
+    player.abilities.acoustic_cloak.turnsRemaining = 2;
+
+    const updated = removeFromInventory(player, cloakInstance.id);
+    const idx = player.index;
+    this.state.players[idx] = updated;
+    // Restore abilities on the new state (removeFromInventory spreads player)
+    this.state.players[idx]!.abilities.acoustic_cloak.active = true;
+    this.state.players[idx]!.abilities.acoustic_cloak.turnsRemaining = 2;
+
+    this.turnSlots.defendUsed = true;
+
+    this.logger.emit('perk.use', {
+      player: idx,
+      perkId: 'acoustic_cloak',
+      instanceId: cloakInstance.id,
+      result: 'deployed',
+    });
+
+    return true;
+  }
+
   endTurn(): boolean {
     if (this.state.phase !== GamePhase.Combat) return false;
     if (!this.turnSlots.attackUsed) return false;
@@ -710,6 +799,18 @@ export class GameController {
         perkId: 'silent_running',
         shipId: expiredShipId,
       });
+    }
+
+    // Decrement Acoustic Cloak for the new current player
+    const cloakPlayer = this.state.players[this.state.currentPlayer];
+    if (cloakPlayer.abilities.acoustic_cloak.active) {
+      cloakPlayer.abilities.acoustic_cloak.turnsRemaining =
+        (cloakPlayer.abilities.acoustic_cloak.turnsRemaining ?? 0) - 1;
+      if (cloakPlayer.abilities.acoustic_cloak.turnsRemaining <= 0) {
+        cloakPlayer.abilities.acoustic_cloak.active = false;
+        cloakPlayer.abilities.acoustic_cloak.turnsRemaining = null;
+        this.logger.emit('perk.expire', { player: this.state.currentPlayer, perkId: 'acoustic_cloak' });
+      }
     }
 
     this.logger.emit('game.turn_start', {
