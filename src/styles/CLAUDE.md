@@ -37,4 +37,5 @@
 - **Action slots** (`.action-slots`): Below board toggle. Three states: available (dim green), used (bright green + checkmark), unavailable (dark/faded).
 - **Credit display** (`.combat-screen__credits`): Amber text in top-right bar.
 - **Store button** (`.combat-screen__store-btn`): Amber-bordered toggle near view modes.
+- **Mute button** (`.combat-screen__mute-btn`): Green-bordered toggle next to store button. `--muted` modifier dims the button (opacity 0.6) when audio is muted.
 - **Sonar status** (`.combat-screen__status--sonar-positive/negative`): Cyan for contact, dim green for negative.

@@ -16,10 +16,17 @@ import { getLogger } from '../../observability/logger';
 import { PerkStore } from '../components/perk-store';
 import { InventoryTray } from '../components/inventory-tray';
 import { ActionSlots } from '../components/action-slots';
-import { initAudioContext } from '../../audio/audio-manager';
+import {
+  initAudioContext,
+  toggleMute,
+  isMuted,
+  setGamePhase,
+  getAudioPhaseFromTurn,
+} from '../../audio/audio-manager';
 import {
   playDepthChargeSound,
   playSilentRunningActivate,
+  playSilentRunningExpire,
   playTorpedoFireSound,
   playTorpedoHitSound,
   playTorpedoMissSound,
@@ -30,6 +37,12 @@ import {
   playGSonarSound,
   playAcousticCloakSound,
 } from '../../audio/abilities';
+import {
+  startAmbient,
+  stopAmbient,
+  updateAmbientPhase,
+  isAmbientRunning,
+} from '../../audio/ambient';
 
 interface CombatUIState {
   currentDepth: number | null;
@@ -117,6 +130,19 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   storeBtn.textContent = 'STORE';
   storeBtn.addEventListener('click', handleStoreToggle);
   topRight.appendChild(storeBtn);
+
+  // Mute button
+  const muteBtn = document.createElement('button');
+  muteBtn.className = 'combat-screen__mute-btn';
+  muteBtn.textContent = isMuted() ? 'UNMUTE' : 'MUTE';
+  if (isMuted()) muteBtn.classList.add('combat-screen__mute-btn--muted');
+  muteBtn.addEventListener('click', () => {
+    toggleMute();
+    const muted = isMuted();
+    muteBtn.textContent = muted ? 'UNMUTE' : 'MUTE';
+    muteBtn.classList.toggle('combat-screen__mute-btn--muted', muted);
+  });
+  topRight.appendChild(muteBtn);
 
   topBar.appendChild(topRight);
 
@@ -501,6 +527,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handlePing(coord: Coordinate): void {
     initAudioContext();
+    if (!isAmbientRunning()) startAmbient();
     const result = game.useSonarPing(coord);
     if (!result) return;
 
@@ -533,6 +560,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handleDroneScan(coord: Coordinate): void {
     initAudioContext();
+    if (!isAmbientRunning()) startAmbient();
     const result = game.useReconDrone(coord);
     if (!result) return;
 
@@ -578,6 +606,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handleGSonarScan(depth: number): void {
     initAudioContext();
+    if (!isAmbientRunning()) startAmbient();
     const result = game.useGSonar(depth);
     if (!result) return;
 
@@ -622,6 +651,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handleFire(coord: Coordinate): void {
     initAudioContext();
+    if (!isAmbientRunning()) startAmbient();
     if (uiState.boardView !== 'targeting') return;
 
     const result = game.fireTorpedo(coord);
@@ -687,6 +717,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handleDepthChargeStrike(coord: Coordinate): void {
     initAudioContext();
+    if (!isAmbientRunning()) startAmbient();
     const result: DepthChargeResult | null = game.useDepthCharge(coord);
     if (!result) return;
 
@@ -747,6 +778,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handleSilentRunningSelect(coord: Coordinate): void {
     initAudioContext();
+    if (!isAmbientRunning()) startAmbient();
     // Find shipId at this coordinate on own grid
     const player = game.getCurrentPlayer();
     const cell = getCell(player.ownGrid, coord);
@@ -779,7 +811,14 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handleEndTurn(): void {
     initAudioContext();
+    if (!isAmbientRunning()) startAmbient();
     game.endTurn();
+    if (game.getLastSRExpired().length > 0) {
+      playSilentRunningExpire();
+    }
+    const phase = getAudioPhaseFromTurn(game.getState().turnCount);
+    setGamePhase(phase);
+    updateAmbientPhase(phase);
     router.navigate('handoff');
   }
 
@@ -882,6 +921,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   return {
     unmount(): void {
+      stopAmbient();
       perkStore.destroy();
       inventoryTray.destroy();
       actionSlotsComponent.destroy();
