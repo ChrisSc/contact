@@ -183,7 +183,7 @@ Perks compress the effective search space, making the 512-cell grid tractable wi
 | Perk | Effect | Cost | Turn Slot |
 | :--- | :--- | :---: | :--- |
 | **Sonar Ping** | Binary yes/no: is a ship present in a single cell? | 3 | Ping (does not consume attack) |
-| **Recon Drone** | Reveals contents of a 3×3×1 slice (9 cells). Shows which cells contain ship segments, but not ship identity. | 10 | Attack (consumes attack) |
+| **Recon Drone** | Reveals contents of a 3×3×3 volume (up to 27 cells). Shows which cells contain ship segments, but not ship identity. | 10 | Attack (consumes attack) |
 | **Depth Charge** | Strikes all occupied cells in a 3×3×3 volume (27 cells). Area denial. | 25 | Attack (consumes attack) |
 | **G-SONAR** | Scans an entire depth layer (64 cells). Reveals which cells contain ship segments. | 18 | Attack (consumes attack) |
 
@@ -202,7 +202,7 @@ The **Decoy** is not purchased — it is placed for free during setup (1 per pla
 ## **5.4 Perk Interactions**
 
 * **Radar Jammer vs. Sonar Ping:** Jammer inverts the ping result (yes→no, no→yes). Jammer is consumed on trigger.
-* **Radar Jammer vs. Recon Drone:** Jammer returns false scan results for the drone’s area. Jammer is consumed on trigger.
+* **Radar Jammer vs. Recon Drone:** Jammer returns all-false scan results for the drone’s 3×3×3 area (no contacts shown). Jammer is consumed on trigger.
 * **Acoustic Cloak vs. G-SONAR:** G-SONAR returns all-negative for cloaked player. Cloak continues for remaining turns.
 * **Acoustic Cloak vs. Sonar Ping/Drone:** Returns negative for cloaked cells. Cloak continues for remaining turns.
 * **Silent Running:** Hides a specific ship from recon for 2 turns. Torpedoes still hit normally — Silent Running only affects recon abilities.

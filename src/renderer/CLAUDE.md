@@ -7,7 +7,7 @@
 - **`cube.ts`** — `GridCube` class (512 `BoxGeometry` + `EdgesGeometry` meshes in 8x8x8 layout), `coordToPosition` helper, layer helpers (`getCellMeshesAtDepth`, `getAllCellMeshes`, `setLayerVisible`)
 - **`views.ts`** — `ViewManager` class: three view modes (CUBE, SLICE, X-RAY), depth layer control, board type, smooth opacity transitions, interactable mesh filtering
 - **`raycaster.ts`** — `GridRaycaster` class: wraps `THREE.Raycaster` for cell picking via NDC normalization, configurable mesh source
-- **`animations.ts`** — `AnimationManager` class: combat and perk animation effects (hit flash, sunk cascade, miss fade, sonar sweep). Private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop.
+- **`animations.ts`** — `AnimationManager` class: combat and perk animation effects (hit flash, sunk cascade, miss fade, sonar sweep, drone scan). Private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop. Multi-key animations (sunk cascade, drone scan) share one `ActiveAnimation` object across all cell keys; `update(dt)` deduplicates via `processed` Set to avoid N× speedup.
 - **`scene.ts`** — `SceneManager` orchestrator (scene, camera, renderer, orbit, cube, views, animations, raycaster, render loop with delta time, pointer events, ghost cell overlay, resize, dispose)
 
 ## Architecture
@@ -41,11 +41,12 @@
 | **Sunk Cascade** | `playSunkCascade(coords)` | `125ms × (n-1) + 300ms` | Sequential RED→ORANGE color lerp per cell, 125ms stagger. Completes → restores pooled Sunk materials |
 | **Miss Fade** | `playMissFade(coord)` | 300ms | Linear fade-in from 0 to target opacity (0.15 fill, 0.2 edge). Completes → restores pooled Miss materials |
 | **Sonar Sweep** | `playSonarSweep(coord, positive)` | 500ms | Two-phase: 0–300ms pulse opacity up (0→0.8), 300–500ms settle to target. CYAN if positive, GREEN_DIM if negative. Completes → restores pooled SonarPositive or SonarNegative materials |
+| **Drone Scan** | `playDroneScan(results)` | `30ms × (n-1) + 500ms` | Staggered per-cell pulse (same two-phase as sonar). CYAN if positive, GREEN_DIM if negative. Stores `positiveFlags` for correct per-cell cancel restore. Completes → restores pooled DronePositive or DroneNegative materials per cell |
 
 - Duplicate animation on same cell cancels previous and disposes its materials.
-- Combat screen wires animations in `handleFire()`: hit→`playHitAnimation`, sunk→`playSunkAnimation` (using ship cells from opponent state), miss→`playMissAnimation`. Sonar wired in `handlePing()`: `playSonarAnimation(coord, result.displayedResult)`.
+- Combat screen wires animations in `handleFire()`: hit→`playHitAnimation`, sunk→`playSunkAnimation` (using ship cells from opponent state), miss→`playMissAnimation`. Sonar wired in `handlePing()`: `playSonarAnimation(coord, result.displayedResult)`. Drone wired in `handleDroneScan()`: `playDroneScanAnimation(writtenCells)` — only cells actually written to targeting grid, not skipped Hit/Sunk cells.
 - Logger emits `view.change` with `animation_start`/`animation_complete` actions.
-- `_cancelKey` restore state mapping: hit_flash→Hit, sunk_cascade→Sunk, sonar_sweep→SonarPositive, miss_fade→Miss.
+- `_cancelKey` restore state mapping: hit_flash→Hit, sunk_cascade→Sunk, sonar_sweep→SonarPositive, drone_scan→per-cell DronePositive/DroneNegative (via `positiveFlags`), miss_fade→Miss.
 
 ## Recon State Colors
 

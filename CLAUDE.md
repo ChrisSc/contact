@@ -159,4 +159,4 @@ See GDD Section 5.2 for full ability rules and interactions.
 1. **Decoy interaction complexity** — false positive across fire, drone, sonar. Test each path.
 2. **Silent Running timing** — track turns since activation, auto-reveal after 2 opponent turns.
 3. **Acoustic Cloak trigger** — earned reactively when enemy uses G-SONAR, not proactively.
-4. **Radar Jammer** — inverts result (yes<->no), does not simply return "no."
+4. **Radar Jammer** — inverts sonar ping (yes<->no). For drone scan, returns all-false (GDD 5.4).

@@ -8,6 +8,7 @@ import type { PerkId, PerkInstance } from '../../types/abilities';
 import { FLEET_ROSTER } from '../../types/fleet';
 import { formatCoordinate } from '../../engine/grid';
 import { getInventoryBySlot } from '../../engine/perks';
+import { calculateScanArea } from '../../engine/drone';
 import { SceneManager } from '../../renderer/scene';
 import type { ViewMode } from '../../renderer/views';
 import { getLogger } from '../../observability/logger';
@@ -25,6 +26,7 @@ interface CombatUIState {
   gameLog: string[];
   storeOpen: boolean;
   pingMode: boolean;
+  droneMode: boolean;
   turnSlots: TurnSlots;
 }
 
@@ -44,6 +46,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     gameLog: [],
     storeOpen: false,
     pingMode: false,
+    droneMode: false,
     turnSlots: { pingUsed: false, attackUsed: false, defendUsed: false },
   };
 
@@ -295,6 +298,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleBoardToggle(view: 'targeting' | 'own'): void {
+    if (uiState.pingMode) {
+      uiState.pingMode = false;
+      inventoryTray.clearSelection();
+    }
+    if (uiState.droneMode) {
+      uiState.droneMode = false;
+      sceneManager.clearGhostCells();
+      inventoryTray.clearSelection();
+    }
     if (uiState.boardView === view) return;
     uiState.boardView = view;
 
@@ -309,7 +321,9 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handleCellClick(coord: Coordinate): void {
     if (uiState.boardView !== 'targeting') return;
-    if (uiState.pingMode) {
+    if (uiState.droneMode) {
+      handleDroneScan(coord);
+    } else if (uiState.pingMode) {
       handlePing(coord);
     } else {
       handleFire(coord);
@@ -319,6 +333,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   function handleCellHover(coord: Coordinate | null): void {
     uiState.hoveredCoord = coord;
     coordDisplay.textContent = coord ? formatCoordinate(coord) : '\u2014 \u2014';
+
+    if (uiState.droneMode) {
+      if (coord) {
+        const scanCoords = calculateScanArea(coord);
+        sceneManager.setGhostCells(scanCoords, true);
+      } else {
+        sceneManager.clearGhostCells();
+      }
+    }
   }
 
   function handleStoreToggle(): void {
@@ -340,10 +363,35 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleInventorySelect(instance: PerkInstance): void {
+    // Cancel any active mode when selecting a new item
+    if (uiState.pingMode) {
+      uiState.pingMode = false;
+      sceneManager.clearGhostCells();
+    }
+    if (uiState.droneMode) {
+      uiState.droneMode = false;
+      sceneManager.clearGhostCells();
+    }
+
     if (instance.perkId === 'sonar_ping') {
       uiState.pingMode = true;
       selectLabel.textContent = 'CLICK CELL TO PING';
       hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO PING';
+    } else if (instance.perkId === 'recon_drone') {
+      uiState.droneMode = true;
+      selectLabel.textContent = 'SELECT SCAN CENTER';
+      hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK TO SCAN 3x3x3';
+    } else if (instance.perkId === 'radar_jammer') {
+      const deployed = game.useRadarJammer();
+      if (deployed) {
+        statusEl.className = 'combat-screen__status';
+        statusEl.textContent = 'RADAR JAMMER DEPLOYED';
+        statusEl.classList.add('combat-screen__status--sonar-negative');
+        inventoryTray.clearSelection();
+        refreshInventory();
+        refreshActionSlots();
+        uiState.turnSlots = game.getTurnSlots();
+      }
     }
   }
 
@@ -374,6 +422,48 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     refreshInventory();
     refreshActionSlots();
     uiState.turnSlots = game.getTurnSlots();
+  }
+
+  function handleDroneScan(coord: Coordinate): void {
+    const result = game.useReconDrone(coord);
+    if (!result) return;
+
+    // Reset drone mode
+    uiState.droneMode = false;
+    sceneManager.clearGhostCells();
+
+    // Update scene grid first so materials are set
+    updateSceneGrid();
+
+    // Only animate and count cells actually written to the targeting grid
+    // (skip cells that already had Hit/Miss/Sunk — animating those would
+    // corrupt their visual materials)
+    const writtenCells = result.cells.filter(c => c.written);
+
+    // Play drone scan animation
+    sceneManager.playDroneScanAnimation(writtenCells);
+
+    // Status message — count displayed contacts among written cells only
+    const contacts = writtenCells.filter(c => c.displayedResult).length;
+    statusEl.className = 'combat-screen__status';
+    if (contacts > 0) {
+      statusEl.textContent = `DRONE SCAN: ${contacts} CONTACT${contacts !== 1 ? 'S' : ''}`;
+      statusEl.classList.add('combat-screen__status--sonar-positive');
+    } else {
+      statusEl.textContent = 'DRONE SCAN: NO CONTACTS';
+      statusEl.classList.add('combat-screen__status--sonar-negative');
+    }
+
+    // Refresh UI
+    selectLabel.textContent = 'SELECT TARGET';
+    hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO FIRE';
+    inventoryTray.clearSelection();
+    refreshInventory();
+    refreshActionSlots();
+    uiState.turnSlots = game.getTurnSlots();
+
+    // Enable end turn (attack slot used)
+    endTurnBtn.disabled = false;
   }
 
   function handleFire(coord: Coordinate): void {
@@ -454,7 +544,11 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function refreshInventory(): void {
     const player = game.getCurrentPlayer();
-    inventoryTray.update(player.inventory);
+    // Hide radar_jammer instances when ability is active (deployed but not yet triggered)
+    const visible = player.inventory.filter(
+      p => !(p.perkId === 'radar_jammer' && player.abilities.radar_jammer.active),
+    );
+    inventoryTray.update(visible);
   }
 
   function refreshActionSlots(): void {
