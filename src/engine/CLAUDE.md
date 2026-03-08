@@ -4,15 +4,16 @@
 
 - **`grid.ts`** — 6 pure functions: `createGrid`, `getCell`, `setCell`, `parseCoordinate`, `formatCoordinate`, `isValidCoordinate`
 - **`fleet.ts`** — 8 functions: `calculateShipCells`, `validatePlacement`, `placeShip`, `removeShip`, `placeDecoy`, `isFleetComplete`, `checkSunk`, `getShipHealth`. Uses `AXIS_DELTAS` lookup table for cell offset computation.
-- **`game.ts`** — `GameController` class: setup flow, combat turns, victory detection, turn management, credit economy, perk purchasing, sonar ping
+- **`game.ts`** — `GameController` class: setup flow, combat turns, victory detection, turn management, credit economy, perk purchasing, sonar ping, recon drone, radar jammer
 - **`credits.ts`** — Pure `calculateFireCredits()` function. Award stacking: hit=1 CR, consecutive hit=+5 CR (if `wasLastTurnHit`), sink=+10 CR. A sunk with consecutive = 16 total.
 - **`perks.ts`** — Pure perk store functions: `getPerkDefinition`, `canPurchase`, `purchasePerk`, `removeFromInventory`, `getInventoryBySlot`, `generateInstanceId`. Returns new `PlayerState` (immutable pattern).
-- **`sonar.ts`** — Pure `executeSonarPing()` function. Checks defender grid for Ship/Decoy presence. Applies jammer (inverts) and cloak (forces false) modifiers. Jammer/cloak stubs active for forward compatibility with Sprint 3.2–3.4.
+- **`sonar.ts`** — Pure `executeSonarPing()` function. Checks defender grid for Ship/Decoy presence. Applies jammer (inverts) and cloak (forces false) modifiers.
+- **`drone.ts`** — Pure `executeReconDrone()` and `calculateScanArea()` functions. 3x3x3 volume scan centered on target. Returns per-cell results with raw/displayed/written booleans. Applies jammer (forces all-false per GDD 5.4) and cloak (forces false) modifiers. `DroneScanResult` includes `jammerConsumed` flag.
 
 ## Architecture
 
 - **Grid/Fleet**: Pure functions. No class state. Accept grid/state as parameters, return new data or mutation results.
-- **Credits/Perks/Sonar**: Pure functions. Accept player state, return new state or results. No side effects.
+- **Credits/Perks/Sonar/Drone**: Pure functions. Accept player state, return new state or results. No side effects.
 - **GameController**: Single stateful orchestrator. Owns `GameState`, delegates to grid/fleet/credits/perks/sonar functions. Couples to Logger singleton (initialized at construction).
 - Engine has **zero DOM/UI dependencies**. It can be tested and used without any rendering layer.
 
@@ -52,7 +53,28 @@
 - `useSonarPing(coord)`: validates phase, `!pingUsed`, inventory has `sonar_ping`, cell not already sonar-scanned.
 - Writes `SonarPositive`/`SonarNegative` to attacker's targeting grid.
 - Consumes one `sonar_ping` instance from inventory.
-- Jammer/cloak checks exist but always return false until Sprint 3.2–3.4 add deployment.
+- Jammer consumption: when sonar result is jammed (and not cloaked), jammer is deactivated, marked used, and removed from defender inventory.
+
+## Recon Drone
+
+- `useReconDrone(center)`: validates phase, `!attackUsed`, inventory has `recon_drone`, valid coordinate.
+- Scans 3x3x3 volume via `calculateScanArea()` (up to 27 cells, clipped to grid bounds).
+- Writes `DronePositive`/`DroneNegative` to attacker's targeting grid, skipping cells already resolved (Hit/Miss/Sunk/DecoyHit/DronePositive/DroneNegative).
+- Consumes `attackUsed` slot (replaces torpedo for the turn).
+- Consumes one `recon_drone` instance from inventory.
+- Jammer consumption: if drone result is jammed (and not cloaked), jammer is deactivated, marked used, and removed from defender inventory.
+
+## Radar Jammer
+
+- `useRadarJammer()`: validates phase, `!defendUsed`, inventory has `radar_jammer`, not already active.
+- Sets `player.abilities.radar_jammer.active = true`. Keeps instance in inventory (consumed on trigger).
+- Consumes `defendUsed` slot.
+- When triggered by sonar ping: inverts displayed result (yes↔no), then jammer is deactivated and instance removed.
+- When triggered by recon drone: forces all-false scan results (GDD 5.4), then jammer is deactivated and instance removed.
+
+## Torpedo Fire on Scanned Cells
+
+- `fireTorpedo()` allows firing on cells with `SonarPositive`, `SonarNegative`, `DronePositive`, or `DroneNegative` state (overwrites scan result with Hit/Miss).
 
 ## Placement Axes
 

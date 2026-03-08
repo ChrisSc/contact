@@ -38,7 +38,7 @@
 - **Options object** pattern for component configuration.
 - UI state lives in **screen closures**, NOT in GameController. Engine state and UI state are separate.
 - **SceneManager shared pattern**: Both setup and combat screens instantiate SceneManager with `{ container }`, wire `onCellClick`/`onCellHover`, call `start()`, and `dispose()` on unmount.
-- **Combat animation wiring**: `handleFire()` calls `sceneManager.playHitAnimation(coord)` on hit, `sceneManager.playSunkAnimation(ship.cells)` on sunk (cells from `game.getOpponent().ships`), `sceneManager.playMissAnimation(coord)` on miss. `handlePing()` calls `sceneManager.playSonarAnimation(coord, positive)`. Animations run after `updateSceneGrid()` so they overwrite view materials.
+- **Combat animation wiring**: `handleFire()` calls `sceneManager.playHitAnimation(coord)` on hit, `sceneManager.playSunkAnimation(ship.cells)` on sunk (cells from `game.getOpponent().ships`), `sceneManager.playMissAnimation(coord)` on miss. `handlePing()` calls `sceneManager.playSonarAnimation(coord, positive)`. `handleDroneScan()` filters `result.cells` to only `written` cells, then calls `sceneManager.playDroneScanAnimation(writtenCells)` — this prevents the animation from corrupting Hit/Sunk cell materials. Animations run after `updateSceneGrid()` so they overwrite view materials.
 
 ## Combat Screen — Perk Integration
 
@@ -47,5 +47,7 @@
 - **Purchase flow**: `onPurchase` → `game.purchasePerk(perkId)` → refresh credits/inventory/store/action slots.
 - **Ping mode**: Selecting sonar_ping from inventory → `pingMode = true`, hint changes to "CLICK CELL TO PING". `handleCellClick()` routes to `handlePing(coord)` when in ping mode, else `handleFire(coord)`.
 - **Ping resolution**: `game.useSonarPing(coord)` → sonar sweep animation → status "SONAR: CONTACT" or "SONAR: NEGATIVE" → exit ping mode, refresh UI.
+- **Drone mode**: Selecting recon_drone from inventory → `droneMode = true`, hover shows 3×3×3 ghost cell preview via `calculateScanArea()`. Click → `handleDroneScan(coord)` → `game.useReconDrone()` → filter to `written` cells → animate + count only written cells → status "DRONE SCAN: N CONTACTS".
+- **Radar jammer display**: `refreshInventory()` filters out `radar_jammer` instances when `player.abilities.radar_jammer.active` — deployed jammer disappears from tray until consumed by opponent action.
 - **End turn gating**: `turnSlots.attackUsed` required (unchanged from pre-perk behavior).
 - **Cleanup**: `perkStore.destroy()`, `inventoryTray.destroy()`, `actionSlotsComponent.destroy()` in `unmount()`.

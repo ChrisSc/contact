@@ -512,9 +512,9 @@ Implement the credit economy, perk store, player inventory, and all 7 purchasabl
 ### Sprint 3.2 — Pair 1: Reconnaissance (Recon Drone + Radar Jammer)
 
 **Component: Recon Drone (Offensive — Attack Slot)**
-- Implement target selector UI: player picks center cell for 3×3×1 scan area (9 cells)
-- Render scan area preview (9 cells highlighted) before confirmation
-- Implement scan logic: reveal which cells in the 3×3×1 contain ship segments (not identity/orientation)
+- Implement target selector UI: player picks center cell for 3×3×3 scan volume (up to 27 cells, clipped at grid bounds)
+- Render scan area preview (3×3×3 ghost cells highlighted) before confirmation
+- Implement scan logic: reveal which cells in the 3×3×3 volume contain ship segments (not identity/orientation)
 - Handle decoy within scan area: decoy appears as occupied cell (poisons intel)
 - Check for active Radar Jammer → return false scan results if jammed
 - Check for active Acoustic Cloak → return all-negative for cloaked cells
@@ -524,7 +524,7 @@ Implement the credit economy, perk store, player inventory, and all 7 purchasabl
 
 **Component: Radar Jammer (Defensive — Defend Slot)**
 - Implement activation: deploy from inventory during defend slot
-- Implement interaction: when opponent uses Sonar Ping or Recon Drone, invert/falsify the result
+- Implement interaction: when opponent uses Sonar Ping, invert result (yes↔no); when opponent uses Recon Drone, return all-false scan results (GDD §5.4)
 - Implement visual feedback: static burst animation on activation
 - Jammer is consumed on trigger (not on deploy — persists until triggered or end of game)
 - Write unit tests for jammer trigger on ping, jammer trigger on drone, jammer expiry

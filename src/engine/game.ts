@@ -3,7 +3,7 @@ import { GamePhase, PLAYER_DESIGNATIONS } from '../types/game';
 import type { Coordinate } from '../types/grid';
 import { CellState } from '../types/grid';
 import type { FleetRosterEntry, PlacementAxis } from '../types/fleet';
-import { createGrid, getCell, setCell, formatCoordinate } from './grid';
+import { createGrid, getCell, setCell, formatCoordinate, isValidCoordinate } from './grid';
 import {
   placeShip,
   placeDecoy,
@@ -20,6 +20,8 @@ import { calculateFireCredits } from './credits';
 import { purchasePerk as purchasePerkFn, removeFromInventory } from './perks';
 import { executeSonarPing } from './sonar';
 import type { SonarPingResult } from './sonar';
+import { executeReconDrone } from './drone';
+import type { DroneScanResult } from './drone';
 
 const ALL_ABILITY_IDS: AbilityId[] = [
   'sonar_ping', 'radar_jammer', 'recon_drone', 'decoy',
@@ -194,7 +196,9 @@ export class GameController {
       attackerTargetCell &&
       attackerTargetCell.state !== CellState.Empty &&
       attackerTargetCell.state !== CellState.SonarPositive &&
-      attackerTargetCell.state !== CellState.SonarNegative
+      attackerTargetCell.state !== CellState.SonarNegative &&
+      attackerTargetCell.state !== CellState.DronePositive &&
+      attackerTargetCell.state !== CellState.DroneNegative
     ) {
       return null;
     }
@@ -361,6 +365,17 @@ export class GameController {
 
     this.turnSlots.pingUsed = true;
 
+    // Jammer consumption
+    if (result.jammed && !result.cloaked) {
+      defender.abilities.radar_jammer.active = false;
+      defender.abilities.radar_jammer.used = true;
+      const jammerInst = defender.inventory.find(p => p.perkId === 'radar_jammer');
+      if (jammerInst) {
+        const defIdx: PlayerIndex = this.state.currentPlayer === 0 ? 1 : 0;
+        this.state.players[defIdx] = removeFromInventory(this.state.players[defIdx]!, jammerInst.id);
+      }
+    }
+
     this.logger.emit('perk.use', {
       player: idx,
       perkId: 'sonar_ping',
@@ -370,6 +385,95 @@ export class GameController {
     });
 
     return result;
+  }
+
+  useReconDrone(center: Coordinate): DroneScanResult | null {
+    if (this.state.phase !== GamePhase.Combat) return null;
+    if (this.turnSlots.attackUsed) return null;
+
+    const attacker = this.getCurrentPlayer();
+    const defender = this.getOpponent();
+
+    // Must have recon_drone in inventory
+    const droneInstance = attacker.inventory.find((p) => p.perkId === 'recon_drone');
+    if (!droneInstance) return null;
+
+    // Validate center coordinate
+    if (!isValidCoordinate(center)) return null;
+
+    const result = executeReconDrone(center, attacker, defender);
+
+    // Remove drone instance from inventory
+    const updated = removeFromInventory(attacker, droneInstance.id);
+    const idx = attacker.index;
+    this.state.players[idx] = updated;
+
+    // Write results to targeting grid — skip cells already resolved
+    for (const cellResult of result.cells) {
+      const existing = getCell(this.state.players[idx]!.targetingGrid, cellResult.coord);
+      if (existing && existing.state !== CellState.Empty &&
+          existing.state !== CellState.SonarPositive &&
+          existing.state !== CellState.SonarNegative) {
+        continue; // Don't overwrite Hit/Miss/Sunk/DecoyHit/DronePositive/DroneNegative
+      }
+      cellResult.written = true;
+      const droneState = cellResult.displayedResult ? CellState.DronePositive : CellState.DroneNegative;
+      this.state.players[idx]!.targetingGrid = setCell(
+        this.state.players[idx]!.targetingGrid,
+        cellResult.coord,
+        { state: droneState, shipId: null },
+      );
+    }
+
+    // Jammer consumption
+    if (result.jammerConsumed) {
+      defender.abilities.radar_jammer.active = false;
+      defender.abilities.radar_jammer.used = true;
+      const jammerInst = defender.inventory.find(p => p.perkId === 'radar_jammer');
+      if (jammerInst) {
+        const defIdx: PlayerIndex = this.state.currentPlayer === 0 ? 1 : 0;
+        this.state.players[defIdx] = removeFromInventory(this.state.players[defIdx]!, jammerInst.id);
+      }
+    }
+
+    this.turnSlots.attackUsed = true;
+
+    this.logger.emit('perk.use', {
+      player: idx,
+      perkId: 'recon_drone',
+      instanceId: droneInstance.id,
+      target: formatCoordinate(center),
+      result: `${result.cells.filter(c => c.written && c.displayedResult).length} contacts`,
+    });
+
+    return result;
+  }
+
+  useRadarJammer(): boolean {
+    if (this.state.phase !== GamePhase.Combat) return false;
+    if (this.turnSlots.defendUsed) return false;
+
+    const player = this.getCurrentPlayer();
+
+    // Must have radar_jammer in inventory
+    const jammerInstance = player.inventory.find((p) => p.perkId === 'radar_jammer');
+    if (!jammerInstance) return false;
+
+    // No stacking
+    if (player.abilities.radar_jammer.active) return false;
+
+    // Activate — keep in inventory, consumed on trigger
+    player.abilities.radar_jammer.active = true;
+    this.turnSlots.defendUsed = true;
+
+    this.logger.emit('perk.use', {
+      player: player.index,
+      perkId: 'radar_jammer',
+      instanceId: jammerInstance.id,
+      result: 'deployed',
+    });
+
+    return true;
   }
 
   endTurn(): boolean {

@@ -572,6 +572,308 @@ describe('GameController - Sonar Ping', () => {
   });
 });
 
+describe('GameController - Recon Drone', () => {
+  it('successful drone scan writes DronePositive/DroneNegative to targeting grid', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Give credits: hit to get enough (start 5, need 10 for drone)
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit → +1 CR = 6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // p1 misses
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // hit → +6 CR (consecutive) = 12
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    // Purchase and use drone
+    const instance = gc.purchasePerk('recon_drone'); // cost 10, have 12
+    expect(instance).not.toBeNull();
+
+    const result = gc.useReconDrone({ col: 5, row: 5, depth: 5 });
+    expect(result).not.toBeNull();
+
+    // Check targeting grid has drone results
+    const cell = getCell(gc.getCurrentPlayer().targetingGrid, { col: 5, row: 5, depth: 5 });
+    expect(
+      cell!.state === CellState.DronePositive || cell!.state === CellState.DroneNegative,
+    ).toBe(true);
+  });
+
+  it('drone consumes attack slot (cannot fire after)', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Earn enough credits
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 consecutive
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    gc.purchasePerk('recon_drone');
+    gc.useReconDrone({ col: 5, row: 5, depth: 5 });
+
+    // Should not be able to fire
+    const fireResult = gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    expect(fireResult).toBeNull();
+    expect(gc.getTurnSlots().attackUsed).toBe(true);
+  });
+
+  it('drone requires inventory instance', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // No drone purchased
+    const result = gc.useReconDrone({ col: 3, row: 3, depth: 3 });
+    expect(result).toBeNull();
+  });
+
+  it('drone does not overwrite Hit/Miss/Sunk cells', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Fire at a cell first to create a Miss
+    gc.fireTorpedo({ col: 5, row: 5, depth: 5 }); // miss
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+
+    // Earn credits for drone
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.endTurn();
+
+    gc.purchasePerk('recon_drone'); // cost 10
+    const result = gc.useReconDrone({ col: 5, row: 5, depth: 5 }); // scan includes the Miss cell
+
+    // The Miss cell should NOT be overwritten
+    const cell = getCell(gc.getCurrentPlayer().targetingGrid, { col: 5, row: 5, depth: 5 });
+    expect(cell!.state).toBe(CellState.Miss);
+
+    // The Miss cell should have written=false in the result
+    const missResult = result!.cells.find(c => c.coord.col === 5 && c.coord.row === 5 && c.coord.depth === 5);
+    expect(missResult!.written).toBe(false);
+
+    // Other cells (empty) should have written=true
+    const writtenCells = result!.cells.filter(c => c.written);
+    expect(writtenCells.length).toBe(result!.cells.length - 1);
+  });
+
+  it('drone correctly detects ships at known positions', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // P0 earns credits by hitting P1's ships
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit P1 typhoon +1 = 6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // P1 misses
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // hit P1 typhoon +6 = 12
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    gc.purchasePerk('recon_drone'); // cost 10
+
+    // Scan center (1, 3, 0) — overlaps Virginia (0-2, row 3, depth 0),
+    // Seawolf (0-2, row 2, depth 0), and Midget (0-1, row 4, depth 0)
+    // Scan area: cols 0-2, rows 2-4, depths 0-1 (clip at 0)
+    const result = gc.useReconDrone({ col: 1, row: 3, depth: 0 });
+    expect(result).not.toBeNull();
+
+    // Count positives: 3 seawolf + 3 virginia + 2 midget = 8 ship cells
+    const positives = result!.cells.filter(c => c.displayedResult);
+    expect(positives).toHaveLength(8);
+
+    // All positives should be at depth 0 (ships are all at depth 0)
+    for (const p of positives) {
+      expect(p.coord.depth).toBe(0);
+    }
+
+    // Negatives should be all depth 1 cells + depth 0 cells without ships
+    const negatives = result!.cells.filter(c => !c.displayedResult);
+    // Total scan cells: 3 cols * 3 rows * 2 depths = 18 (clipped at depth 0, so depths 0-1)
+    // Wait, depth center=0, range is -1 to +1, clipped to 0-1
+    expect(result!.cells).toHaveLength(18); // 3*3*2
+    expect(negatives).toHaveLength(10);
+
+    // Verify each positive is actually at a ship position on defender's grid
+    const defenderGrid = gc.getOpponent().ownGrid;
+    for (const cellResult of result!.cells) {
+      const defenderCell = getCell(defenderGrid, cellResult.coord);
+      const isShipOrDecoy = defenderCell!.state === CellState.Ship || defenderCell!.state === CellState.Decoy;
+      expect(cellResult.displayedResult).toBe(isShipOrDecoy);
+    }
+  });
+
+  it('fire torpedo allowed on DronePositive/DroneNegative cells', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Earn credits
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    // Use drone on center area (no ships there)
+    gc.purchasePerk('recon_drone');
+    gc.useReconDrone({ col: 5, row: 5, depth: 5 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.endTurn();
+
+    // Fire at a drone-scanned cell
+    const cell = getCell(gc.getCurrentPlayer().targetingGrid, { col: 5, row: 5, depth: 5 });
+    expect(cell!.state === CellState.DronePositive || cell!.state === CellState.DroneNegative).toBe(true);
+
+    const fireResult = gc.fireTorpedo({ col: 5, row: 5, depth: 5 });
+    expect(fireResult).not.toBeNull();
+  });
+});
+
+describe('GameController - Radar Jammer', () => {
+  it('deploy sets ability active, consumes defend slot', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    gc.purchasePerk('radar_jammer'); // cost 5, have 5
+    const deployed = gc.useRadarJammer();
+    expect(deployed).toBe(true);
+    expect(gc.getCurrentPlayer().abilities.radar_jammer.active).toBe(true);
+    expect(gc.getTurnSlots().defendUsed).toBe(true);
+  });
+
+  it('cannot stack (deploy when already active returns false)', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Need 10 credits for two jammers. Start with 5, earn more.
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 = 12
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+
+    gc.purchasePerk('radar_jammer'); // -5 = 7
+    gc.purchasePerk('radar_jammer'); // -5 = 2
+
+    gc.useRadarJammer();
+    expect(gc.getCurrentPlayer().abilities.radar_jammer.active).toBe(true);
+
+    // Next turn, try to deploy second jammer when first is still active
+    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.endTurn();
+    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.endTurn();
+
+    const second = gc.useRadarJammer();
+    expect(second).toBe(false);
+  });
+
+  it('consumed when opponent sonar pings', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Player 0 buys and deploys jammer
+    gc.purchasePerk('radar_jammer'); // cost 5
+    gc.useRadarJammer();
+    expect(gc.getCurrentPlayer().abilities.radar_jammer.active).toBe(true);
+
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+
+    // Player 1 pings player 0
+    gc.purchasePerk('sonar_ping'); // cost 3, p1 has 5
+    const pingResult = gc.useSonarPing({ col: 3, row: 3, depth: 3 });
+    expect(pingResult).not.toBeNull();
+    expect(pingResult!.jammed).toBe(true);
+
+    // Player 0's jammer should now be consumed
+    const p0 = gc.getState().players[0]!;
+    expect(p0.abilities.radar_jammer.active).toBe(false);
+    expect(p0.abilities.radar_jammer.used).toBe(true);
+  });
+
+  it('consumed when opponent drone scans', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Player 0 buys and deploys jammer
+    gc.purchasePerk('radar_jammer');
+    gc.useRadarJammer();
+
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+
+    // Player 1 needs credits for drone (cost 10, has 5)
+    // Turn 2 (P1): hit P0 typhoon → +1 = 6
+    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
+    gc.endTurn();
+    // Turn 3 (P0): P0 fires a miss
+    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.endTurn();
+    // Turn 4 (P1): consecutive hit → +6 = 12
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // consecutive +6 = 12
+    gc.endTurn();
+    // Turn 5 (P0): P0 fires a miss, then endTurn so P1 gets to act
+    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.endTurn();
+
+    // Turn 6 (P1): buy and use drone — P1 has 12 credits
+    gc.purchasePerk('recon_drone'); // cost 10, should have enough
+    const droneResult = gc.useReconDrone({ col: 5, row: 5, depth: 5 });
+    expect(droneResult).not.toBeNull();
+    expect(droneResult!.jammed).toBe(true);
+
+    // Player 0's jammer consumed
+    const p0 = gc.getState().players[0]!;
+    expect(p0.abilities.radar_jammer.active).toBe(false);
+    expect(p0.abilities.radar_jammer.used).toBe(true);
+  });
+
+  it('NOT consumed when cloak also active (cloak takes priority)', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Player 0 has both jammer and cloak active
+    gc.purchasePerk('radar_jammer');
+    gc.useRadarJammer();
+    // Manually set cloak active (no purchase mechanism yet)
+    gc.getState().players[0]!.abilities.acoustic_cloak.active = true;
+
+    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.endTurn();
+
+    // Player 1 pings
+    gc.purchasePerk('sonar_ping');
+    const pingResult = gc.useSonarPing({ col: 3, row: 3, depth: 3 });
+    expect(pingResult!.cloaked).toBe(true);
+
+    // Jammer should NOT be consumed because cloak took priority
+    const p0 = gc.getState().players[0]!;
+    expect(p0.abilities.radar_jammer.active).toBe(true);
+    expect(p0.abilities.radar_jammer.used).toBe(false);
+  });
+});
+
 describe('GameController - Turn Slots', () => {
   it('ping does not block attack (can ping then fire)', () => {
     const gc = new GameController('test-session');

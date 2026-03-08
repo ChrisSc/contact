@@ -18,9 +18,11 @@ interface AnimEntry {
 }
 
 interface ActiveAnimation {
-  type: 'hit_flash' | 'sunk_cascade' | 'miss_fade' | 'sonar_sweep';
+  type: 'hit_flash' | 'sunk_cascade' | 'miss_fade' | 'sonar_sweep' | 'drone_scan';
   elapsed: number;
   entries: AnimEntry[];
+  /** Per-entry positive flags for drone_scan (used by cancel to restore correct state) */
+  positiveFlags?: boolean[];
   onUpdate(elapsed: number): boolean; // returns true when complete
 }
 
@@ -64,8 +66,14 @@ export class AnimationManager {
 
   update(dt: number): void {
     const completed: string[] = [];
+    const processed = new Set<ActiveAnimation>();
 
     for (const [key, anim] of this.animations) {
+      // Multi-key animations (sunk_cascade, drone_scan) share one object
+      // across many keys — only advance elapsed once per frame.
+      if (processed.has(anim)) continue;
+      processed.add(anim);
+
       anim.elapsed += dt;
       const done = anim.onUpdate(anim.elapsed);
       if (done) {
@@ -375,6 +383,133 @@ export class AnimationManager {
   }
 
   // -------------------------------------------------------------------------
+  // playDroneScan — staggered sonar-like pulse per cell, restore DronePositive/Negative pool
+  // -------------------------------------------------------------------------
+
+  playDroneScan(results: Array<{coord: Coordinate; positive: boolean}>): void {
+    if (results.length === 0) return;
+
+    // Cancel existing animations on these cells
+    for (const r of results) {
+      const key = coordKey(r.coord);
+      if (this.animations.has(key)) {
+        this._cancelKey(key);
+      }
+    }
+
+    const entries: AnimEntry[] = [];
+    const positiveFlags: boolean[] = [];
+
+    for (const r of results) {
+      const cell = this.cube.getCellMesh(r.coord);
+      if (!cell) continue;
+
+      const color = r.positive ? CRT_COLORS.CYAN : CRT_COLORS.GREEN_DIM;
+
+      const fill = new THREE.MeshBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0,
+        depthWrite: false,
+      });
+      const edge = new THREE.LineBasicMaterial({
+        color,
+        transparent: true,
+        opacity: 0,
+      });
+
+      cell.box.material = fill;
+      cell.edges.material = edge;
+
+      entries.push({ coord: r.coord, cell, fill, edge });
+      positiveFlags.push(r.positive);
+    }
+
+    if (entries.length === 0) return;
+
+    const stagger = 0.03; // 30ms per cell
+    const cellDuration = 0.5; // 500ms per cell (300ms pulse + 200ms settle)
+    const totalDuration = stagger * (entries.length - 1) + cellDuration;
+    const pool = this.materialPool;
+    const allKeys = entries.map(e => coordKey(e.coord));
+
+    const anim: ActiveAnimation = {
+      type: 'drone_scan',
+      elapsed: 0,
+      entries,
+      positiveFlags,
+      onUpdate(elapsed: number): boolean {
+        for (let i = 0; i < entries.length; i++) {
+          const entry = entries[i]!;
+          const positive = positiveFlags[i]!;
+          const staggerOffset = i * stagger;
+          const localTime = elapsed - staggerOffset;
+
+          const targetFillOpacity = positive ? 0.4 : 0.1;
+          const targetEdgeOpacity = positive ? 0.6 : 0.15;
+
+          if (localTime < 0) {
+            // Not started yet
+            entry.fill.opacity = 0;
+            entry.edge.opacity = 0;
+          } else if (localTime <= 0.3) {
+            // Phase 1: pulse up
+            const t = clamp(localTime / 0.3, 0, 1);
+            entry.fill.opacity = t * 0.8;
+            entry.edge.opacity = t * 1.0;
+          } else if (localTime <= 0.5) {
+            // Phase 2: settle to target
+            const t = clamp((localTime - 0.3) / 0.2, 0, 1);
+            entry.fill.opacity = 0.8 + t * (targetFillOpacity - 0.8);
+            entry.edge.opacity = 1.0 + t * (targetEdgeOpacity - 1.0);
+          } else {
+            // Done — hold at target values
+            entry.fill.opacity = targetFillOpacity;
+            entry.edge.opacity = targetEdgeOpacity;
+          }
+        }
+
+        if (elapsed >= totalDuration) {
+          // Restore pooled materials for each cell
+          for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i]!;
+            const positive = positiveFlags[i]!;
+            const targetState = positive ? CellState.DronePositive : CellState.DroneNegative;
+            const mats = pool.getMaterials(targetState);
+            entry.cell.box.material = mats.fill;
+            entry.cell.edges.material = mats.edge;
+            entry.fill.dispose();
+            entry.edge.dispose();
+          }
+          return true;
+        }
+        return false;
+      },
+    };
+
+    // Register under ALL coord keys
+    const animationsMap = this.animations;
+    for (const key of allKeys) {
+      this.animations.set(key, anim);
+    }
+
+    tryLog('animation_start', 'drone_scan');
+
+    // Override onUpdate to clean up all keys
+    const originalOnUpdate = anim.onUpdate.bind(anim);
+    anim.onUpdate = function (elapsed: number): boolean {
+      const done = originalOnUpdate(elapsed);
+      if (done) {
+        for (const k of allKeys) {
+          animationsMap.delete(k);
+        }
+        tryLog('animation_complete', 'drone_scan');
+      }
+      return done;
+    };
+  }
+
+  // -------------------------------------------------------------------------
   // cancelAt — remove animation, dispose private materials, restore pool mats
   // -------------------------------------------------------------------------
 
@@ -387,17 +522,23 @@ export class AnimationManager {
     const anim = this.animations.get(key);
     if (!anim) return;
 
-    // Determine restore state
-    const restoreState =
-      anim.type === 'hit_flash' ? CellState.Hit :
-      anim.type === 'sunk_cascade' ? CellState.Sunk :
-      anim.type === 'sonar_sweep' ? CellState.SonarPositive :
-      CellState.Miss;
+    // Restore all entries in the animation (cascade/drone may span multiple cells)
+    for (let i = 0; i < anim.entries.length; i++) {
+      const entry = anim.entries[i]!;
 
-    const pooledMats = this.materialPool.getMaterials(restoreState);
+      // Drone scan: restore each cell to its correct positive/negative state
+      let restoreState: CellState;
+      if (anim.type === 'drone_scan' && anim.positiveFlags) {
+        restoreState = anim.positiveFlags[i] ? CellState.DronePositive : CellState.DroneNegative;
+      } else {
+        restoreState =
+          anim.type === 'hit_flash' ? CellState.Hit :
+          anim.type === 'sunk_cascade' ? CellState.Sunk :
+          anim.type === 'sonar_sweep' ? CellState.SonarPositive :
+          CellState.Miss;
+      }
 
-    // Restore all entries in the animation (cascade may span multiple cells)
-    for (const entry of anim.entries) {
+      const pooledMats = this.materialPool.getMaterials(restoreState);
       entry.cell.box.material = pooledMats.fill;
       entry.cell.edges.material = pooledMats.edge;
       entry.fill.dispose();
@@ -417,21 +558,28 @@ export class AnimationManager {
   // -------------------------------------------------------------------------
 
   cancelAll(): void {
-    // Collect unique animations (cascade registers under multiple keys)
+    // Collect unique animations (cascade/drone register under multiple keys)
     const seen = new Set<ActiveAnimation>();
     for (const anim of this.animations.values()) {
       seen.add(anim);
     }
 
     for (const anim of seen) {
-      const restoreState =
-        anim.type === 'hit_flash' ? CellState.Hit :
-        anim.type === 'sunk_cascade' ? CellState.Sunk :
-        anim.type === 'sonar_sweep' ? CellState.SonarPositive :
-        CellState.Miss;
+      for (let i = 0; i < anim.entries.length; i++) {
+        const entry = anim.entries[i]!;
 
-      const pooledMats = this.materialPool.getMaterials(restoreState);
-      for (const entry of anim.entries) {
+        let restoreState: CellState;
+        if (anim.type === 'drone_scan' && anim.positiveFlags) {
+          restoreState = anim.positiveFlags[i] ? CellState.DronePositive : CellState.DroneNegative;
+        } else {
+          restoreState =
+            anim.type === 'hit_flash' ? CellState.Hit :
+            anim.type === 'sunk_cascade' ? CellState.Sunk :
+            anim.type === 'sonar_sweep' ? CellState.SonarPositive :
+            CellState.Miss;
+        }
+
+        const pooledMats = this.materialPool.getMaterials(restoreState);
         entry.cell.box.material = pooledMats.fill;
         entry.cell.edges.material = pooledMats.edge;
         entry.fill.dispose();
