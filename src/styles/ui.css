@@ -723,12 +723,19 @@
 .combat-screen__status--miss { color: var(--crt-green-dim); }
 .combat-screen__status--sunk { color: var(--crt-amber); text-shadow: 0 0 8px rgba(255, 176, 0, 0.4); }
 
-/* --- Enemy fleet (bottom-right overlay) --- */
-.combat-screen__fleet-panel {
+/* --- Right stack: end turn + fleet (bottom-right overlay) --- */
+.combat-screen__right-stack {
   position: absolute;
-  bottom: 46px;
+  bottom: 28px;
   right: var(--spacing-md);
   z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+
+.combat-screen__fleet-panel {
   pointer-events: none;
 }
 
@@ -785,14 +792,11 @@
   margin: 6px 0;
 }
 
-/* --- End Turn button (bottom-right) --- */
+/* --- End Turn button (inside right stack) --- */
 .combat-screen__end-turn {
-  position: absolute;
-  bottom: var(--spacing-sm);
-  right: var(--spacing-md);
-  z-index: 10;
   font-size: 10px;
   padding: 6px 16px;
+  pointer-events: auto;
 }
 
 /* --- Controls hint --- */
