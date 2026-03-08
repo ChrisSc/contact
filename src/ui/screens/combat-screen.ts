@@ -257,7 +257,17 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   const overlays = new AbilityOverlayManager();
   el.appendChild(overlays.render());
 
-  // --- Fleet panel (bottom-right overlay) ---
+  // --- Right-side stack: end turn + fleet panel (bottom-right overlay) ---
+  const rightStack = document.createElement('div');
+  rightStack.className = 'combat-screen__right-stack';
+
+  const endTurnBtn = document.createElement('button');
+  endTurnBtn.className = 'combat-screen__end-turn crt-button';
+  endTurnBtn.textContent = 'END TURN';
+  endTurnBtn.disabled = true;
+  endTurnBtn.addEventListener('click', handleEndTurn);
+  rightStack.appendChild(endTurnBtn);
+
   const fleetPanel = document.createElement('div');
   fleetPanel.className = 'combat-screen__fleet-panel';
 
@@ -283,15 +293,8 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   enemyFleetContainer.className = 'combat-screen__enemy-fleet';
   fleetPanel.appendChild(enemyFleetContainer);
 
-  el.appendChild(fleetPanel);
-
-  // --- End turn button (bottom-right) ---
-  const endTurnBtn = document.createElement('button');
-  endTurnBtn.className = 'combat-screen__end-turn crt-button';
-  endTurnBtn.textContent = 'END TURN';
-  endTurnBtn.disabled = true;
-  endTurnBtn.addEventListener('click', handleEndTurn);
-  el.appendChild(endTurnBtn);
+  rightStack.appendChild(fleetPanel);
+  el.appendChild(rightStack);
 
   // --- Bottom stats bar ---
   const bottomBar = document.createElement('div');
