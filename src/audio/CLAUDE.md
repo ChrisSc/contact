@@ -3,7 +3,7 @@
 ## Files
 
 - **`audio-manager.ts`** — Tone.js context lifecycle owner. `initAudioContext()` (lazy, idempotent — call on first user gesture), `isAudioReady()` (guards all playback), `setMasterVolume(db)`, `toggleMute()`, `isMuted()`. Module-level `contextReady` flag plus `Tone.getContext().state` check. Also owns game phase tracking: `AudioPhase` type (`setup | combat_early | combat_mid | combat_escalation | combat_endgame`), `setGamePhase()`, `getGamePhase()`, `getAudioPhaseFromTurn()` (pure mapper: 1-10=early, 11-20=mid, 21-30=escalation, 31+=endgame).
-- **`abilities.ts`** — Synthesized SFX for all combat actions and ability deployments. All no-ops when context not ready. Fire-and-forget (no await needed). Exports: `playTorpedoFireSound()`, `playTorpedoHitSound()`, `playTorpedoMissSound()`, `playTorpedoSunkSound()`, `playSonarPingSound()`, `playReconDroneSound()`, `playRadarJammerSound()`, `playDepthChargeSound()`, `playSilentRunningActivate()`, `playSilentRunningExpire()`, `playGSonarSound()`, `playAcousticCloakSound()`.
+- **`abilities.ts`** — Synthesized SFX for all combat actions and ability deployments. All no-ops when context not ready. Fire-and-forget (no await needed). Exports: `playTorpedoFireSound()`, `playTorpedoHitSound()`, `playTorpedoMissSound()`, `playTorpedoSunkSound()`, `playSonarPingSound()`, `playReconDroneSound()`, `playRadarJammerSound()`, `playDepthChargeSound()`, `playSilentRunningActivate()`, `playSilentRunningExpire()`, `playGSonarSound()`, `playAcousticCloakSound()`, `playPurchaseSound()`, `playInsufficientFundsSound()`.
 - **`ambient.ts`** — Persistent ambient soundscape with three layers: submarine hum (sine oscillator ~40 Hz), ocean noise floor (brown noise ~100 Hz), periodic atmospheric sonar pings (sine chirp 600→800 Hz). Unlike fire-and-forget SFX, uses persistent Tone.js nodes that stay alive during combat. Exports: `startAmbient()`, `stopAmbient()`, `updateAmbientPhase(phase)`, `isAmbientRunning()`.
 
 ## Architecture
@@ -30,6 +30,8 @@
 | **Silent Running expire** | Triangle 100→400 Hz ascending, highpass 80 Hz, -16 dB | ~300ms + 600ms cleanup | Subtle resurface notification |
 | **G-SONAR** | (1) Sine 200→400 Hz main sweep, -6 dB, (2) Sine 600→1200 Hz harmonic layer, -14 dB, (3) FeedbackDelay (0.32s, 28% feedback, 30% wet) shared by both | ~800ms + 1.6s cleanup | Deep commanding area sonar, wider and slower than standard ping |
 | **Acoustic Cloak** | White noise → bandpass 1200→200 Hz closing sweep, Q 1.8, LFO 8 Hz on filter detune (±80 Hz wobble), -14 dB overall | ~500ms + 900ms cleanup | Ethereal fade-to-silence, ships dissolving from sensors |
+| **Purchase** | Sine two-tone 400→600 Hz step, -10 dB | ~200ms + 500ms cleanup | Clean ascending "credit accepted" chime |
+| **Insufficient funds** | Sawtooth 120 Hz → bandpass 350 Hz, Q 2, -8 dB | ~250ms + 500ms cleanup | Harsh "denied" buzz |
 
 ## Patterns
 
@@ -52,11 +54,13 @@ Combat screen calls `initAudioContext()` on first user interaction (any click ha
 - SR expiry in `handleEndTurn()` → `playSilentRunningExpire()` (checks `game.getLastSRExpired().length > 0`)
 - G-SONAR deploy → `playGSonarSound()`
 - Acoustic Cloak trigger → `playAcousticCloakSound()`
+- Perk purchase success → `playPurchaseSound()`
+- Perk purchase failure (insufficient funds) → `playInsufficientFundsSound()`
 
 ## Testing
 
 - Audio modules are **mocked** in UI tests (`vi.mock`) to avoid Tone.js ESM import issues in jsdom.
-- Mock in `tests/ui/combat-screen.test.ts` covers: `audio-manager` (all exports including phase tracking + mute), `abilities` (all 12 SFX), `ambient` (`startAmbient`, `stopAmbient`, `updateAmbientPhase`, `isAmbientRunning`).
+- Mock in `tests/ui/combat-screen.test.ts` covers: `audio-manager` (all exports including phase tracking + mute), `abilities` (all 14 SFX), `ambient` (`startAmbient`, `stopAmbient`, `updateAmbientPhase`, `isAmbientRunning`).
 - No dedicated audio unit tests — functions are fire-and-forget synthesis with no return values or testable state.
 
 ## Ambient Phase Ramp Parameters
