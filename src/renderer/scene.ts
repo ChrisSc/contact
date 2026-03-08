@@ -101,6 +101,11 @@ export class SceneManager {
   }
 
   private handleClick(e: PointerEvent): void {
+    if (this.orbit.wasDragging) {
+      this.orbit.consumeDrag();
+      return;
+    }
+
     const coord = this.raycaster.pick(e);
     if (coord) {
       for (const cb of this.cellClickCallbacks) {
