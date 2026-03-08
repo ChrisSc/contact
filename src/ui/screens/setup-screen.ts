@@ -197,6 +197,12 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   shipRoster.updatePlaced(player.ships);
   rosterPanel.appendChild(shipRoster.render());
 
+  const autoDeployBtn = document.createElement('button');
+  autoDeployBtn.className = 'setup-screen__auto-deploy';
+  autoDeployBtn.textContent = 'AUTO DEPLOY';
+  autoDeployBtn.addEventListener('click', handleAutoDeploy);
+  rosterPanel.appendChild(autoDeployBtn);
+
   el.appendChild(rosterPanel);
 
   // --- Footer (bottom overlay) ---
@@ -380,6 +386,51 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
     }
     uiState.selectedShipId = null;
     uiState.placementPhase = 'ships';
+    shipRoster.setSelected(null);
+    refreshState();
+  }
+
+  function handleAutoDeploy(): void {
+    // Reset any existing placements
+    handleReset();
+
+    // Try random placement for each ship
+    const axisOptions: PlacementAxis[] = [...PLACEMENT_AXES];
+    for (const entry of FLEET_ROSTER) {
+      let placed = false;
+      for (let attempt = 0; attempt < 200; attempt++) {
+        const origin: Coordinate = {
+          col: Math.floor(Math.random() * GRID_SIZE),
+          row: Math.floor(Math.random() * GRID_SIZE),
+          depth: Math.floor(Math.random() * GRID_SIZE),
+        };
+        const axis = axisOptions[Math.floor(Math.random() * axisOptions.length)]!;
+        const success = game.placeShipForCurrentPlayer(entry, origin, axis);
+        if (success) {
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        // Bail — shouldn't happen with 512 cells and 17 ship cells
+        handleReset();
+        statusEl.textContent = 'AUTO DEPLOY FAILED \u2014 TRY AGAIN';
+        return;
+      }
+    }
+
+    // Place decoy in a random empty cell
+    for (let attempt = 0; attempt < 200; attempt++) {
+      const coord: Coordinate = {
+        col: Math.floor(Math.random() * GRID_SIZE),
+        row: Math.floor(Math.random() * GRID_SIZE),
+        depth: Math.floor(Math.random() * GRID_SIZE),
+      };
+      if (game.placeDecoyForCurrentPlayer(coord)) break;
+    }
+
+    uiState.selectedShipId = null;
+    uiState.placementPhase = 'confirm';
     shipRoster.setSelected(null);
     refreshState();
   }

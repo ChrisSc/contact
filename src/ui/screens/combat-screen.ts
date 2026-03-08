@@ -17,7 +17,17 @@ import { PerkStore } from '../components/perk-store';
 import { InventoryTray } from '../components/inventory-tray';
 import { ActionSlots } from '../components/action-slots';
 import { initAudioContext } from '../../audio/audio-manager';
-import { playDepthChargeSound, playSilentRunningActivate } from '../../audio/abilities';
+import {
+  playDepthChargeSound,
+  playSilentRunningActivate,
+  playTorpedoFireSound,
+  playTorpedoHitSound,
+  playTorpedoMissSound,
+  playTorpedoSunkSound,
+  playSonarPingSound,
+  playReconDroneSound,
+  playRadarJammerSound,
+} from '../../audio/abilities';
 
 interface CombatUIState {
   currentDepth: number | null;
@@ -430,14 +440,19 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       selectLabel.textContent = 'SELECT STRIKE CENTER';
       hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK TO STRIKE 3x3x3';
     } else if (instance.perkId === 'silent_running') {
-      // Switch to own grid view to select a ship
-      handleBoardToggle('own');
+      // Switch to own grid view directly (bypass handleBoardToggle to avoid mode cancellation)
+      uiState.boardView = 'own';
+      targetingBtn.classList.remove('combat-screen__toggle-btn--active');
+      ownFleetBtn.classList.add('combat-screen__toggle-btn--active');
+      sceneManager.setBoardType('own');
+      updateSceneGrid();
       uiState.silentRunningMode = true;
       selectLabel.textContent = 'SELECT SHIP TO CLOAK';
       hint.textContent = 'CLICK ON YOUR SHIP TO ACTIVATE SILENT RUNNING';
     } else if (instance.perkId === 'radar_jammer') {
       const deployed = game.useRadarJammer();
       if (deployed) {
+        playRadarJammerSound();
         statusEl.className = 'combat-screen__status';
         statusEl.textContent = 'RADAR JAMMER DEPLOYED';
         statusEl.classList.add('combat-screen__status--sonar-negative');
@@ -455,6 +470,8 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     if (!result) return;
 
     uiState.pingMode = false;
+
+    playSonarPingSound();
 
     // Play sonar animation
     sceneManager.playSonarAnimation(coord, result.displayedResult);
@@ -487,6 +504,8 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     // Reset drone mode
     uiState.droneMode = false;
     sceneManager.clearGhostCells();
+
+    playReconDroneSound();
 
     // Update scene grid first so materials are set
     updateSceneGrid();
@@ -529,6 +548,8 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     const result = game.fireTorpedo(coord);
     if (result === null) return;
 
+    playTorpedoFireSound();
+
     uiState.lastFireResult = result;
     uiState.turnSlots = game.getTurnSlots();
 
@@ -544,12 +565,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       statusText = `TORPEDO: SUNK - ${shipName}`;
       statusEl.classList.add('combat-screen__status--sunk');
       if (result.shipId) uiState.sunkShipIds.push(result.shipId);
+      playTorpedoSunkSound();
     } else if (result.result === 'hit') {
       statusText = 'TORPEDO: HIT';
       statusEl.classList.add('combat-screen__status--hit');
+      playTorpedoHitSound();
     } else {
       statusText = 'TORPEDO: MISS';
       statusEl.classList.add('combat-screen__status--miss');
+      playTorpedoMissSound();
     }
 
     statusEl.textContent = statusText;

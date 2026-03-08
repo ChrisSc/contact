@@ -19,8 +19,8 @@ const DEFAULT_CONFIG: OrbitConfig = {
   rotateSpeed: 0.005,
   zoomSpeed: 0.1,
   initialDistance: 15,
-  initialPhi: Math.PI / 4,
-  initialTheta: Math.PI / 4,
+  initialPhi: Math.PI / 3,
+  initialTheta: Math.PI * 1.15,
 };
 
 export function sphericalToCartesian(

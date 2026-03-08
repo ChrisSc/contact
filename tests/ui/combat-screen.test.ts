@@ -53,6 +53,13 @@ vi.mock('../../src/audio/abilities', () => ({
   playDepthChargeSound: vi.fn(),
   playSilentRunningActivate: vi.fn(),
   playSilentRunningExpire: vi.fn(),
+  playTorpedoFireSound: vi.fn(),
+  playTorpedoHitSound: vi.fn(),
+  playTorpedoMissSound: vi.fn(),
+  playTorpedoSunkSound: vi.fn(),
+  playSonarPingSound: vi.fn(),
+  playReconDroneSound: vi.fn(),
+  playRadarJammerSound: vi.fn(),
 }));
 
 class MockResizeObserver {

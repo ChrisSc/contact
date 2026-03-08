@@ -35,6 +35,11 @@ vi.mock('../../src/renderer/scene', () => ({
   SceneManager: vi.fn(() => mockSceneManager),
 }));
 
+vi.mock('../../src/audio/audio-manager', () => ({
+  initAudioContext: vi.fn(),
+  isAudioReady: vi.fn(() => false),
+}));
+
 class MockResizeObserver {
   observe = vi.fn();
   unobserve = vi.fn();

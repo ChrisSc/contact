@@ -213,6 +213,28 @@
   overflow-y: auto;
 }
 
+.setup-screen__auto-deploy {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  font-size: 0.65rem;
+  padding: 6px 0;
+  opacity: 0.7;
+  background: transparent;
+  border: 1px solid var(--crt-green-dark);
+  color: var(--crt-green);
+  font-family: var(--font-primary), var(--font-secondary), var(--font-mono);
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.setup-screen__auto-deploy:hover {
+  opacity: 1;
+  border-color: var(--crt-green);
+  text-shadow: 0 0 8px var(--crt-green);
+}
+
 /* --- Footer (bottom overlay) --- */
 .setup-screen__footer {
   position: absolute;
