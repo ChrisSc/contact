@@ -1037,6 +1037,122 @@ export function playGSonarSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
+ * Brief ascending two-tone chime: 400 Hz → 600 Hz over ~200 ms with clean
+ * attack envelope — sounds like a "credit accepted" confirmation.
+ */
+export function playPurchaseSound(): void {
+  if (!isAudioReady()) return;
+
+  logPlay('purchase');
+
+  try {
+    const vol = new Tone.Volume(-10).toDestination();
+    const env = new Tone.AmplitudeEnvelope({
+      attack: 0.005,
+      decay: 0.1,
+      sustain: 0.05,
+      release: 0.08,
+    }).connect(vol);
+
+    const osc = new Tone.Oscillator({
+      type: 'sine',
+      frequency: 400,
+    }).connect(env);
+
+    const now = Tone.now();
+
+    osc.start(now);
+
+    // Two-tone ascending chime: 400 Hz → 600 Hz
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.setValueAtTime(600, now + 0.1);
+
+    env.triggerAttackRelease(0.08, now);
+    env.triggerAttackRelease(0.08, now + 0.1);
+
+    setTimeout(() => {
+      osc.stop();
+      osc.disconnect();
+      env.disconnect();
+      vol.disconnect();
+      osc.dispose();
+      env.dispose();
+      vol.dispose();
+    }, 500);
+
+  } catch (err) {
+    try {
+      getLogger().emit('audio.play', { sound: 'purchase', error: String(err) });
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Insufficient funds rejection
+// ---------------------------------------------------------------------------
+
+/**
+ * Short harsh buzz: sawtooth wave through bandpass filter (~350 Hz center),
+ * rapid amplitude decay ~250 ms. Distinct "denied" character.
+ */
+export function playInsufficientFundsSound(): void {
+  if (!isAudioReady()) return;
+
+  logPlay('insufficient_funds');
+
+  try {
+    const vol = new Tone.Volume(-8).toDestination();
+    const env = new Tone.AmplitudeEnvelope({
+      attack: 0.005,
+      decay: 0.15,
+      sustain: 0.05,
+      release: 0.08,
+    }).connect(vol);
+
+    const bandpass = new Tone.Filter({
+      type: 'bandpass',
+      frequency: 350,
+      Q: 2,
+    }).connect(env);
+
+    const osc = new Tone.Oscillator({
+      type: 'sawtooth',
+      frequency: 120,
+    }).connect(bandpass);
+
+    const now = Tone.now();
+
+    osc.start(now);
+    env.triggerAttackRelease(0.2, now);
+
+    setTimeout(() => {
+      osc.stop();
+      osc.disconnect();
+      bandpass.disconnect();
+      env.disconnect();
+      vol.disconnect();
+      osc.dispose();
+      bandpass.dispose();
+      env.dispose();
+      vol.dispose();
+    }, 500);
+
+  } catch (err) {
+    try {
+      getLogger().emit('audio.play', { sound: 'insufficient_funds', error: String(err) });
+    } catch {
+      // ignore
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Acoustic Cloak — cloaking activation
+// ---------------------------------------------------------------------------
+
+/**
  * Ships disappearing from sensors: white noise passed through a bandpass
  * filter whose center frequency closes from 1200 Hz down to 200 Hz over
  * ~500 ms, with an LFO providing subtle wobble throughout. The overall level

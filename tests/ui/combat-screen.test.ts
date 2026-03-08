@@ -72,6 +72,10 @@ vi.mock('../../src/audio/abilities', () => ({
   playSonarPingSound: vi.fn(),
   playReconDroneSound: vi.fn(),
   playRadarJammerSound: vi.fn(),
+  playGSonarSound: vi.fn(),
+  playAcousticCloakSound: vi.fn(),
+  playPurchaseSound: vi.fn(),
+  playInsufficientFundsSound: vi.fn(),
 }));
 
 class MockResizeObserver {

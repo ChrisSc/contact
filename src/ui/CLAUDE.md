@@ -44,7 +44,7 @@
 
 - **CombatUIState** includes `storeOpen`, `pingMode`, `droneMode`, `depthChargeMode`, `silentRunningMode`, `gSonarMode`, `turnSlots` fields.
 - **Store toggle**: STORE button in top-right toggles perk store panel visibility. Store accessible anytime during turn.
-- **Purchase flow**: `onPurchase` → `game.purchasePerk(perkId)` → refresh credits/inventory/store/action slots.
+- **Purchase flow**: `onPurchase` → `game.purchasePerk(perkId)` → `playPurchaseSound()` on success / `playInsufficientFundsSound()` on failure → refresh credits/inventory/store/action slots.
 - **Ping mode**: Selecting sonar_ping from inventory → `pingMode = true`, hint changes to "CLICK CELL TO PING". `handleCellClick()` routes to `handlePing(coord)` when in ping mode, else `handleFire(coord)`.
 - **Ping resolution**: `game.useSonarPing(coord)` → sonar sweep animation → status "SONAR: CONTACT" or "SONAR: NEGATIVE" → exit ping mode, refresh UI.
 - **Drone mode**: Selecting recon_drone from inventory → `droneMode = true`, hover shows 3×3×3 ghost cell preview via `calculateScanArea()`. Click → `handleDroneScan(coord)` → `game.useReconDrone()` → filter to `written` cells → animate + count only written cells → status "DRONE SCAN: N CONTACTS".

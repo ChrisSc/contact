@@ -36,6 +36,8 @@ import {
   playRadarJammerSound,
   playGSonarSound,
   playAcousticCloakSound,
+  playPurchaseSound,
+  playInsufficientFundsSound,
 } from '../../audio/abilities';
 import {
   startAmbient,
@@ -444,7 +446,11 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function handlePurchase(perkId: PerkId): void {
     const instance = game.purchasePerk(perkId);
-    if (!instance) return;
+    if (!instance) {
+      playInsufficientFundsSound();
+      return;
+    }
+    playPurchaseSound();
     refreshCredits();
     refreshInventory();
     perkStore.update(game.getCurrentPlayer().credits);
