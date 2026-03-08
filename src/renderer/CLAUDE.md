@@ -31,6 +31,7 @@
 - `clearGhostCells()` restores original materials
 - Ghost materials (valid/invalid fill + edge) created once in constructor, disposed on cleanup
 - Used by setup screen for ship/decoy placement preview in 3D
+- **Important:** `updateGrid()` calls `clearGhostCells()` first to prevent stale ghost materials from overwriting newly applied grid state (e.g., after ship placement)
 
 ## Combat Animations
 

@@ -5,7 +5,7 @@ import type { FleetRosterEntry, PlacementAxis } from '../../types/fleet';
 import { FLEET_ROSTER } from '../../types/fleet';
 import { calculateShipCells, validatePlacement } from '../../engine/fleet';
 import { getCell, formatCoordinate } from '../../engine/grid';
-import { ShipRoster } from '../components/ship-roster';
+import { ShipRoster, DECOY_ID } from '../components/ship-roster';
 import { SceneManager } from '../../renderer/scene';
 import type { ViewMode } from '../../renderer/views';
 import { PLAYER_DESIGNATIONS } from '../../types/game';
@@ -16,7 +16,7 @@ interface SetupUIState {
   currentDepth: number | null;
   viewMode: ViewMode;
   hoveredCoord: Coordinate | null;
-  placementPhase: 'ships' | 'decoy' | 'confirm';
+  placementPhase: 'ships' | 'decoy-pending' | 'decoy' | 'confirm';
 }
 
 export function mountSetupScreen(container: HTMLElement, context: ScreenContext): ScreenCleanup {
@@ -88,12 +88,12 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   axisBar.appendChild(axisLabel);
 
   const axes: { id: PlacementAxis; label: string }[] = [
-    { id: 'col', label: 'COL' },
-    { id: 'row', label: 'ROW' },
+    { id: 'col', label: 'ROW' },
+    { id: 'row', label: 'COL' },
     { id: 'diag+', label: 'DIAG\u2197' },
     { id: 'diag-', label: 'DIAG\u2198' },
-    { id: 'col-depth', label: 'COL+D' },
-    { id: 'row-depth', label: 'ROW+D' },
+    { id: 'col-depth', label: 'ROW+D' },
+    { id: 'row-depth', label: 'COL+D' },
   ];
 
   for (const axis of axes) {
@@ -182,6 +182,14 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
       }
       uiState.placementPhase = 'ships';
       refreshState();
+    },
+    onDecoySelect() {
+      if (uiState.placementPhase !== 'decoy-pending') return;
+      uiState.placementPhase = 'decoy';
+      uiState.selectedShipId = DECOY_ID;
+      shipRoster.setSelected(DECOY_ID);
+      updateGhostPreview();
+      updateStatus();
     },
   });
   shipRoster.updatePlaced(player.ships);
@@ -326,6 +334,8 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
     const success = game.placeDecoyForCurrentPlayer(coord);
     if (!success) return;
 
+    uiState.selectedShipId = null;
+    shipRoster.setSelected(null);
     uiState.placementPhase = 'confirm';
     refreshState();
   }
@@ -336,7 +346,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
       currentPlayer.ships.some((s) => s.id === r.id),
     );
     if (allPlaced) {
-      uiState.placementPhase = 'decoy';
+      uiState.placementPhase = 'decoy-pending';
     }
   }
 
@@ -402,6 +412,9 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
           statusEl.textContent = 'SELECT A VESSEL FROM THE ROSTER';
         }
         break;
+      case 'decoy-pending':
+        statusEl.textContent = 'ALL VESSELS PLACED \u2014 SELECT DECOY FROM ROSTER';
+        break;
       case 'decoy':
         statusEl.textContent = 'DEPLOY DECOY \u2014 CLICK AN EMPTY CELL';
         break;
@@ -415,6 +428,9 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   function refreshState(): void {
     const currentPlayer = game.getCurrentPlayer();
     shipRoster.updatePlaced(currentPlayer.ships);
+    const decoyPlaced = uiState.placementPhase === 'confirm';
+    const decoyEnabled = uiState.placementPhase === 'decoy-pending' || uiState.placementPhase === 'decoy' || decoyPlaced;
+    shipRoster.setDecoyState(decoyEnabled, decoyPlaced);
     updateSceneGrid();
     updateStatus();
   }

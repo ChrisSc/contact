@@ -353,6 +353,34 @@
   color: var(--crt-red);
 }
 
+.ship-roster__entry--decoy {
+  color: var(--crt-amber);
+  border-color: rgba(255, 176, 0, 0.15);
+  margin-top: 4px;
+}
+
+.ship-roster__entry--decoy-disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.ship-roster__entry--decoy:not(.ship-roster__entry--decoy-disabled):hover {
+  border-color: var(--crt-amber);
+  color: var(--crt-amber);
+}
+
+.ship-roster__entry--decoy-selected {
+  border-color: var(--crt-amber);
+  color: var(--crt-amber);
+  background: rgba(255, 176, 0, 0.1);
+}
+
+.ship-roster__entry--decoy-placed {
+  border-color: rgba(255, 176, 0, 0.3);
+  color: var(--crt-amber);
+  opacity: 0.6;
+}
+
 .ship-roster__name {
   flex: 1;
 }

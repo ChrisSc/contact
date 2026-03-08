@@ -85,10 +85,10 @@ describe('Setup Screen', () => {
     router.navigate('setup');
   }
 
-  it('renders with fleet roster showing all 5 ships', () => {
+  it('renders with fleet roster showing all 5 ships + decoy', () => {
     mountScreen();
     const entries = container.querySelectorAll('.ship-roster__entry');
-    expect(entries.length).toBe(5);
+    expect(entries.length).toBe(6);
   });
 
   it('renders top bar with ALPHA player badge', () => {
@@ -127,7 +127,7 @@ describe('Setup Screen', () => {
     const btns = container.querySelectorAll('.setup-screen__axis-btn');
     expect(btns.length).toBe(6);
     expect(Array.from(btns).map(b => b.textContent)).toEqual([
-      'COL', 'ROW', 'DIAG\u2197', 'DIAG\u2198', 'COL+D', 'ROW+D',
+      'ROW', 'COL', 'DIAG\u2197', 'DIAG\u2198', 'ROW+D', 'COL+D',
     ]);
   });
 
@@ -224,7 +224,9 @@ describe('Setup Screen', () => {
     const status = container.querySelector('.setup-screen__status');
     expect(status?.textContent).toContain('DECOY');
 
-    // Place decoy via raycaster
+    // Select decoy from roster, then place via raycaster
+    const decoyEntry = container.querySelector('[data-ship-id="decoy"]') as HTMLElement;
+    decoyEntry.click();
     cellClickCb!({ col: 7, row: 7, depth: 7 });
 
     const confirmBtn = container.querySelector('.crt-button:not(.crt-button--danger)') as HTMLButtonElement;
