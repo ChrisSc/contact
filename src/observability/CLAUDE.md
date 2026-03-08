@@ -21,7 +21,13 @@
 
 ## Patterns
 
-- **Event taxonomy** defined in `src/types/events.ts`: `game.*`, `fleet.*`, `combat.*`, `ability.*`, `view.*`, `audio.*`, `system.*`
+- **Event taxonomy** defined in `src/types/events.ts`: `game.*`, `fleet.*`, `combat.*`, `ability.*`, `economy.*`, `perk.*`, `view.*`, `audio.*`, `system.*`
 - All state-changing operations across the codebase must emit through this logger.
 - JSONL export: one JSON object per line, suitable for streaming parsers and grep.
 - Session ID persists for the lifetime of the page; sequence resets only on `clear()`.
+
+## Economy & Perk Events
+
+- `economy.credit` — emitted per credit award (hit, consecutive_hit, sink) with type, amount, balance
+- `economy.purchase` — emitted on perk purchase with perkId, cost, balance
+- `perk.use` — emitted on perk deployment with perkId, instanceId, target, result
