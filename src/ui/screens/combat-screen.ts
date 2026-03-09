@@ -625,9 +625,18 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     playSonarPingSound();
     overlays.play('sonar_ping');
 
-    // Play sonar animation on origin cell
-    const contacts = result.cells.filter(c => c.displayedResult).length;
-    sceneManager.playSonarAnimation(coord, contacts > 0);
+    // Update scene grid first so materials are set
+    updateSceneGrid();
+
+    // Animate each cell in the 2x2x2 scan with its own positive/negative result
+    // Filter to cells that were actually written (not already resolved)
+    const writtenCells = result.cells.filter(c => {
+      const existing = game.getCurrentPlayer().targetingGrid[c.coord.col]?.[c.coord.row]?.[c.coord.depth];
+      return existing && (existing.state === CellState.SonarPositive || existing.state === CellState.SonarNegative);
+    });
+    sceneManager.playSonarScanAnimation(writtenCells);
+
+    const contacts = writtenCells.filter(c => c.displayedResult).length;
 
     // Update status
     statusEl.className = 'combat-screen__status';
@@ -643,7 +652,6 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     selectLabel.textContent = 'SELECT TARGET';
     hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO FIRE';
     inventoryTray.clearSelection();
-    updateSceneGrid();
     refreshInventory();
     refreshActionSlots();
     uiState.turnSlots = game.getTurnSlots();

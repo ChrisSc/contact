@@ -25,6 +25,7 @@ const mockSceneManager = {
   playSunkAnimation: vi.fn(),
   playMissAnimation: vi.fn(),
   playSonarAnimation: vi.fn(),
+  playSonarScanAnimation: vi.fn(),
   playDroneScanAnimation: vi.fn(),
   playDepthChargeAnimation: vi.fn(),
   playScreenShake: vi.fn(),
@@ -362,10 +363,10 @@ describe('Combat Screen', () => {
     if (item) item.click();
 
     // Trigger cell click for ping
-    mockSceneManager.playSonarAnimation.mockClear();
+    mockSceneManager.playSonarScanAnimation.mockClear();
     cellClickCb!({ col: 6, row: 6, depth: 6 });
 
-    expect(mockSceneManager.playSonarAnimation).toHaveBeenCalled();
+    expect(mockSceneManager.playSonarScanAnimation).toHaveBeenCalled();
   });
 
   it('renders action slots', () => {

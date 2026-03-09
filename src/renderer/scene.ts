@@ -258,6 +258,12 @@ export class SceneManager {
     this.animations.playSonarSweep(coord, positive);
   }
 
+  playSonarScanAnimation(cells: Array<{coord: Coordinate; displayedResult: boolean}>): void {
+    for (const cell of cells) {
+      this.animations.playSonarSweep(cell.coord, cell.displayedResult);
+    }
+  }
+
   playDroneScanAnimation(cells: Array<{coord: Coordinate; displayedResult: boolean}>): void {
     this.animations.playDroneScan(cells.map(c => ({coord: c.coord, positive: c.displayedResult})));
   }
