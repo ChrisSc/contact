@@ -540,6 +540,13 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     }
 
     if (instance.perkId === 'sonar_ping') {
+      // Block selection if ping slot already used this turn
+      if (uiState.turnSlots.pingUsed) {
+        statusEl.className = 'combat-screen__status';
+        statusEl.textContent = 'PING ALREADY USED THIS TURN';
+        inventoryTray.clearSelection();
+        return;
+      }
       uiState.pingMode = true;
       selectLabel.textContent = 'CLICK CELL TO PING';
       hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO PING';
@@ -598,7 +605,19 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     initAudioContext();
     if (!isAmbientRunning()) startAmbient();
     const result = game.useSonarPing(coord);
-    if (!result) return;
+    if (!result) {
+      // Exit ping mode gracefully on engine rejection
+      uiState.pingMode = false;
+      sceneManager.clearGhostCells();
+      selectLabel.textContent = 'SELECT TARGET';
+      hint.textContent = 'DRAG TO ROTATE \u00b7 SCROLL TO ZOOM \u00b7 CLICK CELL TO FIRE';
+      inventoryTray.clearSelection();
+      statusEl.className = 'combat-screen__status';
+      statusEl.textContent = 'PING UNAVAILABLE';
+      refreshActionSlots();
+      uiState.turnSlots = game.getTurnSlots();
+      return;
+    }
 
     uiState.pingMode = false;
     sceneManager.clearGhostCells();
