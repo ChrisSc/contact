@@ -68,7 +68,7 @@ export function mountVictoryScreen(container: HTMLElement, context: ScreenContex
   newGameBtn.addEventListener('click', () => {
     const newGame = new GameController();
     router.setGame(newGame);
-    router.navigate('setup');
+    router.navigate('title');
   });
   actionsEl.appendChild(newGameBtn);
 

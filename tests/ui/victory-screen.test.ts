@@ -133,12 +133,12 @@ describe('Victory Screen', () => {
     spy.mockRestore();
   });
 
-  it('new engagement resets game and navigates to setup', () => {
+  it('new engagement resets game and navigates to title', () => {
     const buttons = container.querySelectorAll('button');
     const newGameBtn = Array.from(buttons).find((b) => b.textContent === 'NEW ENGAGEMENT');
     expect(newGameBtn).toBeDefined();
     newGameBtn!.click();
 
-    expect(router.getCurrentScreen()).toBe('setup');
+    expect(router.getCurrentScreen()).toBe('title');
   });
 });

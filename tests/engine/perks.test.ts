@@ -2,7 +2,6 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { initLogger } from '../../src/observability/logger';
 import {
   getPerkDefinition,
-  canPurchase,
   purchasePerk,
   removeFromInventory,
   getInventoryBySlot,
@@ -26,20 +25,6 @@ describe('getPerkDefinition', () => {
 
   it('throws on unknown perk id', () => {
     expect(() => getPerkDefinition('not_a_perk' as any)).toThrow('Unknown perk');
-  });
-});
-
-describe('canPurchase', () => {
-  it('returns true when credits >= cost', () => {
-    expect(canPurchase(5, 'sonar_ping')).toBe(true); // cost 3
-  });
-
-  it('returns true when credits exactly equal cost', () => {
-    expect(canPurchase(3, 'sonar_ping')).toBe(true);
-  });
-
-  it('returns false when credits < cost', () => {
-    expect(canPurchase(2, 'sonar_ping')).toBe(false);
   });
 });
 

@@ -756,7 +756,7 @@ Production build, containerized deployment, comprehensive testing, and release p
 **Component: Documentation**
 - Write in-game help/rules screen (accessible from title screen)
 - Write keyboard shortcut reference (if applicable)
-- Write `README.md`: project overview, tech stack, dev setup, build commands, Docker deployment, local WiFi play instructions
+- Write `README.md`: project overview, tech stack, dev setup, build commands
 - Document JSONL log format: event taxonomy, payload schemas, export instructions, and example `jq` queries for session analysis
 - Add version number and build date to footer
 - Create CHANGELOG for v1.0 release

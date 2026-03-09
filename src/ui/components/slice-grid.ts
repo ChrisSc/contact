@@ -32,6 +32,9 @@ export class SliceGrid {
   private cellEls: HTMLElement[][] = [];
   private ghostSet: Set<string> = new Set();
   private hoveredCell: HTMLElement | null = null;
+  private handleClick!: (e: MouseEvent) => void;
+  private handleMousemove!: (e: MouseEvent) => void;
+  private handleMouseleave!: () => void;
 
   constructor(options: SliceGridOptions) {
     this.options = { ...options };
@@ -105,15 +108,15 @@ export class SliceGrid {
   }
 
   private attachListeners(): void {
-    this.el.addEventListener('click', (e) => {
+    this.handleClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest('.slice-grid__cell') as HTMLElement | null;
       if (!target || !this.options.onCellClick) return;
       const col = Number(target.dataset.col);
       const row = Number(target.dataset.row);
       this.options.onCellClick({ col, row, depth: this.options.depth });
-    });
+    };
 
-    this.el.addEventListener('mousemove', (e) => {
+    this.handleMousemove = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest('.slice-grid__cell') as HTMLElement | null;
       if (target === this.hoveredCell) return;
 
@@ -128,15 +131,19 @@ export class SliceGrid {
         const row = Number(target.dataset.row);
         this.options.onCellHover?.({ col, row, depth: this.options.depth });
       }
-    });
+    };
 
-    this.el.addEventListener('mouseleave', () => {
+    this.handleMouseleave = () => {
       if (this.hoveredCell) {
         this.hoveredCell.classList.remove('cell-hover');
         this.hoveredCell = null;
       }
       this.options.onCellHover?.(null);
-    });
+    };
+
+    this.el.addEventListener('click', this.handleClick);
+    this.el.addEventListener('mousemove', this.handleMousemove);
+    this.el.addEventListener('mouseleave', this.handleMouseleave);
   }
 
   update(options: Partial<SliceGridOptions>): void {
@@ -183,6 +190,9 @@ export class SliceGrid {
   }
 
   destroy(): void {
+    this.el.removeEventListener('click', this.handleClick);
+    this.el.removeEventListener('mousemove', this.handleMousemove);
+    this.el.removeEventListener('mouseleave', this.handleMouseleave);
     this.el.remove();
   }
 }

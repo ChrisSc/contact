@@ -3,6 +3,10 @@ import { viteSingleFile } from 'vite-plugin-singlefile';
 
 export default defineConfig(({ mode }) => ({
   plugins: mode === 'singlefile' ? [viteSingleFile()] : [],
+  define: {
+    '__APP_VERSION__': JSON.stringify(process.env.npm_package_version || '1.0.0'),
+    '__BUILD_DATE__': JSON.stringify(new Date().toISOString().split('T')[0]),
+  },
   build: {
     outDir: 'dist',
     target: 'es2022',

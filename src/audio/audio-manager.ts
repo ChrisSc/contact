@@ -100,13 +100,6 @@ export function setGamePhase(phase: AudioPhase): void {
 }
 
 /**
- * Returns the current audio phase.
- */
-export function getGamePhase(): AudioPhase {
-  return currentPhase;
-}
-
-/**
  * Pure mapper from turn count to AudioPhase.
  * Turns 1-10 → combat_early, 11-20 → combat_mid,
  * 21-30 → combat_escalation, 31+ → combat_endgame.

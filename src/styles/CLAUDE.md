@@ -5,7 +5,7 @@
 - **`variables.css`** — Design tokens (colors, spacing, fonts) + CSS reset. Single source of truth for theming.
 - **`crt.css`** — Scanline overlay, vignette effect, barrel distortion (`#app` border-radius + inset box-shadow). CRT terminal aesthetic.
 - **`grid.css`** — Slice grid layout, cell state classes, ghost cell preview, hover effects.
-- **`ui.css`** — Screen layouts (setup, combat, victory, handoff), buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status (friendly + enemy with separator), perk store, inventory tray, action slots, credit display, notification banner. Both setup and combat screens use canvas-dominant overlay layout.
+- **`ui.css`** — Screen layouts (title, help, setup, combat, victory, handoff), persistent app footer, buttons, panels, ship roster, depth/axis selectors, board toggle, HUD, fleet status (friendly + enemy with separator), perk store, inventory tray, action slots, credit display, notification banner. Both setup and combat screens use canvas-dominant overlay layout.
 - **`effects.css`** — Phosphor bloom CSS utility. Applies `filter: brightness(1.05) blur(0.3px)` + stacked `text-shadow` (10px/20px/40px at decreasing alpha) to `.notification-banner` and `.combat-screen__status` elements. Amber bloom override for `--sunk`, cyan bloom for `--sonar-positive`.
 
 ## Architecture
@@ -44,9 +44,20 @@
 - **Sonar status** (`.combat-screen__status--sonar-positive/negative`): Cyan for contact, dim green for negative.
 - **Notification banner** (`.notification-banner`): Fixed centered overlay at `z-index: 30`, pointer-events none. Messages use Press Start 2P font with glow. `--sunk` modifier: amber color/border, larger font. `--credits` modifier: green, smaller font. `--dismiss` modifier triggers fade-out animation. Appear/dismiss via `@keyframes notif-appear`/`notif-dismiss` (scale + opacity).
 
+## Title & Help Screens
+
+- **Title screen** (`.title-screen`): Centered flex column. `__label` (dim green, letter-spaced "CLASSIFIED // SONAR COMMAND"), `__title` (48px Press Start 2P, triple-layer green glow), `__subtitle` (14px dim green), `__version` (10px monospace, 40% opacity — shows `v{version} | {date}`), `__actions` (flex row with START + HELP buttons).
+- **Help screen** (`.help-screen`): Scrollable flex column with `overflow-y: auto`. `__header` (24px green glow), `__content` (700px max-width, sections with `__section-title` + `__text` + `__table`). `__return` button at bottom with flex-shrink: 0.
+- **Help tables** (`.help-screen__table`): Collapsed borders, Press Start 2P headers (9px), Silkscreen body (13px). Header row has solid green border-bottom, data rows have dim green border-bottom.
+
+## Persistent Footer
+
+- **App footer** (`.app-footer`): `position: fixed; bottom: 0; z-index: 5`. Spans full width. Left: "CLASSIFIED // SONAR COMMAND", right: version/date. 7px Press Start 2P, 40% opacity dim green, `pointer-events: none`. Semi-transparent dark bg.
+- **Bottom clearance**: All bottom-positioned UI elements (combat bottom bar, right stack, status, hint, inventory tray, setup footer/hint) are offset 20px above their original positions to clear the persistent footer.
+
 ## CRT Effects Layering
 
-- **Z-index convention**: scene=0, UI=10, store=20, banners=30, ability overlays=50, CRT noise=999, CRT scanlines=1000.
+- **Z-index convention**: scene=0, app footer=5, UI=10, store=20, banners=30, ability overlays=50, CRT noise=999, CRT scanlines=1000.
 - **Phosphor bloom** (`effects.css`): CSS-only brightness/blur filter + multi-layer text-shadow applied to notification banners and combat status text.
 - **Barrel distortion** (`crt.css`): `#app` gets `border-radius: 12px` + `box-shadow: inset 0 0 80px rgba(0,0,0,0.3)` for curved CRT screen edges.
 - **CRT noise** (`src/ui/effects/crt-noise.ts`): Canvas-based animated grain at z-index 999, tiled 256x256. Pulseable for ability cross-effects.

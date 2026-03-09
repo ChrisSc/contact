@@ -21,6 +21,7 @@ export class ShipRoster {
   private onDecoySelect: () => void;
   private entryEls: Map<string, HTMLElement> = new Map();
   private decoyEl: HTMLElement | null = null;
+  private handleClick!: (e: MouseEvent) => void;
 
   constructor(options: ShipRosterOptions) {
     this.onShipSelect = options.onShipSelect;
@@ -62,7 +63,7 @@ export class ShipRoster {
     this.decoyEl = decoyRow;
     this.el.appendChild(decoyRow);
 
-    this.el.addEventListener('click', (e) => {
+    this.handleClick = (e: MouseEvent) => {
       const target = (e.target as HTMLElement).closest('[data-ship-id]') as HTMLElement | null;
       if (!target) return;
       const shipId = target.dataset.shipId!;
@@ -82,7 +83,8 @@ export class ShipRoster {
       } else {
         this.onShipSelect(entry);
       }
-    });
+    };
+    this.el.addEventListener('click', this.handleClick);
   }
 
   setSelected(shipId: string | null): void {
@@ -141,6 +143,7 @@ export class ShipRoster {
   }
 
   destroy(): void {
+    this.el.removeEventListener('click', this.handleClick);
     this.el.remove();
   }
 }
