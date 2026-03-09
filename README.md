@@ -1,5 +1,9 @@
 # CONTACT: 3D Naval Combat
 
+[![Built with Claude](https://img.shields.io/badge/Built%20with-Claude%20Opus%204.6-cc785c?logo=anthropic&logoColor=white)](https://claude.ai)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Browser-based 3D Battleship variant. Two players command submarine fleets hidden in a 7x7x7 volumetric grid, firing torpedoes and deploying earned abilities to locate and destroy enemy vessels. Hot-seat local multiplayer, zero server dependencies.
 
 ![CONTACT gameplay — Recon Drone scan revealing contacts in the 7x7x7 volumetric grid](game-play.png)
@@ -127,4 +131,4 @@ Bots place fleets randomly across all 8 axes, buy and deploy perks with a phase-
 
 ## License
 
-All rights reserved.
+[MIT](LICENSE)
