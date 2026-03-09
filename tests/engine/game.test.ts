@@ -371,7 +371,7 @@ describe('GameController - Logger Events', () => {
     expect(fireEvent.data.remaining).toBe(4); // typhoon size 5, 1 hit = 4 remaining
   });
 
-  it('combat.sunk payload includes remaining: 0', () => {
+  it('combat.sunk payload includes player, enemy, ship, and method', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
@@ -384,7 +384,10 @@ describe('GameController - Logger Events', () => {
 
     const events = getLogger().getBuffer();
     const sunkEvent = events.find((e) => e.event === 'combat.sunk')!;
-    expect(sunkEvent.data.remaining).toBe(0);
+    expect(sunkEvent.data.player).toBe(0); // attacker
+    expect(sunkEvent.data.enemy).toBe(1);  // defender (ship owner)
+    expect(sunkEvent.data.ship).toBe('midget');
+    expect(sunkEvent.data.method).toBe('torpedo');
   });
 });
 

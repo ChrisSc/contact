@@ -391,7 +391,6 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     uiState.currentDepth = depth === -1 ? null : depth;
     sceneManager.setDepth(uiState.currentDepth);
     updateDepthButtons();
-    getLogger().emit('view.depth_change', { depth: uiState.currentDepth });
     refreshBottomBar();
     updateSceneGrid();
   }

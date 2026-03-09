@@ -110,13 +110,6 @@ Every game session produces a structured JSONL event log covering all placements
 
 See [docs/JSONL_FORMAT.md](docs/JSONL_FORMAT.md) for the full event schema, payload reference, and example queries.
 
-## Docs
-
-- [Game Design Document](artifacts/design/CONTACT_GDD_v1.0.md)
-- [Delivery Plan](artifacts/delivery/CONTACT_Delivery_Plan_v1.2.md)
-- [JSONL Log Format](docs/JSONL_FORMAT.md)
-- [Changelog](CHANGELOG.md)
-
 ## Simulation
 
 Run automated bot-vs-bot games to test game balance and perk economy:
@@ -128,6 +121,35 @@ npm run simulate -- 1 -v    # single game, verbose turn-by-turn output
 ```
 
 Bots place fleets randomly across all 8 axes, buy and deploy perks with a phase-based spending strategy, and use hunt/target logic with sonar-guided targeting. Results include win rates, average game length, hit rates, credit spending, and perk purchase/usage breakdowns.
+
+## Log Analysis
+
+Parse any exported JSONL session log into an After Action Report:
+
+```sh
+npx tsx scripts/analyze-log.ts <path-to-log.jsonl>          # formatted report
+npx tsx scripts/analyze-log.ts <path-to-log.jsonl> --json   # machine-readable JSON
+```
+
+The report includes:
+
+- **Combat stats** — shots, hits, misses, hit rate, longest streak per player
+- **Economy** — credits earned, spent, and remaining
+- **Perk usage** — purchase and deployment counts per perk type, sonar hit rates, drone contacts, depth charge effectiveness
+- **Ship survival** — per-ship fate (turn sunk + method) for both fleets
+- **Kill order** — chronological list of every ship destroyed
+- **Momentum chart** — ships sunk and credit balance tracked over time
+- **Key events timeline** — sinks, depth charges, and perk deployments
+- **Timing** — setup time, average turn duration per player
+
+The analyzer handles both current and legacy log formats.
+
+## Docs
+
+- [Game Design Document](artifacts/design/CONTACT_GDD_v1.0.md)
+- [Delivery Plan](artifacts/delivery/CONTACT_Delivery_Plan_v1.2.md)
+- [JSONL Log Format](docs/JSONL_FORMAT.md)
+- [Changelog](CHANGELOG.md)
 
 ## License
 

@@ -260,7 +260,8 @@ export class GameController {
         this.logger.emit('combat.sunk', {
           player: attacker.index,
           ship: shipId,
-          remaining: 0,
+          enemy: defender.index,
+          method: 'torpedo',
         });
 
         fireResult = 'sunk';
@@ -573,7 +574,7 @@ export class GameController {
           currentAttacker.shipsSunk++;
           shipsSunk.push(shipId);
 
-          this.logger.emit('combat.sunk', { player: idx, ship: shipId, remaining: 0 });
+          this.logger.emit('combat.sunk', { player: idx, ship: shipId, enemy: defIdx, method: 'depth_charge' });
           cellResults.push({ coord: targetCell.coord, result: 'sunk', shipId });
         } else {
           cellResults.push({ coord: targetCell.coord, result: 'hit', shipId });

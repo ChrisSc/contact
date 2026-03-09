@@ -1,5 +1,4 @@
 import type { ScreenContext, ScreenCleanup } from '../screen-router';
-import { getLogger } from '../../observability/logger';
 
 // Helper: create a section with a title and content element
 function createSection(title: string, contentEl: HTMLElement): HTMLElement {
@@ -204,7 +203,6 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
   el.appendChild(returnBtn);
 
   container.appendChild(el);
-  getLogger().emit('view.change', { screen: 'help' });
 
   return {
     unmount(): void {

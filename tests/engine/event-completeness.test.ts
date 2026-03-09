@@ -163,9 +163,13 @@ describe('event completeness', () => {
     const sunkEvents = eventsOfType('combat.sunk');
     expect(sunkEvents).toHaveLength(7); // All 7 of BRAVO's ships sunk
 
-    // Verify each sunk event has remaining: 0
+    // Verify each sunk event has player, enemy, ship, and method
     for (const sunk of sunkEvents) {
-      expect(sunk.data.remaining).toBe(0);
+      expect(sunk.data.player).toBeDefined();
+      expect(sunk.data.enemy).toBeDefined();
+      expect(sunk.data.ship).toBeDefined();
+      expect(sunk.data.method).toBe('torpedo');
+      expect(sunk.data.player).not.toBe(sunk.data.enemy);
     }
 
     // --- Assertion 6: game.turn_end / game.turn_start pairs exist ---

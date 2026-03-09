@@ -229,7 +229,7 @@ No payload. The session ID in the envelope identifies the game.
 ### `combat.sunk`
 
 ```json
-{ "player": 0, "ship": "akula", "enemy": 1 }
+{ "player": 0, "ship": "akula", "enemy": 1, "method": "torpedo" }
 ```
 
 | Field | Type | Description |
@@ -237,6 +237,7 @@ No payload. The session ID in the envelope identifies the game.
 | `player` | `0 \| 1` | Player who landed the sinking shot |
 | `ship` | string | Ship that was sunk |
 | `enemy` | `0 \| 1` | Player whose ship was sunk |
+| `method` | string | `"torpedo"` or `"depth_charge"` |
 
 ### `ability.unlock`
 

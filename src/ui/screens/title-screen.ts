@@ -2,7 +2,6 @@ declare const __APP_VERSION__: string;
 declare const __BUILD_DATE__: string;
 
 import type { ScreenContext, ScreenCleanup } from '../screen-router';
-import { getLogger } from '../../observability/logger';
 
 export function mountTitleScreen(container: HTMLElement, context: ScreenContext): ScreenCleanup {
   const { router } = context;
@@ -56,8 +55,6 @@ export function mountTitleScreen(container: HTMLElement, context: ScreenContext)
 
   el.appendChild(actions);
   container.appendChild(el);
-
-  getLogger().emit('view.change', { screen: 'title' });
 
   return {
     unmount(): void {
