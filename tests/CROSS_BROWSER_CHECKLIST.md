@@ -5,7 +5,7 @@
 The following items must be verified on **every** browser/platform listed below.
 
 ### 3D Rendering
-- [ ] 8x8x8 volumetric grid renders correctly
+- [ ] 7x7x7 volumetric grid renders correctly
 - [ ] Custom orbit controls: drag to rotate, scroll/pinch to zoom
 - [ ] Layer slicing displays correct depth planes
 - [ ] Cell highlighting and hover states respond to pointer

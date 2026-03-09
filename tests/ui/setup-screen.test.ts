@@ -25,7 +25,7 @@ const mockSceneManager = {
   onCellClick: vi.fn((cb: (coord: Coordinate) => void) => { cellClickCb = cb; }),
   onCellHover: vi.fn((cb: (coord: Coordinate | null) => void) => { cellHoverCb = cb; }),
   views: {
-    getInteractableMeshes: vi.fn(() => new Array(64)),
+    getInteractableMeshes: vi.fn(() => new Array(49)),
     getMode: vi.fn(() => 'cube'),
     getDepth: vi.fn(() => 0),
   },
@@ -90,10 +90,10 @@ describe('Setup Screen', () => {
     router.navigate('setup');
   }
 
-  it('renders with fleet roster showing all 5 ships + decoy', () => {
+  it('renders with fleet roster showing all 7 ships + decoy', () => {
     mountScreen();
     const entries = container.querySelectorAll('.ship-roster__entry');
-    expect(entries.length).toBe(6);
+    expect(entries.length).toBe(8);
   });
 
   it('renders top bar with ALPHA player badge', () => {
@@ -121,10 +121,10 @@ describe('Setup Screen', () => {
     expect(Array.from(btns).map(b => b.textContent)).toEqual(['CUBE', 'SLICE', 'X-RAY']);
   });
 
-  it('renders depth buttons (ALL + 1-8)', () => {
+  it('renders depth buttons (ALL + 1-7)', () => {
     mountScreen();
     const btns = container.querySelectorAll('.setup-screen__depth-btn');
-    expect(btns.length).toBe(9);
+    expect(btns.length).toBe(8);
   });
 
   it('renders axis selector with 8 buttons', () => {
@@ -211,6 +211,8 @@ describe('Setup Screen', () => {
       { id: 'seawolf', col: 0, row: 2, depth: 0 },
       { id: 'virginia', col: 0, row: 3, depth: 0 },
       { id: 'midget', col: 0, row: 4, depth: 0 },
+      { id: 'narwhal', col: 0, row: 5, depth: 0 },
+      { id: 'piranha', col: 0, row: 6, depth: 0 },
     ];
 
     for (const p of placements) {
@@ -224,7 +226,7 @@ describe('Setup Screen', () => {
       cellClickCb!({ col: p.col, row: p.row, depth: p.depth });
     }
 
-    expect(game.getCurrentPlayer().ships.length).toBe(5);
+    expect(game.getCurrentPlayer().ships.length).toBe(7);
 
     const status = container.querySelector('.setup-screen__status');
     expect(status?.textContent).toContain('DECOY');
@@ -232,7 +234,7 @@ describe('Setup Screen', () => {
     // Select decoy from roster, then place via raycaster
     const decoyEntry = container.querySelector('[data-ship-id="decoy"]') as HTMLElement;
     decoyEntry.click();
-    cellClickCb!({ col: 7, row: 7, depth: 7 });
+    cellClickCb!({ col: 6, row: 6, depth: 6 });
 
     const confirmBtn = container.querySelector('.crt-button:not(.crt-button--danger)') as HTMLButtonElement;
     expect(confirmBtn.disabled).toBe(false);
@@ -291,6 +293,8 @@ describe('Setup Screen', () => {
       { id: 'seawolf', col: 0, row: 2, depth: 0 },
       { id: 'virginia', col: 0, row: 3, depth: 0 },
       { id: 'midget', col: 0, row: 4, depth: 0 },
+      { id: 'narwhal', col: 0, row: 5, depth: 0 },
+      { id: 'piranha', col: 0, row: 6, depth: 0 },
     ];
     for (const p of placements) {
       const entries = container.querySelectorAll('.ship-roster__entry');
@@ -302,7 +306,7 @@ describe('Setup Screen', () => {
     }
     const decoyEntry = container.querySelector('[data-ship-id="decoy"]') as HTMLElement;
     decoyEntry.click();
-    cellClickCb!({ col: 7, row: 7, depth: 7 });
+    cellClickCb!({ col: 6, row: 6, depth: 6 });
 
     // Now in confirm phase — R should not change axis
     const btnsBefore = container.querySelectorAll('.setup-screen__axis-btn');

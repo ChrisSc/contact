@@ -10,7 +10,7 @@
 - **`sonar.ts`** — Pure `executeSonarPing()` function. Checks defender grid for Ship/Decoy presence. Applies silent running (masks per-ship), jammer (inverts), and cloak (forces false) modifiers. `SonarPingResult` includes `silentRunning: boolean`.
 - **`drone.ts`** — Pure `executeReconDrone()` and `calculateScanArea()` functions. 3x3x3 volume scan centered on target. Returns per-cell results with raw/displayed/written booleans. Applies silent running (masks per-cell), jammer (forces all-false per GDD 5.4), and cloak (forces false) modifiers. `DroneScanResult` includes `jammerConsumed` flag.
 - **`depth-charge.ts`** — Pure `calculateDepthChargeTargets()` function. Reuses `calculateScanArea()` from drone.ts for 3x3x3 volume. Returns per-cell info with `cellState`, `shipId`, `alreadyResolved` (Hit/Miss/Sunk/DecoyHit cells skipped by GameController).
-- **`g-sonar.ts`** — Pure `executeGSonar(depth, attacker, defender)` function. Scans all 64 cells at a given depth layer. Returns per-cell results with raw/displayed/written booleans. Applies silent running (masks per-cell) and cloak (forces all-false) modifiers. No jammer interaction. `GSonarResult` includes `cloaked` flag.
+- **`g-sonar.ts`** — Pure `executeGSonar(depth, attacker, defender)` function. Scans all 49 cells at a given depth layer. Returns per-cell results with raw/displayed/written booleans. Applies silent running (masks per-cell) and cloak (forces all-false) modifiers. No jammer interaction. `GSonarResult` includes `cloaked` flag.
 - **`silent-running.ts`** — Pure helpers: `isShipSilentRunning(entries, shipId)` (lookup), `decrementSilentRunning(entries)` (returns `{remaining, expired}` after decrementing turnsRemaining).
 
 ## Architecture
@@ -115,8 +115,8 @@
 
 ## G-SONAR
 
-- `useGSonar(depth)`: validates phase, `!attackUsed`, inventory has `g_sonar`, depth 0-7.
-- Calls `executeGSonar(depth, attacker, defender)` to scan all 64 cells at the given depth layer.
+- `useGSonar(depth)`: validates phase, `!attackUsed`, inventory has `g_sonar`, depth 0-6.
+- Calls `executeGSonar(depth, attacker, defender)` to scan all 49 cells at the given depth layer.
 - Writes `DronePositive`/`DroneNegative` to attacker's targeting grid (reuses same CellStates as drone, no new enum values).
 - Skips cells already resolved (Hit/Miss/Sunk/DecoyHit/DronePositive/DroneNegative) — same skip logic as `useReconDrone`.
 - Consumes `attackUsed` slot and one `g_sonar` instance from inventory.

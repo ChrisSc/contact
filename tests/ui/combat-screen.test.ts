@@ -37,7 +37,7 @@ const mockSceneManager = {
   onCellClick: vi.fn((cb: (coord: Coordinate) => void) => { cellClickCb = cb; }),
   onCellHover: vi.fn((cb: (coord: Coordinate | null) => void) => { cellHoverCb = cb; }),
   views: {
-    getInteractableMeshes: vi.fn(() => new Array(64)),
+    getInteractableMeshes: vi.fn(() => new Array(49)),
     getMode: vi.fn(() => 'cube'),
     getDepth: vi.fn(() => 0),
   },
@@ -103,12 +103,14 @@ function placeStandardFleet(game: GameController): void {
     { id: 'seawolf', col: 0, row: 2 },
     { id: 'virginia',col: 0, row: 3 },
     { id: 'midget',  col: 0, row: 4 },
+    { id: 'narwhal', col: 0, row: 5 },
+    { id: 'piranha', col: 0, row: 6 },
   ];
   for (const p of placements) {
     const entry = FLEET_ROSTER.find((r) => r.id === p.id)!;
     game.placeShipForCurrentPlayer(entry, { col: p.col, row: p.row, depth: 0 }, 'col');
   }
-  game.placeDecoyForCurrentPlayer({ col: 7, row: 7, depth: 7 });
+  game.placeDecoyForCurrentPlayer({ col: 6, row: 6, depth: 6 });
 }
 
 interface CombatTestContext {
@@ -186,9 +188,9 @@ describe('Combat Screen', () => {
     expect(Array.from(btns).map(b => b.textContent)).toEqual(['CUBE', 'SLICE', 'X-RAY']);
   });
 
-  it('renders depth buttons (ALL + 1-8) on right edge', () => {
+  it('renders depth buttons (ALL + 1-7) on right edge', () => {
     const btns = container.querySelectorAll('.combat-screen__depth-btn');
-    expect(btns.length).toBe(9);
+    expect(btns.length).toBe(8);
   });
 
   it('clicking view mode button updates active state', () => {
@@ -215,16 +217,16 @@ describe('Combat Screen', () => {
 
   it('renders enemy fleet with health pips', () => {
     const enemyEntries = container.querySelectorAll('.combat-screen__enemy-fleet .combat-screen__fleet-entry');
-    expect(enemyEntries.length).toBe(5);
+    expect(enemyEntries.length).toBe(7);
     const enemyPips = container.querySelectorAll('.combat-screen__enemy-fleet .combat-screen__pip');
-    expect(enemyPips.length).toBe(17); // 5+4+3+3+2
+    expect(enemyPips.length).toBe(22); // 5+4+3+3+2+3+2
   });
 
   it('renders friendly fleet with health pips', () => {
     const friendlyEntries = container.querySelectorAll('.combat-screen__friendly-fleet .combat-screen__fleet-entry');
-    expect(friendlyEntries.length).toBe(5);
+    expect(friendlyEntries.length).toBe(7);
     const friendlyPips = container.querySelectorAll('.combat-screen__friendly-fleet .combat-screen__pip');
-    expect(friendlyPips.length).toBe(17); // 5+4+3+3+2
+    expect(friendlyPips.length).toBe(22); // 5+4+3+3+2+3+2
   });
 
   it('end turn button is disabled initially', () => {
@@ -265,18 +267,20 @@ describe('Combat Screen', () => {
       {col:0,row:1,depth:0},{col:1,row:1,depth:0},{col:2,row:1,depth:0},{col:3,row:1,depth:0},
       {col:0,row:2,depth:0},{col:1,row:2,depth:0},{col:2,row:2,depth:0},
       {col:0,row:3,depth:0},{col:1,row:3,depth:0},{col:2,row:3,depth:0},
-      {col:0,row:4,depth:0},
+      {col:0,row:4,depth:0},{col:1,row:4,depth:0},
+      {col:0,row:5,depth:0},{col:1,row:5,depth:0},{col:2,row:5,depth:0},
+      {col:0,row:6,depth:0},
     ];
     let i = 0;
     for (const target of cells) {
       game.fireTorpedo(target);
       game.endTurn();
-      game.fireTorpedo({ col: i % 8, row: 6, depth: 2 + Math.floor(i / 8) });
+      game.fireTorpedo({ col: i % 7, row: 0, depth: 2 + Math.floor(i / 7) });
       game.endTurn();
       i++;
     }
     router.navigate('combat');
-    cellClickCb!({ col: 1, row: 4, depth: 0 });
+    cellClickCb!({ col: 1, row: 6, depth: 0 });
     expect(router.getCurrentScreen()).toBe('victory');
   });
 
@@ -359,7 +363,7 @@ describe('Combat Screen', () => {
 
     // Trigger cell click for ping
     mockSceneManager.playSonarAnimation.mockClear();
-    cellClickCb!({ col: 7, row: 7, depth: 7 });
+    cellClickCb!({ col: 6, row: 6, depth: 6 });
 
     expect(mockSceneManager.playSonarAnimation).toHaveBeenCalled();
   });
@@ -384,6 +388,8 @@ describe('Combat Screen', () => {
     // seawolf  (size 3): cols 0-2, row 2, depth 0
     // virginia (size 3): cols 0-2, row 3, depth 0
     // midget   (size 2): cols 0-1, row 4, depth 0
+    // narwhal  (size 3): cols 0-2, row 5, depth 0
+    // piranha  (size 2): cols 0-1, row 6, depth 0
     const p2ShipCells: Coordinate[] = [
       { col: 0, row: 0, depth: 0 }, { col: 1, row: 0, depth: 0 }, { col: 2, row: 0, depth: 0 },
       { col: 3, row: 0, depth: 0 }, { col: 4, row: 0, depth: 0 },
@@ -391,8 +397,10 @@ describe('Combat Screen', () => {
       { col: 3, row: 1, depth: 0 },
       { col: 0, row: 2, depth: 0 }, { col: 1, row: 2, depth: 0 }, { col: 2, row: 2, depth: 0 },
       { col: 0, row: 3, depth: 0 }, { col: 1, row: 3, depth: 0 }, { col: 2, row: 3, depth: 0 },
-      { col: 0, row: 4, depth: 0 },
-      // last cell (midget second cell) fired separately to trigger victory
+      { col: 0, row: 4, depth: 0 }, { col: 1, row: 4, depth: 0 },
+      { col: 0, row: 5, depth: 0 }, { col: 1, row: 5, depth: 0 }, { col: 2, row: 5, depth: 0 },
+      { col: 0, row: 6, depth: 0 },
+      // last cell (piranha second cell) fired separately to trigger victory
     ];
 
     it('fires all but last P2 ship cell then navigates to handoff each turn without victory', () => {
@@ -404,15 +412,15 @@ describe('Combat Screen', () => {
         g.fireTorpedo(p2ShipCells[i]);
         g.endTurn();
         // BRAVO fires at a safe miss cell — use depth offset to prevent duplicate coords
-        g.fireTorpedo({ col: i % 8, row: 7, depth: 2 + Math.floor(i / 8) });
+        g.fireTorpedo({ col: i % 7, row: 0, depth: 2 + Math.floor(i / 7) });
         g.endTurn();
       }
 
-      // After 16 rounds, 16 of 17 cells hit; one midget cell remains
+      // After 21 rounds, 21 of 22 cells hit; one piranha cell remains
       // Navigate to combat for ALPHA's turn (the deciding shot)
       r.navigate('combat');
-      // Clicking the last midget cell should trigger victory navigation
-      cellClickCb!({ col: 1, row: 4, depth: 0 });
+      // Clicking the last piranha cell should trigger victory navigation
+      cellClickCb!({ col: 1, row: 6, depth: 0 });
       expect(r.getCurrentScreen()).toBe('victory');
     });
 
@@ -446,18 +454,20 @@ describe('Combat Screen', () => {
         { col: 3, row: 1, depth: 0 },
         { col: 0, row: 2, depth: 0 }, { col: 1, row: 2, depth: 0 }, { col: 2, row: 2, depth: 0 },
         { col: 0, row: 3, depth: 0 }, { col: 1, row: 3, depth: 0 }, { col: 2, row: 3, depth: 0 },
-        { col: 0, row: 4, depth: 0 },
+        { col: 0, row: 4, depth: 0 }, { col: 1, row: 4, depth: 0 },
+        { col: 0, row: 5, depth: 0 }, { col: 1, row: 5, depth: 0 }, { col: 2, row: 5, depth: 0 },
+        { col: 0, row: 6, depth: 0 },
       ];
       for (let i = 0; i < allCells.length; i++) {
         g.fireTorpedo(allCells[i]);
         g.endTurn();
         // BRAVO fires safe miss cells using depth offset to avoid coordinate repeats
-        g.fireTorpedo({ col: i % 8, row: 7, depth: 2 + Math.floor(i / 8) });
+        g.fireTorpedo({ col: i % 7, row: 0, depth: 2 + Math.floor(i / 7) });
         g.endTurn();
       }
       r.navigate('combat');
-      // Last cell: col 1, row 4, depth 0 (midget's second cell)
-      cellClickCb!({ col: 1, row: 4, depth: 0 });
+      // Last cell: col 1, row 6, depth 0 (piranha's second cell)
+      cellClickCb!({ col: 1, row: 6, depth: 0 });
       expect(r.getCurrentScreen()).toBe('victory');
     });
   });
@@ -542,7 +552,7 @@ describe('Combat Screen', () => {
       if (item) item.click();
 
       // Use sonar ping on a cell
-      cellClickCb!({ col: 7, row: 7, depth: 7 });
+      cellClickCb!({ col: 6, row: 6, depth: 6 });
 
       // End turn should still be disabled — ping slot only, not attack slot
       const btn = cont.querySelector('.combat-screen__end-turn') as HTMLButtonElement;

@@ -4,7 +4,7 @@
 
 - **`materials.test.ts`** — MaterialSet per CellState, pool reuse, hover set, transparency/depthWrite, color correctness (CYAN for DronePositive/SonarPositive), dimmed/ghost pools, setDimOpacity/setGhostOpacity scaling, MATERIAL_DEFS export completeness, dispose cleanup
 - **`orbit.test.ts`** — sphericalToCartesian math, phi clamping, distance clamping, OrbitControls camera positioning, reset, setEnabled, dispose
-- **`cube.test.ts`** — coordToPosition mapping, 512 mesh creation, getCellMesh/coordFromMesh lookups, updateCell material swap, updateFromGrid bulk update, cell positioning, getCellMeshesAtDepth, getAllCellMeshes, setLayerVisible, dispose cleanup
+- **`cube.test.ts`** — coordToPosition mapping, 343 mesh creation, getCellMesh/coordFromMesh lookups, updateCell material swap, updateFromGrid bulk update, cell positioning, getCellMeshesAtDepth, getAllCellMeshes, setLayerVisible, dispose cleanup
 - **`views.test.ts`** — CUBE/SLICE/XRAY mode visibility, depth selection, material tier assignment, boardType filtering, getInteractableMeshes counts, transitions, mode/depth state changes
 - **`raycaster.test.ts`** — NDC normalization, no-intersection handling, mesh source filtering, default mesh source fallback, dispose
 - **`animations.test.ts`** — hit flash (private materials, full opacity start, pulse after 200ms, infinite loop), sunk cascade (multi-cell entries, stagger timing, RED→ORANGE lerp, completion with pooled restore), miss fade (zero start, target opacity at 300ms, one-shot completion), sonar sweep (private materials, zero start, pulse phase, completion restores pooled SonarPositive/SonarNegative, negative variant), cancelAt/cancelAll, isAnimating, duplicate cancellation, dispose cleanup

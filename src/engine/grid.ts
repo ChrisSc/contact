@@ -48,7 +48,7 @@ export function setCell(grid: Grid, coord: Coordinate, cell: Cell): Grid {
 }
 
 export function parseCoordinate(str: string): Coordinate | null {
-  const match = str.match(/^([A-H])-([1-8])-D([1-8])$/i);
+  const match = str.match(/^([A-G])-([1-7])-D([1-7])$/i);
   if (!match) return null;
 
   const colLabel = match[1]!.toUpperCase();

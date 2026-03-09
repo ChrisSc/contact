@@ -3,7 +3,7 @@
 ## Files
 
 - **`grid.ts`** — `Grid3D`, `Cell`, `Coordinate` types; `CellState` enum; column/row/depth label constants
-- **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant; `PLACEMENT_AXES` constant (8-axis cycle order); `TOTAL_SHIP_CELLS` constant
+- **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant (7 ships); `PLACEMENT_AXES` constant (8-axis cycle order); `TOTAL_SHIP_CELLS` constant
 - **`game.ts`** — `GamePhase` enum, `PlayerState`, `GameState`, `TurnSlots`, `SilentRunningEntry` interfaces; `PlayerIndex = 0 | 1`
 - **`abilities.ts`** — `AbilityId` union, `AbilityState` interface, `ABILITY_DEFINITIONS` constant (descriptions match v1.0 implementation); `PerkId` union, `PerkSlot` union, `PerkDefinition`/`PerkInstance` interfaces, `PlayerInventory` type, `STARTING_CREDITS` constant, `PERK_CATALOG` constant (descriptions match v1.0 implementation)
 - **`events.ts`** — `LogEventType` string literal union (includes `fleet.decoy_place`, `view.depth_change`, `view.mode_change`, `view.board_toggle`, `economy.credit`, `economy.purchase`, `economy.balance`, `perk.use`, `perk.effect`, `perk.expire`, `audio.phase_change`), `LogEvent` interface, payload interfaces per event category
@@ -25,7 +25,7 @@
 
 ## Patterns
 
-- **0-indexed internally, 1-indexed for display.** Column labels A-H, Row labels 1-8, Depth labels D1-D8.
+- **0-indexed internally, 1-indexed for display.** Column labels A-G, Row labels 1-7, Depth labels D1-D7.
 - `PlayerIndex = 0 | 1` — ALPHA is 0, BRAVO is 1. Used throughout engine and UI.
 - Event payload interfaces are per-category (fleet, combat, ability, economy, perk) — each event type has a typed payload.
 - `CellState` enum values are used directly as CSS class suffixes in the UI layer.

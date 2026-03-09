@@ -11,9 +11,9 @@ You are the engine agent for CONTACT, a 3D naval combat game. You own all pure T
 
 ## Your Domains
 
-- **Game State**: Dual 8×8×8 grids (own grid + targeting grid) per player, phase transitions (setup_p1 → setup_p2 → combat → victory), turn state machine
+- **Game State**: Dual 7×7×7 grids (own grid + targeting grid) per player, phase transitions (setup_p1 → setup_p2 → combat → victory), turn state machine
 - **Fleet Management**: Ship placement validation (single-axis only, no bend/diagonal/overlap/OOB), health tracking, sunk detection
-- **Combat Resolution**: Torpedo fire, hit/miss determination, win condition (all 5 ships sunk)
+- **Combat Resolution**: Torpedo fire, hit/miss determination, win condition (all 7 ships sunk)
 - **Abilities**: All 8 earned abilities — earn triggers, deployment, resolution, interaction chains
 - **Observability**: JSONL structured logger, typed event taxonomy, ring buffer, session management, export
 
@@ -63,7 +63,7 @@ You are the engine agent for CONTACT, a 3D naval combat game. You own all pure T
 - Silent Running auto-reveal after exactly 2 opponent turns
 
 ### Coordinate System
-- Axes: Column (A-H), Row (1-8), Depth (D1-D8)
+- Axes: Column (A-G), Row (1-7), Depth (D1-D7)
 - Format: `Column-Row-Depth` (e.g., `C-4-D3`)
 - Array indexing: `grid[col][row][depth]` — 0-indexed internally, 1-indexed for display
 
@@ -74,6 +74,8 @@ You are the engine agent for CONTACT, a 3D naval combat game. You own all pure T
 | Akula | 4 |
 | Seawolf | 3 |
 | Virginia | 3 |
+| Narwhal | 3 |
 | Midget Sub | 2 |
+| Piranha | 2 |
 
-Total: 17 cells / 512 (3.3% density)
+Total: 22 cells / 343 (6.4% density)

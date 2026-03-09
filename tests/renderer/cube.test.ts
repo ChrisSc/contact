@@ -27,8 +27,8 @@ describe('coordToPosition', () => {
     expect(pos.z).toBeCloseTo(-GRID_OFFSET);
   });
 
-  it('maps (7,7,7) to (3.5,3.5,3.5)', () => {
-    const pos = coordToPosition(7, 7, 7);
+  it('maps (6,6,6) to (GRID_OFFSET,GRID_OFFSET,GRID_OFFSET)', () => {
+    const pos = coordToPosition(6, 6, 6);
     expect(pos.x).toBeCloseTo(GRID_OFFSET);
     expect(pos.y).toBeCloseTo(GRID_OFFSET);
     expect(pos.z).toBeCloseTo(GRID_OFFSET);
@@ -56,12 +56,12 @@ describe('GridCube', () => {
     pool.dispose();
   });
 
-  it('creates 512 cell meshes', () => {
-    expect(cube.getInteractableMeshes().length).toBe(512);
+  it('creates 343 cell meshes', () => {
+    expect(cube.getInteractableMeshes().length).toBe(343);
   });
 
-  it('root group contains 512 child groups', () => {
-    expect(cube.root.children.length).toBe(512);
+  it('root group contains 343 child groups', () => {
+    expect(cube.root.children.length).toBe(343);
   });
 
   it('getCellMesh returns a CellMesh for valid coordinates', () => {
@@ -71,15 +71,15 @@ describe('GridCube', () => {
   });
 
   it('getCellMesh returns undefined for invalid coordinates', () => {
-    const cell = cube.getCellMesh({ col: 8, row: 0, depth: 0 });
+    const cell = cube.getCellMesh({ col: 7, row: 0, depth: 0 });
     expect(cell).toBeUndefined();
   });
 
   it('coordFromMesh returns the correct coordinate', () => {
-    const cellMesh = cube.getCellMesh({ col: 3, row: 5, depth: 7 });
+    const cellMesh = cube.getCellMesh({ col: 3, row: 5, depth: 6 });
     expect(cellMesh).toBeDefined();
     const coord = cube.coordFromMesh(cellMesh!.box);
-    expect(coord).toEqual({ col: 3, row: 5, depth: 7 });
+    expect(coord).toEqual({ col: 3, row: 5, depth: 6 });
   });
 
   it('coordFromMesh returns null for unknown mesh', () => {
@@ -111,15 +111,15 @@ describe('GridCube', () => {
   });
 
   it('cell meshes are positioned correctly', () => {
-    const cell = cube.getCellMesh({ col: 7, row: 7, depth: 7 })!;
+    const cell = cube.getCellMesh({ col: 6, row: 6, depth: 6 })!;
     expect(cell.group.position.x).toBeCloseTo(GRID_OFFSET);
     expect(cell.group.position.y).toBeCloseTo(GRID_OFFSET);
     expect(cell.group.position.z).toBeCloseTo(GRID_OFFSET);
   });
 
-  it('getCellMeshesAtDepth returns 64 cells', () => {
+  it('getCellMeshesAtDepth returns 49 cells', () => {
     const cells = cube.getCellMeshesAtDepth(0);
-    expect(cells.length).toBe(64);
+    expect(cells.length).toBe(49);
     for (const cell of cells) {
       expect(cell.coord.depth).toBe(0);
     }
@@ -128,12 +128,12 @@ describe('GridCube', () => {
   it('getCellMeshesAtDepth returns cells for each depth', () => {
     for (let d = 0; d < GRID_SIZE; d++) {
       const cells = cube.getCellMeshesAtDepth(d);
-      expect(cells.length).toBe(64);
+      expect(cells.length).toBe(49);
     }
   });
 
-  it('getAllCellMeshes returns all 512 cells', () => {
-    expect(cube.getAllCellMeshes().length).toBe(512);
+  it('getAllCellMeshes returns all 343 cells', () => {
+    expect(cube.getAllCellMeshes().length).toBe(343);
   });
 
   it('setLayerVisible hides all cells at depth', () => {

@@ -1,6 +1,6 @@
 import type { ScreenContext, ScreenCleanup } from '../screen-router';
 import type { Coordinate } from '../../types/grid';
-import { DEPTH_LABELS } from '../../types/grid';
+import { DEPTH_LABELS, GRID_SIZE } from '../../types/grid';
 import { CellState } from '../../types/grid';
 import type { FireResult, DepthChargeResult } from '../../engine/game';
 import type { TurnSlots } from '../../types/game';
@@ -216,7 +216,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   allBtn.addEventListener('click', () => handleDepthChange(-1));
   depthPanel.appendChild(allBtn);
 
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < GRID_SIZE; i++) {
     const btn = document.createElement('button');
     btn.className = 'combat-screen__depth-btn';
     btn.textContent = String(i + 1);
@@ -577,7 +577,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     } else if (instance.perkId === 'g_sonar') {
       uiState.gSonarMode = true;
       selectLabel.textContent = 'SELECT DEPTH LAYER';
-      hint.textContent = 'CLICK D1-D8 TO SCAN ENTIRE DEPTH LAYER';
+      hint.textContent = `CLICK D1-D${GRID_SIZE} TO SCAN ENTIRE DEPTH LAYER`;
     } else if (instance.perkId === 'acoustic_cloak') {
       const deployed = game.useAcousticCloak();
       if (deployed) {

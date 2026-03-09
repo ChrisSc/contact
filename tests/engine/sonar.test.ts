@@ -15,13 +15,13 @@ describe('calculateSonarArea', () => {
   });
 
   it('clips to grid boundary at max edge', () => {
-    // Origin at col=7 means col+1=8 is out of bounds, so only 4 cells
-    const coords = calculateSonarArea({ col: 7, row: 3, depth: 3 });
+    // Origin at col=6 means col+1=7 is out of bounds, so only 4 cells
+    const coords = calculateSonarArea({ col: 6, row: 3, depth: 3 });
     expect(coords).toHaveLength(4);
   });
 
   it('returns 1 cell at max corner', () => {
-    const coords = calculateSonarArea({ col: 7, row: 7, depth: 7 });
+    const coords = calculateSonarArea({ col: 6, row: 6, depth: 6 });
     expect(coords).toHaveLength(1);
   });
 });

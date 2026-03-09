@@ -16,11 +16,13 @@ const SHIP_PLACEMENTS = [
   { id: 'seawolf', row: 2 },
   { id: 'virginia', row: 3 },
   { id: 'midget',  row: 4 },
+  { id: 'narwhal', row: 5 },
+  { id: 'piranha', row: 6 },
 ] as const;
 
-const DECOY_COORD = { col: 7, row: 7, depth: 7 };
+const DECOY_COORD = { col: 6, row: 6, depth: 6 };
 
-// All cells occupied by P2's ships — 5+4+3+3+2 = 17 cells
+// All cells occupied by P2's ships — 5+4+3+3+2+3+2 = 22 cells
 const P2_SHIP_CELLS = [
   // typhoon (size 5) row 0
   { col: 0, row: 0, depth: 0 }, { col: 1, row: 0, depth: 0 }, { col: 2, row: 0, depth: 0 },
@@ -34,6 +36,10 @@ const P2_SHIP_CELLS = [
   { col: 0, row: 3, depth: 0 }, { col: 1, row: 3, depth: 0 }, { col: 2, row: 3, depth: 0 },
   // midget (size 2) row 4
   { col: 0, row: 4, depth: 0 }, { col: 1, row: 4, depth: 0 },
+  // narwhal (size 3) row 5
+  { col: 0, row: 5, depth: 0 }, { col: 1, row: 5, depth: 0 }, { col: 2, row: 5, depth: 0 },
+  // piranha (size 2) row 6
+  { col: 0, row: 6, depth: 0 }, { col: 1, row: 6, depth: 0 },
 ];
 
 function placeFleetForCurrentPlayer(game: GameController): void {
@@ -73,14 +79,14 @@ function setupVictoryGame(): { game: GameController; router: ScreenRouter; conta
   }
 
   // ALPHA fires at all 17 of P2's ship cells; BRAVO returns fire at empty cells each round.
-  // BRAVO needs up to 16 unique empty target cells (one per ALPHA shot except the last).
-  // Use rows 5 and 6 (never occupied) × 8 cols = 16 unique cells — exactly enough.
+  // BRAVO needs up to 21 unique empty target cells (one per ALPHA shot except the last).
+  // Use depth 2+ (never occupied) with row 0 × 7 cols to generate enough unique cells.
   let bravoShot = 0;
   for (const target of P2_SHIP_CELLS) {
     game.fireTorpedo(target);
     if (game.getState().phase === GamePhase.Victory) break;
     game.endTurn();
-    const bravoTarget = { col: bravoShot % 8, row: 5 + Math.floor(bravoShot / 8), depth: 0 };
+    const bravoTarget = { col: bravoShot % 7, row: 0, depth: 2 + Math.floor(bravoShot / 7) };
     game.fireTorpedo(bravoTarget);
     game.endTurn();
     bravoShot++;
@@ -116,7 +122,7 @@ describe('Victory Screen', () => {
     const stats = container.querySelectorAll('.victory-screen__stat');
     expect(stats.length).toBe(4);
     expect(stats[0]?.textContent).toContain('TURNS:');
-    expect(stats[1]?.textContent).toContain('SHOTS FIRED: 17');
+    expect(stats[1]?.textContent).toContain('SHOTS FIRED: 22');
     expect(stats[2]?.textContent).toContain('HIT RATE: 100%');
     expect(stats[3]?.textContent).toContain('ABILITIES USED: 0');
   });

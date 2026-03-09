@@ -1,5 +1,5 @@
 import type { Coordinate } from '../types/grid';
-import { CellState } from '../types/grid';
+import { CellState, GRID_SIZE } from '../types/grid';
 import type { PlayerState } from '../types/game';
 import { getCell } from './grid';
 import { isShipSilentRunning } from './silent-running';
@@ -27,8 +27,8 @@ export function executeGSonar(
 
   const cells: GSonarCellResult[] = [];
 
-  for (let col = 0; col < 8; col++) {
-    for (let row = 0; row < 8; row++) {
+  for (let col = 0; col < GRID_SIZE; col++) {
+    for (let row = 0; row < GRID_SIZE; row++) {
       const coord: Coordinate = { col, row, depth };
       const cell = getCell(defender.ownGrid, coord);
       const rawResult = cell != null && (cell.state === CellState.Ship || cell.state === CellState.Decoy);

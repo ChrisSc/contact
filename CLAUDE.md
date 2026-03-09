@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-CONTACT is a browser-based 3D Battleship variant. Two players command submarine fleets hidden in an 8x8x8 volumetric grid (512 cells), firing torpedoes and deploying earned abilities to locate and destroy enemy vessels. Hot-seat local multiplayer, zero server dependencies.
+CONTACT is a browser-based 3D Battleship variant. Two players command submarine fleets hidden in a 7x7x7 volumetric grid (343 cells), firing torpedoes and deploying earned abilities to locate and destroy enemy vessels. Hot-seat local multiplayer, zero server dependencies.
 
 **Authoritative source:** `artifacts/design/CONTACT_GDD_v1.0.md` is the game design document (GDD). All gameplay, UI, and technical decisions flow from this document. If this CLAUDE.md conflicts with the GDD, the GDD wins.
 
@@ -16,7 +16,7 @@ CONTACT is a browser-based 3D Battleship variant. Two players command submarine 
 
 | Layer | Choice | Rationale |
 |---|---|---|
-| **Language** | TypeScript 5.x | Type safety for complex game state (dual 8x8x8 grids, 8 abilities, delayed reveals) |
+| **Language** | TypeScript 5.x | Type safety for complex game state (dual 7x7x7 grids, 8 abilities, delayed reveals) |
 | **Runtime** | Browser (ES2022+) | No server-side logic. All state in-memory. |
 | **Modules** | ES Modules | Native browser support. Vite handles bundling. |
 | **Build** | Vite 6.x | Sub-second HMR, `vite build` for optimized output, tree-shakes Three.js/Tone.js |
@@ -71,7 +71,7 @@ contact/
 
 ### Game State Model
 
-Each player has two 8x8x8 3D arrays:
+Each player has two 7x7x7 3D arrays:
 - **Own Grid** — ship placements, decoy, incoming hits/misses
 - **Targeting Grid** — outgoing shots, drone/sonar results
 
@@ -80,7 +80,7 @@ Top-level state tracks:
 - `turnCount`
 - `phase` (setup_p1 | setup_p2 | combat | victory)
 - Per-player: `abilities` (earned/used), `ships[]` (health, cells, sunk flag), `silentRunningShips[]` (active SR entries with turnsRemaining)
-- Win condition: all 5 ships of one player sunk
+- Win condition: all 7 ships of one player sunk
 
 ---
 
@@ -103,8 +103,8 @@ Build output goes to `./dist/` in the project directory. Single-file build outpu
 ## Game Flow (GDD Reference)
 
 ### Phase 1: Setup
-1. Display ALPHA's 8x8x8 grid
-2. Player places 5 ships + 1 decoy along any single axis (no bending, no diagonal, no overlap, no OOB)
+1. Display ALPHA's 7x7x7 grid
+2. Player places 7 ships + 1 decoy along any single axis (no bending, no diagonal, no overlap, no OOB)
 3. Confirm placement -> handoff screen -> BRAVO places fleet
 4. Both confirmed -> transition to Combat
 
@@ -115,7 +115,7 @@ Build output goes to `./dist/` in the project directory. Single-file build outpu
 4. After resolution -> handoff screen -> next player
 
 ### Phase 3: Resolution
-- All 5 ships sunk -> game over -> display winner
+- All 7 ships sunk -> game over -> display winner
 
 ---
 
@@ -127,9 +127,11 @@ Build output goes to `./dist/` in the project directory. Single-file build outpu
 | Akula | 4 |
 | Seawolf | 3 |
 | Virginia | 3 |
+| Narwhal | 3 |
 | Midget Sub | 2 |
+| Piranha | 2 |
 
-Total occupied cells: 17 / 512 (3.3% density)
+Total occupied cells: 22 / 343 (6.4% density)
 
 ---
 

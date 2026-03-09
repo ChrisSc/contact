@@ -1,7 +1,7 @@
 import type { GameState, PlayerState, PlayerIndex, TurnSlots } from '../types/game';
 import { GamePhase, PLAYER_DESIGNATIONS } from '../types/game';
 import type { Coordinate } from '../types/grid';
-import { CellState } from '../types/grid';
+import { CellState, GRID_SIZE } from '../types/grid';
 import type { FleetRosterEntry, PlacementAxis } from '../types/fleet';
 import { createGrid, getCell, setCell, formatCoordinate, isValidCoordinate } from './grid';
 import {
@@ -702,7 +702,7 @@ export class GameController {
     if (!gsonarInstance) return null;
 
     // Validate depth
-    if (depth < 0 || depth > 7) return null;
+    if (depth < 0 || depth >= GRID_SIZE) return null;
 
     const result = executeGSonar(depth, attacker, defender);
 
