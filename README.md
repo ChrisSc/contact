@@ -26,6 +26,7 @@ npm run dev
 | `npm run build` | Production build to `dist/` |
 | `npm run build:single` | Single portable HTML file (`dist/contact.html`) |
 | `npm run test` | Run tests |
+| `npm run simulate` | Run bot-vs-bot game simulations |
 | `docker compose up -d` | Serve on port 8080 |
 
 ## How to Play
@@ -43,8 +44,8 @@ Credits fund the perk store. You earn them by landing shots:
 | Action | Credits Earned |
 |---|---|
 | Hit | +1 |
-| Consecutive hit (chain) | +2 |
-| Sink | +5 |
+| Consecutive hit (chain) | +8 |
+| Sink | +15 |
 
 Starting credits: **5**. Credits accumulate across turns within a game.
 
@@ -71,7 +72,7 @@ Perks are purchased with credits during combat and deployed on your turn.
 
 | Perk | Slot | Cost | Description |
 |---|---|:---:|---|
-| Sonar Ping | Ping | 3 | Binary yes/no: is a ship present in a single cell? |
+| Sonar Ping | Ping | 3 | Scans a 2x2x2 volume (up to 8 cells) for ship presence |
 | Radar Jammer | Defend | 5 | Inverts the next enemy Sonar Ping result; suppresses Recon Drone |
 | Recon Drone | Attack | 10 | Reveals contents of a 3x3x3 volume (up to 27 cells) |
 | Silent Running | Defend | 10 | Masks one ship from recon scans for 2 opponent turns |
@@ -107,6 +108,18 @@ See [docs/JSONL_FORMAT.md](docs/JSONL_FORMAT.md) for the full event schema, payl
 - [Delivery Plan](artifacts/delivery/CONTACT_Delivery_Plan_v1.2.md)
 - [JSONL Log Format](docs/JSONL_FORMAT.md)
 - [Changelog](CHANGELOG.md)
+
+## Simulation
+
+Run automated bot-vs-bot games to test game balance and perk economy:
+
+```sh
+npm run simulate            # 100 games (default)
+npm run simulate -- 1000    # custom game count
+npm run simulate -- 1 -v    # single game, verbose turn-by-turn output
+```
+
+Bots place fleets randomly across all 8 axes, buy and deploy perks with a phase-based spending strategy, and use hunt/target logic with sonar-guided targeting. Results include win rates, average game length, hit rates, credit spending, and perk purchase/usage breakdowns.
 
 ## License
 

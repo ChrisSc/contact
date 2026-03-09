@@ -35,7 +35,7 @@ export const ABILITY_DEFINITIONS: readonly AbilityDefinition[] = [
     type: 'offensive',
     pair: 'intelligence',
     cost: 'free',
-    description: 'Binary yes/no: is a ship present in a single cell?',
+    description: 'Scans a 2x2x2 volume (up to 8 cells) for ship presence',
   },
   {
     id: 'radar_jammer',
@@ -124,7 +124,7 @@ export type PlayerInventory = PerkInstance[];
 export const STARTING_CREDITS = 5;
 
 export const PERK_CATALOG: readonly PerkDefinition[] = [
-  { id: 'sonar_ping', name: 'Sonar Ping', type: 'offensive', slot: 'ping', cost: 3, description: 'Binary yes/no: is a ship present in a single cell?' },
+  { id: 'sonar_ping', name: 'Sonar Ping', type: 'offensive', slot: 'ping', cost: 3, description: 'Scans a 2x2x2 volume (up to 8 cells) for ship presence' },
   { id: 'recon_drone', name: 'Recon Drone', type: 'offensive', slot: 'attack', cost: 10, description: 'Reveals contents of a 3x3x3 volume (up to 27 cells)' },
   { id: 'depth_charge', name: 'Depth Charge', type: 'offensive', slot: 'attack', cost: 25, description: 'Strikes all occupied cells in a 3x3x3 volume' },
   { id: 'g_sonar', name: 'G-SONAR', type: 'offensive', slot: 'attack', cost: 18, description: 'Scans an entire depth layer (64 cells)' },

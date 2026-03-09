@@ -18,7 +18,7 @@ describe('calculateFireCredits', () => {
     const result = calculateFireCredits('hit', true);
     expect(result.awards).toEqual([
       { type: 'hit', amount: 1 },
-      { type: 'consecutive_hit', amount: 5 },
+      { type: 'consecutive_hit', amount: 8 },
     ]);
   });
 
@@ -26,7 +26,7 @@ describe('calculateFireCredits', () => {
     const result = calculateFireCredits('sunk', false);
     expect(result.awards).toEqual([
       { type: 'hit', amount: 1 },
-      { type: 'sink', amount: 10 },
+      { type: 'sink', amount: 15 },
     ]);
   });
 
@@ -34,8 +34,8 @@ describe('calculateFireCredits', () => {
     const result = calculateFireCredits('sunk', true);
     expect(result.awards).toEqual([
       { type: 'hit', amount: 1 },
-      { type: 'consecutive_hit', amount: 5 },
-      { type: 'sink', amount: 10 },
+      { type: 'consecutive_hit', amount: 8 },
+      { type: 'sink', amount: 15 },
     ]);
   });
 });

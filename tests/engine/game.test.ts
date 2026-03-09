@@ -403,7 +403,7 @@ describe('GameController - Credits', () => {
     expect(gc.getCurrentPlayer().credits).toBe(before + 1);
   });
 
-  it('sunk awards 1 (hit) + 10 (sink) = 11 credits (without consecutive)', () => {
+  it('sunk awards 1 (hit) + 15 (sink) = 16 credits (without consecutive)', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
@@ -419,13 +419,13 @@ describe('GameController - Credits', () => {
     gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
     gc.endTurn();
 
-    // Sink midget — consecutive since last was hit → 1 + 5 + 10 = 16
+    // Sink midget — consecutive since last was hit → 1 + 8 + 15 = 24
     const before = gc.getCurrentPlayer().credits;
     gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // sinks midget
-    expect(gc.getCurrentPlayer().credits).toBe(before + 16);
+    expect(gc.getCurrentPlayer().credits).toBe(before + 24);
   });
 
-  it('consecutive hit: hit on turn N, hit on turn N+1 awards 1+5=6 credits on turn N+1', () => {
+  it('consecutive hit: hit on turn N, hit on turn N+1 awards 1+8=9 credits on turn N+1', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
@@ -438,7 +438,7 @@ describe('GameController - Credits', () => {
     // Turn 2: player 0 hits again (consecutive)
     const before = gc.getCurrentPlayer().credits;
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // hit typhoon again
-    expect(gc.getCurrentPlayer().credits).toBe(before + 6); // 1 hit + 5 consecutive
+    expect(gc.getCurrentPlayer().credits).toBe(before + 9); // 1 hit + 8 consecutive
   });
 });
 
@@ -544,31 +544,45 @@ describe('GameController - Sonar Ping', () => {
     expect(result).toBeNull();
   });
 
-  it('cannot ping already-pinged cell', () => {
+  it('sonar ping writes 2x2x2 area to targeting grid', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    // Ping a cell on turn 1
     gc.purchasePerk('sonar_ping');
     gc.useSonarPing({ col: 3, row: 3, depth: 3 });
 
-    // Fire and end turn
+    // All 8 cells in the 2x2x2 area should have sonar state
+    for (let dc = 0; dc <= 1; dc++) {
+      for (let dr = 0; dr <= 1; dr++) {
+        for (let dd = 0; dd <= 1; dd++) {
+          const cell = getCell(gc.getCurrentPlayer().targetingGrid, { col: 3 + dc, row: 3 + dr, depth: 3 + dd });
+          expect(
+            cell!.state === CellState.SonarPositive || cell!.state === CellState.SonarNegative,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
+  it('sonar ping skips cells that already have state', () => {
+    const gc = new GameController('test-session');
+    setupBothPlayers(gc);
+
+    // Fire a miss first to mark a cell in the 2x2x2 area
+    gc.fireTorpedo({ col: 3, row: 3, depth: 3 });
+    const cellBefore = getCell(gc.getCurrentPlayer().targetingGrid, { col: 3, row: 3, depth: 3 });
+    expect(cellBefore!.state).toBe(CellState.Miss);
+
+    gc.endTurn();
     gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
     gc.endTurn();
 
-    // Player 1 takes a turn
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
-    gc.endTurn();
+    // Now ping the same origin — the miss cell should not be overwritten
+    gc.purchasePerk('sonar_ping');
+    gc.useSonarPing({ col: 3, row: 3, depth: 3 });
 
-    // Player 0 tries to ping the same cell again (need new credits somehow)
-    // Give player 0 credits by hitting, but for simplicity just test the block
-    // Player 0 currently has 2 credits (5-3=2), not enough for another sonar_ping (cost 3)
-    // But the blocking check happens before inventory check, so we can verify separately
-    // Instead, let's verify the targeting grid already has the sonar state
-    const cell = getCell(gc.getCurrentPlayer().targetingGrid, { col: 3, row: 3, depth: 3 });
-    expect(
-      cell!.state === CellState.SonarPositive || cell!.state === CellState.SonarNegative,
-    ).toBe(true);
+    const cellAfter = getCell(gc.getCurrentPlayer().targetingGrid, { col: 3, row: 3, depth: 3 });
+    expect(cellAfter!.state).toBe(CellState.Miss); // preserved
   });
 });
 
@@ -830,14 +844,14 @@ describe('GameController - Radar Jammer', () => {
     // Turn 3 (P0): P0 fires a miss
     gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
     gc.endTurn();
-    // Turn 4 (P1): consecutive hit → +6 = 12
-    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // consecutive +6 = 12
+    // Turn 4 (P1): consecutive hit → +9 = 15
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // consecutive +9 = 15
     gc.endTurn();
     // Turn 5 (P0): P0 fires a miss, then endTurn so P1 gets to act
     gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
     gc.endTurn();
 
-    // Turn 6 (P1): buy and use drone — P1 has 12 credits
+    // Turn 6 (P1): buy and use drone — P1 has 15 credits
     gc.purchasePerk('recon_drone'); // cost 10, should have enough
     const droneResult = gc.useReconDrone({ col: 5, row: 5, depth: 5 });
     expect(droneResult).not.toBeNull();
@@ -1219,13 +1233,13 @@ describe('GameController - Silent Running', () => {
     gc.endTurn();
     gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 = 12
+    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +9 = 15
     gc.endTurn();
     gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
     gc.endTurn();
 
     // P0 buys SR and activates on own typhoon
-    gc.purchasePerk('silent_running'); // -10 = 2
+    gc.purchasePerk('silent_running'); // -10 = 5
     gc.useSilentRunning('typhoon');
 
     gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
@@ -1235,9 +1249,10 @@ describe('GameController - Silent Running', () => {
     gc.purchasePerk('sonar_ping'); // P1 has 5 credits, cost 3
     const pingResult = gc.useSonarPing({ col: 2, row: 0, depth: 0 });
     expect(pingResult).not.toBeNull();
-    expect(pingResult!.rawResult).toBe(true);
-    expect(pingResult!.silentRunning).toBe(true);
-    expect(pingResult!.displayedResult).toBe(false); // masked
+    const targetCell = pingResult!.cells.find(c => c.coord.col === 2 && c.coord.row === 0 && c.coord.depth === 0);
+    expect(targetCell!.rawResult).toBe(true);
+    expect(targetCell!.silentRunning).toBe(true);
+    expect(targetCell!.displayedResult).toBe(false); // masked
   });
 
   it('torpedo still hits SR ship normally', () => {
@@ -1641,7 +1656,7 @@ describe('ability and sink on same turn', () => {
     const p0 = gc.getState().players[0]!;
     // Accumulate more credits if needed by firing hits
     // After sinking 4 ships (15 cells), player 0 should have plenty of credits
-    // Starting 5 + hits + sinks = 5 + 15*1 (hits) + 4*10 (sinks) + consecutive bonuses
+    // Starting 5 + hits + sinks = 5 + 15*1 (hits) + 4*15 (sinks) + consecutive bonuses
 
     const creditsBefore = gc.getState().players[0]!.credits;
     expect(creditsBefore).toBeGreaterThanOrEqual(25);

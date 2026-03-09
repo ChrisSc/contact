@@ -180,9 +180,10 @@ describe('GameController - Acoustic Cloak', () => {
     gc.purchasePerk('sonar_ping'); // P1 has 5, cost 3
     const pingResult = gc.useSonarPing({ col: 2, row: 0, depth: 0 });
     expect(pingResult).not.toBeNull();
-    expect(pingResult!.rawResult).toBe(true);
     expect(pingResult!.cloaked).toBe(true);
-    expect(pingResult!.displayedResult).toBe(false);
+    const targetCell = pingResult!.cells.find(c => c.coord.col === 2 && c.coord.row === 0 && c.coord.depth === 0);
+    expect(targetCell!.rawResult).toBe(true);
+    expect(targetCell!.displayedResult).toBe(false);
   });
 
   it('acoustic cloak active masks drone results', () => {

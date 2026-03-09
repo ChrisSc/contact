@@ -10,6 +10,7 @@ import { FLEET_ROSTER } from '../../types/fleet';
 import { formatCoordinate, getCell } from '../../engine/grid';
 import { getInventoryBySlot } from '../../engine/perks';
 import { calculateScanArea } from '../../engine/drone';
+import { calculateSonarArea } from '../../engine/sonar';
 import { SceneManager } from '../../renderer/scene';
 import type { ViewMode } from '../../renderer/views';
 import { getLogger } from '../../observability/logger';
@@ -430,6 +431,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   function handleBoardToggle(view: 'targeting' | 'own'): void {
     if (uiState.pingMode) {
       uiState.pingMode = false;
+      sceneManager.clearGhostCells();
       inventoryTray.clearSelection();
     }
     if (uiState.droneMode) {
@@ -484,9 +486,9 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     uiState.hoveredCoord = coord;
     coordDisplay.textContent = coord ? formatCoordinate(coord) : '\u2014 \u2014';
 
-    if (uiState.depthChargeMode || uiState.droneMode) {
+    if (uiState.depthChargeMode || uiState.droneMode || uiState.pingMode) {
       if (coord) {
-        const scanCoords = calculateScanArea(coord);
+        const scanCoords = uiState.pingMode ? calculateSonarArea(coord) : calculateScanArea(coord);
         sceneManager.setGhostCells(scanCoords, true);
       } else {
         sceneManager.clearGhostCells();
@@ -599,17 +601,19 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     if (!result) return;
 
     uiState.pingMode = false;
+    sceneManager.clearGhostCells();
 
     playSonarPingSound();
     overlays.play('sonar_ping');
 
-    // Play sonar animation
-    sceneManager.playSonarAnimation(coord, result.displayedResult);
+    // Play sonar animation on origin cell
+    const contacts = result.cells.filter(c => c.displayedResult).length;
+    sceneManager.playSonarAnimation(coord, contacts > 0);
 
     // Update status
     statusEl.className = 'combat-screen__status';
-    if (result.displayedResult) {
-      statusEl.textContent = 'SONAR: CONTACT';
+    if (contacts > 0) {
+      statusEl.textContent = `SONAR: ${contacts} CONTACT${contacts > 1 ? 'S' : ''}`;
       statusEl.classList.add('combat-screen__status--sonar-positive');
     } else {
       statusEl.textContent = 'SONAR: NEGATIVE';

@@ -1,4 +1,4 @@
-export const CREDIT_AWARDS = { hit: 1, consecutive_hit: 5, sink: 10 } as const;
+export const CREDIT_AWARDS = { hit: 1, consecutive_hit: 8, sink: 15 } as const;
 
 export interface CreditAward {
   type: 'hit' | 'consecutive_hit' | 'sink';

@@ -28,7 +28,7 @@ export class Logger {
     }
     this.buffer.push(entry);
 
-    if (import.meta.env.DEV) {
+    if (import.meta.env?.DEV) {
       console.debug(`[${entry.event}]`, entry);
     }
 

@@ -362,11 +362,7 @@ export class GameController {
     const pingInstance = attacker.inventory.find((p) => p.perkId === 'sonar_ping');
     if (!pingInstance) return null;
 
-    // Block re-ping on cell that already has sonar result
-    const existingCell = getCell(attacker.targetingGrid, coord);
-    if (existingCell && (existingCell.state === CellState.SonarPositive || existingCell.state === CellState.SonarNegative)) {
-      return null;
-    }
+    if (!isValidCoordinate(coord)) return null;
 
     const result = executeSonarPing(coord, attacker, defender);
 
@@ -375,13 +371,21 @@ export class GameController {
     const idx = attacker.index;
     this.state.players[idx] = updated;
 
-    // Write result to targeting grid
-    const sonarState = result.displayedResult ? CellState.SonarPositive : CellState.SonarNegative;
-    this.state.players[idx]!.targetingGrid = setCell(
-      this.state.players[idx]!.targetingGrid,
-      coord,
-      { state: sonarState, shipId: null },
-    );
+    // Write per-cell results to targeting grid, skip already-resolved cells
+    let positiveCount = 0;
+    for (const cellResult of result.cells) {
+      const existing = getCell(this.state.players[idx]!.targetingGrid, cellResult.coord);
+      if (existing && existing.state !== CellState.Empty) {
+        continue; // Don't overwrite any existing state
+      }
+      const sonarState = cellResult.displayedResult ? CellState.SonarPositive : CellState.SonarNegative;
+      this.state.players[idx]!.targetingGrid = setCell(
+        this.state.players[idx]!.targetingGrid,
+        cellResult.coord,
+        { state: sonarState, shipId: null },
+      );
+      if (cellResult.displayedResult) positiveCount++;
+    }
 
     this.turnSlots.pingUsed = true;
 
@@ -401,7 +405,7 @@ export class GameController {
       perkId: 'sonar_ping',
       instanceId: pingInstance.id,
       target: formatCoordinate(coord),
-      result: result.displayedResult ? 'positive' : 'negative',
+      result: `${positiveCount} contacts in 2x2x2`,
     });
 
     return result;
