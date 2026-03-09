@@ -68,7 +68,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
 
   const topRight = document.createElement('div');
   topRight.className = 'setup-screen__top-right';
-  topRight.textContent = '3D SONAR ARRAY // 8\u00d78\u00d78 // 512 CELLS';
+  topRight.textContent = `3D SONAR ARRAY // ${GRID_SIZE}\u00d7${GRID_SIZE}\u00d7${GRID_SIZE} // ${GRID_SIZE ** 3} CELLS`;
   topBar.appendChild(topRight);
 
   el.appendChild(topBar);
@@ -150,7 +150,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   allBtn.addEventListener('click', () => handleDepthChange(-1));
   depthPanel.appendChild(allBtn);
 
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < GRID_SIZE; i++) {
     const btn = document.createElement('button');
     btn.className = 'setup-screen__depth-btn';
     if (uiState.currentDepth === i) {
@@ -412,7 +412,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
         }
       }
       if (!placed) {
-        // Bail — shouldn't happen with 512 cells and 17 ship cells
+        // Bail — shouldn't happen with 343 cells and 22 ship cells
         handleReset();
         statusEl.textContent = 'AUTO DEPLOY FAILED \u2014 TRY AGAIN';
         return;

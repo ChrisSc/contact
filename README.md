@@ -1,6 +1,6 @@
 # CONTACT: 3D Naval Combat
 
-Browser-based 3D Battleship variant. Two players command submarine fleets hidden in an 8x8x8 volumetric grid, firing torpedoes and deploying earned abilities to locate and destroy enemy vessels. Hot-seat local multiplayer, zero server dependencies.
+Browser-based 3D Battleship variant. Two players command submarine fleets hidden in a 7x7x7 volumetric grid, firing torpedoes and deploying earned abilities to locate and destroy enemy vessels. Hot-seat local multiplayer, zero server dependencies.
 
 ## Tech Stack
 
@@ -31,9 +31,9 @@ npm run dev
 
 ## How to Play
 
-1. **Setup** — Each player places 5 submarines + 1 decoy in the 8x8x8 grid
+1. **Setup** — Each player places 7 submarines + 1 decoy in the 7x7x7 grid
 2. **Combat** — Alternate turns: fire a torpedo, use a perk, or do both (one per slot)
-3. **Victory** — Sink all 5 enemy subs to win
+3. **Victory** — Sink all 7 enemy subs to win
 
 Each turn you have three slots available: one **ping** action, one **attack** action, and one **defend** action. Firing a torpedo always uses the attack slot. Perks consume the slot matching their type.
 
@@ -57,7 +57,9 @@ Starting credits: **5**. Credits accumulate across turns within a game.
 | Akula | 4 |
 | Seawolf | 3 |
 | Virginia | 3 |
+| Narwhal | 3 |
 | Midget Sub | 2 |
+| Piranha | 2 |
 
 Ships may be placed along 8 axes — any direction except purely vertical (depth-only):
 
@@ -77,7 +79,7 @@ Perks are purchased with credits during combat and deployed on your turn.
 | Recon Drone | Attack | 10 | Reveals contents of a 3x3x3 volume (up to 27 cells) |
 | Silent Running | Defend | 10 | Masks one ship from recon scans for 2 opponent turns |
 | Acoustic Cloak | Defend | 6 | Masks your entire fleet from recon for 2 opponent turns |
-| G-SONAR | Attack | 18 | Scans a full depth layer (64 cells), reveals all ship segments |
+| G-SONAR | Attack | 18 | Scans a full depth layer (49 cells), reveals all ship segments |
 | Depth Charge | Attack | 25 | Strikes all occupied cells in a 3x3x3 volume |
 
 ### Keyboard Shortcuts
@@ -92,7 +94,7 @@ Perks are purchased with credits during combat and deployed on your turn.
 
 Switch between three 3D views during combat:
 
-- **Cube** — Full volumetric 8x8x8 cube, orbit freely
+- **Cube** — Full volumetric 7x7x7 cube, orbit freely
 - **Slice** — Single depth layer shown as a flat grid
 - **X-Ray** — Semi-transparent cube revealing interior cells
 

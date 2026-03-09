@@ -14,23 +14,23 @@ describe('SliceGrid', () => {
     grid = createGrid();
   });
 
-  it('renders an 8x8 grid with headers and labels', () => {
+  it('renders a 7x7 grid with headers and labels', () => {
     const sg = new SliceGrid({ grid, depth: 0, showShips: true });
     const el = sg.render();
     document.body.appendChild(el);
 
-    // 1 corner + 8 col headers + 8*(1 label + 8 cells) = 1 + 8 + 72 = 81
-    expect(el.children.length).toBe(81);
+    // 1 corner + 7 col headers + 7*(1 label + 7 cells) = 1 + 7 + 56 = 64
+    expect(el.children.length).toBe(64);
 
     // Column headers
     const headers = el.querySelectorAll('.slice-grid__col-header');
-    expect(headers.length).toBe(8);
+    expect(headers.length).toBe(7);
     expect(headers[0]!.textContent).toBe('A');
-    expect(headers[7]!.textContent).toBe('H');
+    expect(headers[6]!.textContent).toBe('G');
 
     // Row labels
     const labels = el.querySelectorAll('.slice-grid__row-label');
-    expect(labels.length).toBe(8);
+    expect(labels.length).toBe(7);
     expect(labels[0]!.textContent).toBe('1');
 
     sg.destroy();
@@ -42,7 +42,7 @@ describe('SliceGrid', () => {
     document.body.appendChild(el);
 
     const cells = el.querySelectorAll('.slice-grid__cell');
-    expect(cells.length).toBe(64);
+    expect(cells.length).toBe(49);
     for (const cell of cells) {
       expect(cell.classList.contains('cell-empty')).toBe(true);
     }

@@ -12,14 +12,18 @@ const akula = FLEET_ROSTER[1]!;
 const seawolf = FLEET_ROSTER[2]!;
 const virginia = FLEET_ROSTER[3]!;
 const midget = FLEET_ROSTER[4]!;
+const narwhal = FLEET_ROSTER[5]!;
+const piranha = FLEET_ROSTER[6]!;
 
 function placeFullFleet(gc: GameController) {
-  // Place all 5 ships along col axis, different rows
+  // Place all 7 ships along col axis, different rows
   gc.placeShipForCurrentPlayer(typhoon, { col: 0, row: 0, depth: 0 }, 'col');
   gc.placeShipForCurrentPlayer(akula, { col: 0, row: 1, depth: 0 }, 'col');
   gc.placeShipForCurrentPlayer(seawolf, { col: 0, row: 2, depth: 0 }, 'col');
   gc.placeShipForCurrentPlayer(virginia, { col: 0, row: 3, depth: 0 }, 'col');
   gc.placeShipForCurrentPlayer(midget, { col: 0, row: 4, depth: 0 }, 'col');
+  gc.placeShipForCurrentPlayer(narwhal, { col: 0, row: 5, depth: 0 }, 'col');
+  gc.placeShipForCurrentPlayer(piranha, { col: 0, row: 6, depth: 0 }, 'col');
 }
 
 function setupBothPlayers(gc: GameController) {
@@ -78,9 +82,9 @@ describe('GameController - Setup', () => {
 
   it('places a decoy', () => {
     const gc = new GameController('test-session');
-    const result = gc.placeDecoyForCurrentPlayer({ col: 7, row: 7, depth: 7 });
+    const result = gc.placeDecoyForCurrentPlayer({ col: 6, row: 6, depth: 6 });
     expect(result).toBe(true);
-    const cell = getCell(gc.getCurrentPlayer().ownGrid, { col: 7, row: 7, depth: 7 });
+    const cell = getCell(gc.getCurrentPlayer().ownGrid, { col: 6, row: 6, depth: 6 });
     expect(cell!.state).toBe(CellState.Decoy);
   });
 });
@@ -117,7 +121,7 @@ describe('GameController - Combat', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    const result = gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    const result = gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     expect(result).not.toBeNull();
     expect(result!.result).toBe('miss');
   });
@@ -142,7 +146,7 @@ describe('GameController - Combat', () => {
 
     gc.endTurn();
     // Player 1 fires a miss
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     // Player 0 fires second shot
@@ -155,7 +159,7 @@ describe('GameController - Combat', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     const second = gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     expect(second).toBeNull();
   });
@@ -164,13 +168,13 @@ describe('GameController - Combat', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // Player 0 tries to fire at same cell again
-    const result = gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    const result = gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     expect(result).toBeNull();
   });
 
@@ -186,10 +190,10 @@ describe('GameController - Combat', () => {
     setupBothPlayers(gc);
 
     expect(gc.getState().currentPlayer).toBe(0);
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     expect(gc.getState().currentPlayer).toBe(1);
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     expect(gc.getState().currentPlayer).toBe(0);
   });
@@ -199,7 +203,7 @@ describe('GameController - Combat', () => {
 
     // Place fleet + decoy for player 0
     placeFullFleet(gc);
-    gc.placeDecoyForCurrentPlayer({ col: 7, row: 7, depth: 7 });
+    gc.placeDecoyForCurrentPlayer({ col: 6, row: 6, depth: 6 });
     gc.confirmSetup();
 
     // Player 1 places fleet + decoy
@@ -238,9 +242,13 @@ describe('GameController - Victory', () => {
       ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 3, depth: 0 })),
       // midget (2): row 4, cols 0-1
       ...Array.from({ length: 2 }, (_, i) => ({ col: i, row: 4, depth: 0 })),
+      // narwhal (3): row 5, cols 0-2
+      ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 5, depth: 0 })),
+      // piranha (2): row 6, cols 0-1
+      ...Array.from({ length: 2 }, (_, i) => ({ col: i, row: 6, depth: 0 })),
     ];
 
-    let missCol = 7;
+    let missCol = 6;
     let missDepth = 0;
 
     for (const cell of shipCells) {
@@ -250,10 +258,10 @@ describe('GameController - Victory', () => {
 
       gc.endTurn();
       // Player 1 fires misses
-      gc.fireTorpedo({ col: missCol, row: 7, depth: missDepth });
+      gc.fireTorpedo({ col: missCol, row: 6, depth: missDepth });
       gc.endTurn();
       missDepth++;
-      if (missDepth >= 8) {
+      if (missDepth >= 7) {
         missDepth = 0;
         missCol--;
       }
@@ -277,19 +285,21 @@ describe('GameController - Victory', () => {
       ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 2, depth: 0 })),
       ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 3, depth: 0 })),
       ...Array.from({ length: 2 }, (_, i) => ({ col: i, row: 4, depth: 0 })),
+      ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 5, depth: 0 })),
+      ...Array.from({ length: 2 }, (_, i) => ({ col: i, row: 6, depth: 0 })),
     ];
 
-    let missCol = 7;
+    let missCol = 6;
     let missDepth = 0;
 
     for (const cell of shipCells) {
       gc.fireTorpedo(cell);
       if (gc.getState().phase === GamePhase.Victory) break;
       gc.endTurn();
-      gc.fireTorpedo({ col: missCol, row: 7, depth: missDepth });
+      gc.fireTorpedo({ col: missCol, row: 6, depth: missDepth });
       gc.endTurn();
       missDepth++;
-      if (missDepth >= 8) {
+      if (missDepth >= 7) {
         missDepth = 0;
         missCol--;
       }
@@ -330,7 +340,7 @@ describe('GameController - Logger Events', () => {
   it('emits combat events on fire', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
 
     const events = getLogger().getBuffer();
     expect(events.some((e) => e.event === 'combat.fire')).toBe(true);
@@ -340,7 +350,7 @@ describe('GameController - Logger Events', () => {
   it('emits turn events', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     const events = getLogger().getBuffer();
@@ -368,7 +378,7 @@ describe('GameController - Logger Events', () => {
     // Sink midget sub (size 2)
     gc.fireTorpedo({ col: 0, row: 4, depth: 0 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 4, depth: 0 });
 
@@ -390,7 +400,7 @@ describe('GameController - Credits', () => {
     setupBothPlayers(gc);
 
     const before = gc.getCurrentPlayer().credits;
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // miss
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // miss
     expect(gc.getCurrentPlayer().credits).toBe(before);
   });
 
@@ -408,15 +418,15 @@ describe('GameController - Credits', () => {
     setupBothPlayers(gc);
 
     // Miss first to avoid consecutive bonus
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // Hit midget sub first cell (no consecutive since last turn was a miss)
     gc.fireTorpedo({ col: 0, row: 4, depth: 0 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 6 });
     gc.endTurn();
 
     // Sink midget — consecutive since last was hit → 1 + 8 + 15 = 24
@@ -432,7 +442,7 @@ describe('GameController - Credits', () => {
     // Turn 1: player 0 hits
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit typhoon
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // player 1 misses
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // player 1 misses
     gc.endTurn();
 
     // Turn 2: player 0 hits again (consecutive)
@@ -492,10 +502,10 @@ describe('GameController - Sonar Ping', () => {
     setupBothPlayers(gc);
 
     gc.purchasePerk('sonar_ping'); // cost 3, have 5
-    const result = gc.useSonarPing({ col: 7, row: 7, depth: 7 });
+    const result = gc.useSonarPing({ col: 6, row: 6, depth: 6 });
     expect(result).not.toBeNull();
 
-    const cell = getCell(gc.getCurrentPlayer().targetingGrid, { col: 7, row: 7, depth: 7 });
+    const cell = getCell(gc.getCurrentPlayer().targetingGrid, { col: 6, row: 6, depth: 6 });
     expect(
       cell!.state === CellState.SonarPositive || cell!.state === CellState.SonarNegative,
     ).toBe(true);
@@ -508,7 +518,7 @@ describe('GameController - Sonar Ping', () => {
     gc.purchasePerk('sonar_ping');
     expect(gc.getCurrentPlayer().inventory).toHaveLength(1);
 
-    gc.useSonarPing({ col: 7, row: 7, depth: 7 });
+    gc.useSonarPing({ col: 6, row: 6, depth: 6 });
     expect(gc.getCurrentPlayer().inventory).toHaveLength(0);
   });
 
@@ -519,7 +529,7 @@ describe('GameController - Sonar Ping', () => {
     gc.purchasePerk('sonar_ping');
     expect(gc.getTurnSlots().pingUsed).toBe(false);
 
-    gc.useSonarPing({ col: 7, row: 7, depth: 7 });
+    gc.useSonarPing({ col: 6, row: 6, depth: 6 });
     expect(gc.getTurnSlots().pingUsed).toBe(true);
   });
 
@@ -530,7 +540,7 @@ describe('GameController - Sonar Ping', () => {
     // Buy two pings (need extra credits: start with 5, each costs 3)
     gc.purchasePerk('sonar_ping'); // 5-3=2, not enough for second
     // So just verify the slot blocks a second ping
-    gc.useSonarPing({ col: 7, row: 7, depth: 7 });
+    gc.useSonarPing({ col: 6, row: 6, depth: 6 });
     // Even if we had another instance, pingUsed blocks it
     const second = gc.useSonarPing({ col: 6, row: 6, depth: 6 });
     expect(second).toBeNull();
@@ -574,7 +584,7 @@ describe('GameController - Sonar Ping', () => {
     expect(cellBefore!.state).toBe(CellState.Miss);
 
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     // Now ping the same origin — the miss cell should not be overwritten
@@ -594,11 +604,11 @@ describe('GameController - Recon Drone', () => {
     // Give credits: hit to get enough (start 5, need 10 for drone)
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit → +1 CR = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // p1 misses
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // p1 misses
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // hit → +6 CR (consecutive) = 12
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // Purchase and use drone
@@ -622,18 +632,18 @@ describe('GameController - Recon Drone', () => {
     // Earn enough credits
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 consecutive
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     gc.purchasePerk('recon_drone');
     gc.useReconDrone({ col: 5, row: 5, depth: 5 });
 
     // Should not be able to fire
-    const fireResult = gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    const fireResult = gc.fireTorpedo({ col: 6, row: 6, depth: 4 });
     expect(fireResult).toBeNull();
     expect(gc.getTurnSlots().attackUsed).toBe(true);
   });
@@ -654,17 +664,17 @@ describe('GameController - Recon Drone', () => {
     // Fire at a cell first to create a Miss
     gc.fireTorpedo({ col: 5, row: 5, depth: 5 }); // miss
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     // Earn credits for drone
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 6 });
     gc.endTurn();
 
     gc.purchasePerk('recon_drone'); // cost 10
@@ -690,11 +700,11 @@ describe('GameController - Recon Drone', () => {
     // P0 earns credits by hitting P1's ships
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit P1 typhoon +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // P1 misses
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // P1 misses
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // hit P1 typhoon +6 = 12
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     gc.purchasePerk('recon_drone'); // cost 10
@@ -737,18 +747,18 @@ describe('GameController - Recon Drone', () => {
     // Earn credits
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // Use drone on center area (no ships there)
     gc.purchasePerk('recon_drone');
     gc.useReconDrone({ col: 5, row: 5, depth: 5 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 6 });
     gc.endTurn();
 
     // Fire at a drone-scanned cell
@@ -779,11 +789,11 @@ describe('GameController - Radar Jammer', () => {
     // Need 10 credits for two jammers. Start with 5, earn more.
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 = 12
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     gc.purchasePerk('radar_jammer'); // -5 = 7
@@ -793,9 +803,9 @@ describe('GameController - Radar Jammer', () => {
     expect(gc.getCurrentPlayer().abilities.radar_jammer.active).toBe(true);
 
     // Next turn, try to deploy second jammer when first is still active
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 4 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 6 });
     gc.endTurn();
 
     const second = gc.useRadarJammer();
@@ -811,7 +821,7 @@ describe('GameController - Radar Jammer', () => {
     gc.useRadarJammer();
     expect(gc.getCurrentPlayer().abilities.radar_jammer.active).toBe(true);
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     // Player 1 pings player 0
@@ -834,7 +844,7 @@ describe('GameController - Radar Jammer', () => {
     gc.purchasePerk('radar_jammer');
     gc.useRadarJammer();
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     // Player 1 needs credits for drone (cost 10, has 5)
@@ -842,13 +852,13 @@ describe('GameController - Radar Jammer', () => {
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
     gc.endTurn();
     // Turn 3 (P0): P0 fires a miss
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
     // Turn 4 (P1): consecutive hit → +9 = 15
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // consecutive +9 = 15
     gc.endTurn();
     // Turn 5 (P0): P0 fires a miss, then endTurn so P1 gets to act
-    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 6 });
     gc.endTurn();
 
     // Turn 6 (P1): buy and use drone — P1 has 15 credits
@@ -873,7 +883,7 @@ describe('GameController - Radar Jammer', () => {
     // Manually set cloak active (no purchase mechanism yet)
     gc.getState().players[0]!.abilities.acoustic_cloak.active = true;
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     // Player 1 pings
@@ -894,7 +904,7 @@ describe('GameController - Turn Slots', () => {
     setupBothPlayers(gc);
 
     gc.purchasePerk('sonar_ping');
-    gc.useSonarPing({ col: 7, row: 7, depth: 7 });
+    gc.useSonarPing({ col: 6, row: 6, depth: 6 });
 
     const fireResult = gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     expect(fireResult).not.toBeNull();
@@ -922,7 +932,7 @@ describe('GameController - Turn Slots', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     const second = gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     expect(second).toBeNull();
   });
@@ -933,7 +943,7 @@ describe('GameController - Turn Slots', () => {
 
     // Ping alone should not allow end turn
     gc.purchasePerk('sonar_ping');
-    gc.useSonarPing({ col: 7, row: 7, depth: 7 });
+    gc.useSonarPing({ col: 6, row: 6, depth: 6 });
 
     expect(gc.endTurn()).toBe(false);
   });
@@ -947,7 +957,7 @@ describe('GameController - Turn Slots', () => {
     expect(initial.attackUsed).toBe(false);
     expect(initial.defendUsed).toBe(false);
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     const afterFire = gc.getTurnSlots();
     expect(afterFire.attackUsed).toBe(true);
     expect(afterFire.pingUsed).toBe(false);
@@ -964,7 +974,7 @@ describe('GameController - Depth Charge', () => {
     while (gc.getCurrentPlayer().credits - startCredits < target) {
       gc.fireTorpedo({ col, row: 0, depth: 0 }); // hit
       gc.endTurn();
-      gc.fireTorpedo({ col: 7, row: 7, depth: missDepth++ }); // opponent misses
+      gc.fireTorpedo({ col: 6, row: 6, depth: missDepth++ }); // opponent misses
       gc.endTurn();
       col++;
       if (col >= 5) break;
@@ -987,7 +997,7 @@ describe('GameController - Depth Charge', () => {
     earnCredits(gc, 25);
 
     gc.purchasePerk('depth_charge');
-    const result = gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+    const result = gc.useDepthCharge({ col: 6, row: 6, depth: 6 });
     expect(result).not.toBeNull();
     expect(gc.getTurnSlots().attackUsed).toBe(true);
 
@@ -1003,10 +1013,10 @@ describe('GameController - Depth Charge', () => {
     earnCredits(gc, 25);
     gc.purchasePerk('depth_charge');
 
-    const result = gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+    const result = gc.useDepthCharge({ col: 6, row: 6, depth: 6 });
     expect(result).not.toBeNull();
 
-    // All cells should be miss (no ships at 7,7,7 area)
+    // All cells should be miss (no ships at 6,6,6 area)
     for (const cell of result!.cellResults) {
       expect(cell.result).toBe('miss');
     }
@@ -1039,15 +1049,15 @@ describe('GameController - Depth Charge', () => {
     setupBothPlayers(gc);
 
     // First, fire a torpedo at a cell in the depth charge zone
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // miss
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // miss
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // opponent misses
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // opponent misses
     gc.endTurn();
 
     earnCredits(gc, 25);
     gc.purchasePerk('depth_charge');
 
-    const result = gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+    const result = gc.useDepthCharge({ col: 6, row: 6, depth: 6 });
     expect(result).not.toBeNull();
 
     const alreadyResolved = result!.cellResults.filter(c => c.result === 'already_resolved');
@@ -1064,19 +1074,21 @@ describe('GameController - Depth Charge', () => {
       ...Array.from({ length: 4 }, (_, i) => ({ col: i, row: 1, depth: 0 })),
       ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 2, depth: 0 })),
       ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 3, depth: 0 })),
+      ...Array.from({ length: 3 }, (_, i) => ({ col: i, row: 5, depth: 0 })),
+      ...Array.from({ length: 2 }, (_, i) => ({ col: i, row: 6, depth: 0 })),
     ];
 
-    let missCol = 7;
+    let missCol = 6;
     let missDepth = 0;
 
     for (const cell of shipCells) {
       gc.fireTorpedo(cell);
       if (gc.getState().phase === GamePhase.Victory) break;
       gc.endTurn();
-      gc.fireTorpedo({ col: missCol, row: 7, depth: missDepth });
+      gc.fireTorpedo({ col: missCol, row: 6, depth: missDepth });
       gc.endTurn();
       missDepth++;
-      if (missDepth >= 8) { missDepth = 0; missCol--; }
+      if (missDepth >= 7) { missDepth = 0; missCol--; }
     }
 
     // Should still be Combat (midget not sunk yet)
@@ -1099,19 +1111,19 @@ describe('GameController - Depth Charge', () => {
 
     // Player 1 places fleet + decoy at known position
     placeFullFleet(gc);
-    gc.placeDecoyForCurrentPlayer({ col: 7, row: 7, depth: 7 });
+    gc.placeDecoyForCurrentPlayer({ col: 6, row: 6, depth: 6 });
     gc.confirmSetup();
 
     // Player 0 earns credits and uses depth charge on decoy area
     earnCredits(gc, 25);
     gc.purchasePerk('depth_charge');
 
-    const result = gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+    const result = gc.useDepthCharge({ col: 6, row: 6, depth: 6 });
     expect(result).not.toBeNull();
 
     // Find the decoy cell result
     const decoyResult = result!.cellResults.find(
-      c => c.coord.col === 7 && c.coord.row === 7 && c.coord.depth === 7,
+      c => c.coord.col === 6 && c.coord.row === 6 && c.coord.depth === 6,
     );
     expect(decoyResult!.result).toBe('hit');
   });
@@ -1122,7 +1134,7 @@ describe('GameController - Depth Charge', () => {
 
     earnCredits(gc, 25);
     gc.purchasePerk('depth_charge');
-    gc.useDepthCharge({ col: 7, row: 7, depth: 7 });
+    gc.useDepthCharge({ col: 6, row: 6, depth: 6 });
 
     const logger = getLogger();
     const events = logger.getBuffer();
@@ -1140,11 +1152,11 @@ describe('GameController - Silent Running', () => {
     // Start with 5, need to earn more
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // consecutive +6 = 12
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     gc.purchasePerk('silent_running'); // cost 10, have 12
@@ -1164,12 +1176,12 @@ describe('GameController - Silent Running', () => {
     setupBothPlayers(gc);
 
     // Sink midget first, then try to SR it
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // P0 misses
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // P0 misses
     gc.endTurn();
     // P1 hits P0's midget
     gc.fireTorpedo({ col: 0, row: 4, depth: 0 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // sinks P0's midget
     gc.endTurn();
@@ -1178,11 +1190,11 @@ describe('GameController - Silent Running', () => {
     // Need credits: earn some
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // consecutive +6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 5 });
     gc.endTurn();
 
     gc.purchasePerk('silent_running');
@@ -1197,15 +1209,15 @@ describe('GameController - Silent Running', () => {
     // Earn credits for two SR purchases
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
     gc.fireTorpedo({ col: 2, row: 0, depth: 0 }); // +6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 4 });
     gc.endTurn();
 
     gc.purchasePerk('silent_running'); // -10
@@ -1231,18 +1243,18 @@ describe('GameController - Silent Running', () => {
     // P0 earns credits
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +9 = 15
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // P0 buys SR and activates on own typhoon
     gc.purchasePerk('silent_running'); // -10 = 5
     gc.useSilentRunning('typhoon');
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 4 });
     gc.endTurn();
 
     // P1 pings P0's typhoon (at row 0, col 2, depth 0 - still a ship cell)
@@ -1262,17 +1274,17 @@ describe('GameController - Silent Running', () => {
     // P0 earns credits and deploys SR
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     gc.purchasePerk('silent_running');
     gc.useSilentRunning('typhoon');
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 4 });
     gc.endTurn();
 
     // P1 fires at P0's typhoon (at row 0, col 2, depth 0)
@@ -1289,11 +1301,11 @@ describe('GameController - Silent Running', () => {
     // P0 earns credits
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 = 12
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // P0 activates SR on typhoon (turnsRemaining = 2)
@@ -1301,7 +1313,7 @@ describe('GameController - Silent Running', () => {
     gc.useSilentRunning('typhoon');
 
     // P0 fires and ends turn
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 4 });
     gc.endTurn();
 
     // After P0 ends turn -> P1's turn starts. P0's SR NOT decremented yet
@@ -1310,7 +1322,7 @@ describe('GameController - Silent Running', () => {
     expect(gc.getState().players[0]!.silentRunningShips[0]!.turnsRemaining).toBe(2);
 
     // P1 fires and ends turn (1st opponent turn for P0)
-    gc.fireTorpedo({ col: 7, row: 7, depth: 4 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 3 });
     gc.endTurn();
 
     // After P1 ends turn -> P0's turn starts -> P0's SR decrements to 1
@@ -1318,11 +1330,11 @@ describe('GameController - Silent Running', () => {
     expect(gc.getState().players[0]!.silentRunningShips[0]!.turnsRemaining).toBe(1);
 
     // P0 fires and ends turn
-    gc.fireTorpedo({ col: 7, row: 6, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 5 });
     gc.endTurn();
 
     // P1 fires and ends turn (2nd opponent turn for P0)
-    gc.fireTorpedo({ col: 7, row: 6, depth: 4 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 4 });
     gc.endTurn();
 
     // After P1 ends turn -> P0's turn starts -> P0's SR decrements to 0 (expired)
@@ -1345,11 +1357,11 @@ describe('GameController - Silent Running', () => {
 
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     gc.purchasePerk('silent_running');
@@ -1367,11 +1379,13 @@ describe('GameController - Silent Running', () => {
 // ---------------------------------------------------------------------------
 // Helper: sink specific ships on the opponent by firing at their known cells.
 // Ships are placed by placeFullFleet along col axis at depth 0:
-//   typhoon: row 0, cols 0-4 (size 5)
-//   akula:   row 1, cols 0-3 (size 4)
-//   seawolf: row 2, cols 0-2 (size 3)
+//   typhoon:  row 0, cols 0-4 (size 5)
+//   akula:    row 1, cols 0-3 (size 4)
+//   seawolf:  row 2, cols 0-2 (size 3)
 //   virginia: row 3, cols 0-2 (size 3)
-//   midget:  row 4, cols 0-1 (size 2)
+//   midget:   row 4, cols 0-1 (size 2)
+//   narwhal:  row 5, cols 0-2 (size 3)
+//   piranha:  row 6, cols 0-1 (size 2)
 // ---------------------------------------------------------------------------
 
 const SHIP_CELLS: Record<string, Array<{ col: number; row: number; depth: number }>> = {
@@ -1380,6 +1394,8 @@ const SHIP_CELLS: Record<string, Array<{ col: number; row: number; depth: number
   seawolf: [0, 1, 2].map(c => ({ col: c, row: 2, depth: 0 })),
   virginia: [0, 1, 2].map(c => ({ col: c, row: 3, depth: 0 })),
   midget: [0, 1].map(c => ({ col: c, row: 4, depth: 0 })),
+  narwhal: [0, 1, 2].map(c => ({ col: c, row: 5, depth: 0 })),
+  piranha: [0, 1].map(c => ({ col: c, row: 6, depth: 0 })),
 };
 
 /**
@@ -1388,9 +1404,9 @@ const SHIP_CELLS: Record<string, Array<{ col: number; row: number; depth: number
  * Assumes player 0 is the current player at the start.
  */
 function sinkShipsAsPlayer0(gc: GameController, shipIds: string[]) {
-  let missCol = 7;
-  let missRow = 7;
-  let missDepth = 7;
+  let missCol = 6;
+  let missRow = 6;
+  let missDepth = 6;
 
   for (const shipId of shipIds) {
     const cells = SHIP_CELLS[shipId]!;
@@ -1402,7 +1418,7 @@ function sinkShipsAsPlayer0(gc: GameController, shipIds: string[]) {
       gc.endTurn();
       missDepth--;
       if (missDepth < 0) {
-        missDepth = 7;
+        missDepth = 6;
         missRow--;
       }
     }
@@ -1414,9 +1430,9 @@ function sinkShipsAsPlayer0(gc: GameController, shipIds: string[]) {
  * Player 0 fires misses. Assumes player 0 is the current player at the start.
  */
 function sinkShipsAsPlayer1(gc: GameController, shipIds: string[]) {
-  let missCol = 7;
-  let missRow = 7;
-  let missDepth = 7;
+  let missCol = 6;
+  let missRow = 6;
+  let missDepth = 6;
 
   for (const shipId of shipIds) {
     const cells = SHIP_CELLS[shipId]!;
@@ -1426,7 +1442,7 @@ function sinkShipsAsPlayer1(gc: GameController, shipIds: string[]) {
       gc.endTurn();
       missDepth--;
       if (missDepth < 0) {
-        missDepth = 7;
+        missDepth = 6;
         missRow--;
       }
       // Player 1 fires at target cell
@@ -1442,13 +1458,13 @@ describe('win condition scenarios', () => {
     setupBothPlayers(gc);
 
     // Sink all ships except midget, then sink midget last
-    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia']);
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'narwhal', 'piranha']);
     expect(gc.getState().phase).toBe(GamePhase.Combat);
 
     // Sink midget sub — first cell
     gc.fireTorpedo({ col: 0, row: 4, depth: 0 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 5, depth: 7 });
+    gc.fireTorpedo({ col: 5, row: 6, depth: 0 });
     gc.endTurn();
 
     // Sink midget sub — second cell (final)
@@ -1464,14 +1480,14 @@ describe('win condition scenarios', () => {
     setupBothPlayers(gc);
 
     // Sink all ships except typhoon
-    sinkShipsAsPlayer0(gc, ['akula', 'seawolf', 'virginia', 'midget']);
+    sinkShipsAsPlayer0(gc, ['akula', 'seawolf', 'virginia', 'midget', 'narwhal', 'piranha']);
     expect(gc.getState().phase).toBe(GamePhase.Combat);
 
     // Sink typhoon cells one by one
     for (let c = 0; c < 4; c++) {
       gc.fireTorpedo({ col: c, row: 0, depth: 0 });
       gc.endTurn();
-      gc.fireTorpedo({ col: 7, row: 5 - c, depth: 7 });
+      gc.fireTorpedo({ col: 5, row: 6, depth: c });
       gc.endTurn();
     }
 
@@ -1488,7 +1504,7 @@ describe('win condition scenarios', () => {
     setupBothPlayers(gc);
 
     // Player 1 sinks all of player 0's ships
-    sinkShipsAsPlayer1(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'midget']);
+    sinkShipsAsPlayer1(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'midget', 'narwhal', 'piranha']);
 
     expect(gc.getState().phase).toBe(GamePhase.Victory);
     expect(gc.getState().winner).toBe(1);
@@ -1499,18 +1515,18 @@ describe('win condition scenarios', () => {
     setupBothPlayers(gc);
 
     // Sink all ships as player 0
-    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'midget']);
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'midget', 'narwhal', 'piranha']);
 
     expect(gc.getState().phase).toBe(GamePhase.Victory);
 
     // Attempting to fire after victory returns null
-    const result = gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    const result = gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     expect(result).toBeNull();
   });
 });
 
 describe('exhaustive firing', () => {
-  it('victory is declared before all 512 cells are exhausted', () => {
+  it('victory is declared before all 343 cells are exhausted', () => {
     const gc = new GameController('test-exhaustive');
     setupBothPlayers(gc);
 
@@ -1519,14 +1535,14 @@ describe('exhaustive firing', () => {
     let victoryDeclared = false;
 
     // Player 1 miss counter (fires into far corner of player 0's grid)
-    let p1MissDepth = 7;
-    let p1MissRow = 7;
+    let p1MissDepth = 6;
+    let p1MissRow = 6;
 
     // Alternate turns — player 0 fires systematically through player 1's grid
     outer:
-    for (let col = 0; col < 8; col++) {
-      for (let row = 0; row < 8; row++) {
-        for (let depth = 0; depth < 8; depth++) {
+    for (let col = 0; col < 7; col++) {
+      for (let row = 0; row < 7; row++) {
+        for (let depth = 0; depth < 7; depth++) {
           if (gc.getState().phase === GamePhase.Victory) {
             victoryDeclared = true;
             break outer;
@@ -1551,7 +1567,7 @@ describe('exhaustive firing', () => {
           }
 
           // Player 1 fires a miss into safe area
-          const p1Result = gc.fireTorpedo({ col: 7, row: p1MissRow, depth: p1MissDepth });
+          const p1Result = gc.fireTorpedo({ col: 6, row: p1MissRow, depth: p1MissDepth });
           if (p1Result) {
             p1CellsFired++;
             if (gc.getState().phase === GamePhase.Victory) {
@@ -1562,9 +1578,9 @@ describe('exhaustive firing', () => {
           } else {
             // Find any open cell for player 1
             let fired = false;
-            for (let d2 = 0; d2 < 8 && !fired; d2++) {
-              for (let r2 = 0; r2 < 8 && !fired; r2++) {
-                for (let c2 = 0; c2 < 8 && !fired; c2++) {
+            for (let d2 = 0; d2 < 7 && !fired; d2++) {
+              for (let r2 = 0; r2 < 7 && !fired; r2++) {
+                for (let c2 = 0; c2 < 7 && !fired; c2++) {
                   const alt = gc.fireTorpedo({ col: c2, row: r2, depth: d2 });
                   if (alt) {
                     p1CellsFired++;
@@ -1582,7 +1598,7 @@ describe('exhaustive firing', () => {
 
           p1MissDepth--;
           if (p1MissDepth < 0) {
-            p1MissDepth = 7;
+            p1MissDepth = 6;
             p1MissRow--;
           }
         }
@@ -1590,9 +1606,9 @@ describe('exhaustive firing', () => {
     }
 
     expect(victoryDeclared).toBe(true);
-    // Player 0 fires at player 1's grid; 17 ship cells means victory by cell 512 at most
+    // Player 0 fires at player 1's grid; 22 ship cells means victory by cell 343 at most
     // but typically much sooner since ships cluster in first 5 cols/rows
-    expect(p0CellsFired).toBeLessThan(512);
+    expect(p0CellsFired).toBeLessThan(343);
     expect(gc.getState().phase).toBe(GamePhase.Victory);
   });
 
@@ -1601,12 +1617,12 @@ describe('exhaustive firing', () => {
     setupBothPlayers(gc);
 
     // Quick sink all player 1 ships
-    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'midget']);
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'midget', 'narwhal', 'piranha']);
     expect(gc.getState().phase).toBe(GamePhase.Victory);
 
     // All subsequent fire attempts return null
     for (let i = 0; i < 3; i++) {
-      expect(gc.fireTorpedo({ col: 7, row: 7, depth: 7 - i })).toBeNull();
+      expect(gc.fireTorpedo({ col: 6, row: 6, depth: 6 - i })).toBeNull();
     }
   });
 });
@@ -1617,12 +1633,12 @@ describe('ability and sink on same turn', () => {
     setupBothPlayers(gc);
 
     // Sink all except midget first
-    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia']);
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'narwhal', 'piranha']);
 
     // Hit first cell of midget to earn credits, then come back to sink
     gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // hit midget cell 0
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 5, depth: 7 }); // p1 miss
+    gc.fireTorpedo({ col: 5, row: 6, depth: 0 }); // p1 miss
     gc.endTurn();
 
     // Player 0 now has enough credits for sonar_ping (cost 3)
@@ -1649,14 +1665,14 @@ describe('ability and sink on same turn', () => {
     setupBothPlayers(gc);
 
     // Sink all ships except midget sub
-    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia']);
+    sinkShipsAsPlayer0(gc, ['typhoon', 'akula', 'seawolf', 'virginia', 'narwhal', 'piranha']);
 
     // Player 0 needs 25 credits for depth charge — they have accumulated credits
-    // from sinking 4 ships. Let's check and add more hits if needed.
+    // from sinking 6 ships. Let's check and add more hits if needed.
     const p0 = gc.getState().players[0]!;
     // Accumulate more credits if needed by firing hits
-    // After sinking 4 ships (15 cells), player 0 should have plenty of credits
-    // Starting 5 + hits + sinks = 5 + 15*1 (hits) + 4*15 (sinks) + consecutive bonuses
+    // After sinking 6 ships (20 cells), player 0 should have plenty of credits
+    // Starting 5 + hits + sinks = 5 + 20*1 (hits) + 6*15 (sinks) + consecutive bonuses
 
     const creditsBefore = gc.getState().players[0]!.credits;
     expect(creditsBefore).toBeGreaterThanOrEqual(25);
@@ -1688,7 +1704,7 @@ describe('simultaneous ability unlock', () => {
     // Player 0 sinks midget sub (smallest — 2 cells)
     gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // hit
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // p1 miss
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // p1 miss
     gc.endTurn();
 
     // Second cell sinks it
@@ -1712,11 +1728,11 @@ describe('simultaneous ability unlock', () => {
 
     // Player 1 sinks player 0's midget sub (player 0 loses a ship)
     // Player 0 misses, player 1 hits
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // p0 miss
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // p0 miss
     gc.endTurn();
     gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // p1 hits p0 midget cell 0
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 }); // p0 miss
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 }); // p0 miss
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // p1 sinks p0 midget
     gc.endTurn();
@@ -1743,7 +1759,7 @@ describe('simultaneous ability unlock', () => {
     // Player 0 sinks player 1's midget
     gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // hit
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 }); // p1 miss
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 }); // p1 miss
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // sunk
     gc.endTurn();
@@ -1751,7 +1767,7 @@ describe('simultaneous ability unlock', () => {
     // Player 1 sinks player 0's midget
     gc.fireTorpedo({ col: 0, row: 4, depth: 0 }); // hit
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 }); // p0 miss
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 }); // p0 miss
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // sunk
     gc.endTurn();

@@ -7,7 +7,7 @@
  *   npx tsx scripts/simulate.ts [numGames] [--verbose]
  *
  * Each bot:
- *   - Places fleet randomly across all 8 axes in the 8x8x8 grid
+ *   - Places fleet randomly across all 8 axes in the 7x7x7 grid
  *   - Buys perks when credits allow (priority: sonar > jammer > cloak > drone > SR > g-sonar > depth charge)
  *   - Deploys defensive perks (jammer, cloak, silent running on most valuable surviving ship)
  *   - Uses sonar pings on random unresolved cells

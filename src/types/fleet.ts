@@ -33,6 +33,8 @@ export const FLEET_ROSTER: readonly FleetRosterEntry[] = [
   { id: 'seawolf', name: 'Seawolf', size: 3 },
   { id: 'virginia', name: 'Virginia', size: 3 },
   { id: 'midget', name: 'Midget Sub', size: 2 },
+  { id: 'narwhal', name: 'Narwhal', size: 3 },
+  { id: 'piranha', name: 'Piranha', size: 2 },
 ] as const;
 
-export const TOTAL_SHIP_CELLS = 17;
+export const TOTAL_SHIP_CELLS = 22;

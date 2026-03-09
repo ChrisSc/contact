@@ -11,6 +11,8 @@ const akula = FLEET_ROSTER[1]!;
 const seawolf = FLEET_ROSTER[2]!;
 const virginia = FLEET_ROSTER[3]!;
 const midget = FLEET_ROSTER[4]!;
+const narwhal = FLEET_ROSTER[5]!;
+const piranha = FLEET_ROSTER[6]!;
 
 function placeFullFleet(gc: GameController) {
   gc.placeShipForCurrentPlayer(typhoon, { col: 0, row: 0, depth: 0 }, 'col');
@@ -18,6 +20,8 @@ function placeFullFleet(gc: GameController) {
   gc.placeShipForCurrentPlayer(seawolf, { col: 0, row: 2, depth: 0 }, 'col');
   gc.placeShipForCurrentPlayer(virginia, { col: 0, row: 3, depth: 0 }, 'col');
   gc.placeShipForCurrentPlayer(midget, { col: 0, row: 4, depth: 0 }, 'col');
+  gc.placeShipForCurrentPlayer(narwhal, { col: 0, row: 5, depth: 0 }, 'col');
+  gc.placeShipForCurrentPlayer(piranha, { col: 0, row: 6, depth: 0 }, 'col');
 }
 
 function setupBothPlayers(gc: GameController) {
@@ -34,7 +38,7 @@ function earnCredits(gc: GameController, target: number) {
   while (gc.getCurrentPlayer().credits - startCredits < target) {
     gc.fireTorpedo({ col, row: 0, depth: 0 }); // hit
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: missDepth++ }); // opponent misses
+    gc.fireTorpedo({ col: 6, row: 6, depth: missDepth++ }); // opponent misses
     gc.endTurn();
     col++;
     if (col >= 5) break;
@@ -49,7 +53,7 @@ describe('GameController - Acoustic Cloak', () => {
     // P0 needs credits for acoustic_cloak (cost 6)
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     gc.purchasePerk('acoustic_cloak'); // cost 6, have 6
@@ -92,7 +96,7 @@ describe('GameController - Acoustic Cloak', () => {
     // P0 earns credits and deploys cloak
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     gc.purchasePerk('acoustic_cloak');
@@ -103,7 +107,7 @@ describe('GameController - Acoustic Cloak', () => {
     expect(gc.getState().players[0]!.abilities.acoustic_cloak.turnsRemaining).toBe(2);
 
     // P0 fires and ends turn -> P1's turn starts
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // P0's cloak NOT decremented yet (P0's opponent hasn't completed a turn)
@@ -111,7 +115,7 @@ describe('GameController - Acoustic Cloak', () => {
     expect(gc.getState().players[0]!.abilities.acoustic_cloak.turnsRemaining).toBe(2);
 
     // P1 fires and ends turn (1st opponent turn for P0)
-    gc.fireTorpedo({ col: 7, row: 7, depth: 4 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 3 });
     gc.endTurn();
 
     // P0's turn starts -> cloak decrements to 1
@@ -119,11 +123,11 @@ describe('GameController - Acoustic Cloak', () => {
     expect(gc.getState().players[0]!.abilities.acoustic_cloak.turnsRemaining).toBe(1);
 
     // P0 fires and ends turn
-    gc.fireTorpedo({ col: 7, row: 6, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 5 });
     gc.endTurn();
 
     // P1 fires and ends turn (2nd opponent turn for P0)
-    gc.fireTorpedo({ col: 7, row: 6, depth: 4 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 4 });
     gc.endTurn();
 
     // P0's turn starts -> cloak decrements to 0 (expired)
@@ -138,20 +142,20 @@ describe('GameController - Acoustic Cloak', () => {
     // P0 deploys cloak
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     gc.purchasePerk('acoustic_cloak');
     gc.useAcousticCloak();
 
     // Two opponent turns to expire
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 4 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 3 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 5 });
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 4 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 4 });
     gc.endTurn();
 
     const logger = getLogger();
@@ -167,13 +171,13 @@ describe('GameController - Acoustic Cloak', () => {
     // P0 deploys cloak
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     gc.purchasePerk('acoustic_cloak');
     gc.useAcousticCloak();
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // P1 pings P0's ship (should be masked by cloak)
@@ -192,13 +196,13 @@ describe('GameController - Acoustic Cloak', () => {
 
     // P1 needs credits for drone (cost 10). Earn first, then P0 deploys cloak.
     // Turn 1 (P0): miss
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     // Turn 2 (P1): hit P0 +1 = 6
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 });
     gc.endTurn();
     // Turn 3 (P0): miss
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 4 });
     gc.endTurn();
     // Turn 4 (P1): consecutive +6 = 12
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 });
@@ -207,13 +211,13 @@ describe('GameController - Acoustic Cloak', () => {
     // Turn 5 (P0): deploy cloak then fire
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 6 });
     gc.endTurn();
     // P0 now has 6 credits
     gc.purchasePerk('acoustic_cloak'); // cost 6
     gc.useAcousticCloak();
 
-    gc.fireTorpedo({ col: 7, row: 6, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 5 });
     gc.endTurn();
 
     // P1's turn: cloak still active (0 opponent turns elapsed for P0)
@@ -230,25 +234,25 @@ describe('GameController - Acoustic Cloak', () => {
 
     // P1 earns credits for G-SONAR (cost 18) first, then P0 deploys cloak.
     // Turn 1 (P0): miss
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
     // Turn 2 (P1): hit +1 = 6
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 });
     gc.endTurn();
     // Turn 3 (P0): miss
-    gc.fireTorpedo({ col: 7, row: 7, depth: 6 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 4 });
     gc.endTurn();
     // Turn 4 (P1): consecutive +6 = 12
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 });
     gc.endTurn();
     // Turn 5 (P0): miss
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
     // Turn 6 (P1): consecutive +6 = 18
     gc.fireTorpedo({ col: 2, row: 0, depth: 0 });
     gc.endTurn();
     // Turn 7 (P0): miss
-    gc.fireTorpedo({ col: 7, row: 7, depth: 4 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 3 });
     gc.endTurn();
     // Turn 8 (P1): consecutive +6 = 24
     gc.fireTorpedo({ col: 3, row: 0, depth: 0 });
@@ -257,13 +261,13 @@ describe('GameController - Acoustic Cloak', () => {
     // Turn 9 (P0): P0 earns credits for cloak and deploys it
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 7 }); // P1 misses
+    gc.fireTorpedo({ col: 6, row: 5, depth: 6 }); // P1 misses
     gc.endTurn();
     // P0 has 6 credits now
     gc.purchasePerk('acoustic_cloak'); // cost 6
     gc.useAcousticCloak();
 
-    gc.fireTorpedo({ col: 7, row: 6, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 5 });
     gc.endTurn();
 
     // P1's turn: cloak still active (0 opponent turns elapsed for P0)
@@ -281,13 +285,13 @@ describe('GameController - Acoustic Cloak', () => {
     // P0 deploys cloak
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     gc.purchasePerk('acoustic_cloak');
     gc.useAcousticCloak();
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // P1 fires torpedo at P0's ship — should still hit
@@ -304,36 +308,36 @@ describe('GameController - Acoustic Cloak', () => {
     // P0 deploys cloak
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     gc.purchasePerk('acoustic_cloak');
     gc.useAcousticCloak();
 
-    gc.fireTorpedo({ col: 7, row: 7, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
     gc.endTurn();
 
     // P1 needs 25 credits for depth charge
     // P1 has 5. Earn more by hitting P0 ships.
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 5 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 5 });
     gc.endTurn();
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 = 12
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 6, depth: 4 });
+    gc.fireTorpedo({ col: 6, row: 5, depth: 4 });
     gc.endTurn();
     gc.fireTorpedo({ col: 2, row: 0, depth: 0 }); // +6 = 18
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 5, depth: 4 });
+    gc.fireTorpedo({ col: 6, row: 4, depth: 4 });
     gc.endTurn();
     gc.fireTorpedo({ col: 3, row: 0, depth: 0 }); // +6 = 24
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 5, depth: 3 });
+    gc.fireTorpedo({ col: 6, row: 4, depth: 3 });
     gc.endTurn();
     gc.fireTorpedo({ col: 4, row: 0, depth: 0 }); // sunk typhoon +11 = 35 (but actually sink bonus)
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 4, depth: 3 });
+    gc.fireTorpedo({ col: 6, row: 3, depth: 3 });
     gc.endTurn();
 
     gc.purchasePerk('depth_charge'); // cost 25
@@ -351,7 +355,7 @@ describe('GameController - Acoustic Cloak', () => {
 
     gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // +1 = 6
     gc.endTurn();
-    gc.fireTorpedo({ col: 7, row: 7, depth: 7 });
+    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
     gc.purchasePerk('acoustic_cloak');

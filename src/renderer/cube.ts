@@ -5,7 +5,7 @@ import type { MaterialPool } from './materials';
 
 export const CELL_SIZE = 0.9;
 export const CELL_SPACING = 1.0;
-export const GRID_OFFSET = 3.5;
+export const GRID_OFFSET = (GRID_SIZE - 1) / 2;
 
 export interface CellMesh {
   coord: Coordinate;

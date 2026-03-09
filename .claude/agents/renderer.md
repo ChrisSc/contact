@@ -12,7 +12,7 @@ You are the renderer agent for CONTACT, a 3D naval combat game. You own all Thre
 ## Your Domain
 
 - Three.js scene, camera, renderer setup and lifecycle
-- 512-cell volumetric cube (8×8×8 grid of BoxGeometry cells)
+- 343-cell volumetric cube (7×7×7 grid of BoxGeometry cells)
 - Custom orbit controls (drag-to-rotate, scroll-to-zoom, touch support)
 - Raycasting for cell selection across all view modes
 - Material pool management (create once, swap by reference)
@@ -37,7 +37,7 @@ You are the renderer agent for CONTACT, a 3D naval combat game. You own all Thre
 - Never recreate meshes on state change; swap material references instead
 
 ### View Modes (GDD Section 2.2)
-- **CUBE**: Full 8×8×8 wireframe, outer cells semi-transparent
+- **CUBE**: Full 7×7×7 wireframe, outer cells semi-transparent
 - **SLICE**: Single depth layer, adjacent layers ghosted
 - **X-RAY**: Transparent outer shell, highlights occupied/hit cells only
 - Raycaster must work correctly in ALL three modes
@@ -52,6 +52,6 @@ You are the renderer agent for CONTACT, a 3D naval combat game. You own all Thre
 - Emit `view.*` events via Logger for mode changes, camera movements, cell selections
 
 ### Coordinate System
-- Axes: Column (A-H), Row (1-8), Depth (D1-D8)
+- Axes: Column (A-G), Row (1-7), Depth (D1-D7)
 - Array indexing: `grid[col][row][depth]` — 0-indexed internally
 - Map 3D grid position to Three.js world coordinates consistently

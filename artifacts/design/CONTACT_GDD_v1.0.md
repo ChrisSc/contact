@@ -17,11 +17,11 @@ CLASSIFIED // SONAR COMMAND
 
 ## **1.1 High Concept**
 
-CONTACT is a 3D evolution of classic naval combat (Battleship). Players command fleets of submarines hidden within a volumetric 8×8×8 sonar cube, firing torpedoes into three-dimensional space to locate and destroy enemy vessels. The addition of depth as a third dimension transforms the familiar search-and-destroy loop into a spatial reasoning challenge with significantly expanded strategic depth.
+CONTACT is a 3D evolution of classic naval combat (Battleship). Players command fleets of submarines hidden within a volumetric 7×7×7 sonar cube, firing torpedoes into three-dimensional space to locate and destroy enemy vessels. The addition of depth as a third dimension transforms the familiar search-and-destroy loop into a spatial reasoning challenge with significantly expanded strategic depth.
 
 ## **1.2 Elevator Pitch**
 
-*"Battleship, but in three dimensions."* Navigate depth layers, deploy sonar drones, jam enemy radar, and hunt submarines across a 512-cell volumetric grid. A credit-based perk store lets players buy offensive and defensive abilities — spend on recon to find targets, save up for a depth charge, or invest in defense to slow the opponent. The economy creates a dynamic game arc that gets smarter as it progresses.
+*"Battleship, but in three dimensions."* Navigate depth layers, deploy sonar drones, jam enemy radar, and hunt submarines across a 343-cell volumetric grid. A credit-based perk store lets players buy offensive and defensive abilities — spend on recon to find targets, save up for a depth charge, or invest in defense to slow the opponent. The economy creates a dynamic game arc that gets smarter as it progresses.
 
 ## **1.3 Core Pillars**
 
@@ -51,11 +51,11 @@ Two-player local (hot-seat). Designed for couples, friends, and families who enj
 
 | Parameter | Value |
 | :---- | :---- |
-| Grid Dimensions | 8 × 8 × 8 (512 total cells) |
-| Axes | Column (A–H), Row (1–8), Depth (D1–D8) |
+| Grid Dimensions | 7 × 7 × 7 (343 total cells) |
+| Axes | Column (A–G), Row (1–7), Depth (D1–D7) |
 | Coordinate Format | Column-Row-Depth (e.g., C-4-D3) |
 | Ship Orientation | 8 axes: col, row, diagonal (×2), cross-slice (×4). No purely vertical. |
-| Occupied Cells | 17 of 512 (3.3% density) |
+| Occupied Cells | 22 of 343 (6.4% density) |
 
 ## **2.2 View Modes**
 
@@ -63,7 +63,7 @@ Three view modes provide different perspectives on the 3D volume:
 
 * **CUBE:** Full 3D volumetric view. Freely rotatable. When a depth layer is selected, other layers dim but remain visible for spatial context. Primary navigation mode.
 
-* **SLICE:** Isolates a single depth layer as a flat 8×8 grid. The primary firing mode. Equivalent to looking at one “floor” of the cube. Ghosted outlines of adjacent layers provide peripheral awareness.
+* **SLICE:** Isolates a single depth layer as a flat 7×7 grid. The primary firing mode. Equivalent to looking at one “floor” of the cube. Ghosted outlines of adjacent layers provide peripheral awareness.
 
 * **X-RAY:** Hides all empty cells, showing only occupied cells (ships on own board) or action cells (hits/misses on targeting board). Useful for endgame assessment and reviewing the state of play.
 
@@ -88,17 +88,19 @@ Three view modes provide different perspectives on the 3D volume:
 | **Akula** | 4 | Any allowed axis | Attack submarine. |
 | **Seawolf** | 3 | Any allowed axis | Fast attack class. |
 | **Virginia** | 3 | Any allowed axis | Multi-role platform. |
+| **Narwhal** | 3 | Any allowed axis | Deep water hunter. |
 | **Midget Sub** | 2 | Any allowed axis | Small, hard to find. |
+| **Piranha** | 2 | Any allowed axis | Stealth interceptor. |
 
-Total occupied cells: 17 of 512 (3.3% volume density). Ships are placed along one of eight allowed axes. Ships cannot bend, overlap, or extend outside the grid boundary.
+Total occupied cells: 22 of 343 (6.4% volume density). Ships are placed along one of eight allowed axes. Ships cannot bend, overlap, or extend outside the grid boundary.
 
 ### **3.1.1 Placement Axes**
 
 Eight orientation axes are available, organized into two categories:
 
 **Within-slice** (ship stays at a constant depth layer):
-* **COL** — extends along columns (A→H), row and depth fixed
-* **ROW** — extends along rows (1→8), column and depth fixed
+* **COL** — extends along columns (A→G), row and depth fixed
+* **ROW** — extends along rows (1→7), column and depth fixed
 * **DIAG↗** — extends diagonally within a slice (column and row both increase)
 * **DIAG↘** — extends diagonally within a slice (column increases, row decreases)
 
@@ -130,11 +132,11 @@ Players can cycle through axes using the **R key** during placement, in addition
 
 ## **4.1 Game Flow**
 
-1. **Setup Phase:** Both players place their fleet and Decoy on their own 8×8×8 grid using the full 3D sonar cube interface (CUBE/SLICE/X-RAY view modes available during placement). Screen handoff between placements.
+1. **Setup Phase:** Both players place their fleet and Decoy on their own 7×7×7 grid using the full 3D sonar cube interface (CUBE/SLICE/X-RAY view modes available during placement). Screen handoff between placements.
 
 2. **Combat Phase:** Players alternate turns. Each turn has up to three action slots: an optional Sonar Ping, a required attack action (fire torpedo or deploy an offensive perk), and an optional defensive perk. Players can buy perks from the store at any point during their turn.
 
-3. **Resolution:** The game ends when all of one player’s ships are sunk. The surviving player wins.
+3. **Resolution:** The game ends when all 7 of one player’s ships are sunk. The surviving player wins.
 
 ## **4.2 Turn Actions**
 
@@ -160,7 +162,7 @@ Between turns, the screen displays a neutral handoff state: a blank CRT screen w
 
 Players earn credits through combat performance and spend them in a perk store to purchase offensive and defensive abilities. Every offensive perk has a paired defensive counter. Players choose their own loadout — multiple copies of the same perk can be purchased, and purchasing decisions create strategic differentiation between players.
 
-Perks compress the effective search space, making the 512-cell grid tractable without reducing it to brute-force searching. The credit economy introduces a resource management layer: spend early on recon to find targets faster, save up for devastating ordnance, or invest defensively when under pressure.
+Perks compress the effective search space, making the 343-cell grid tractable without reducing it to brute-force searching. The credit economy introduces a resource management layer: spend early on recon to find targets faster, save up for devastating ordnance, or invest defensively when under pressure.
 
 ## **5.2 Credit Economy**
 
@@ -174,7 +176,7 @@ Perks compress the effective search space, making the 512-cell grid tractable wi
 **Notes:**
 * A hit to a Decoy still rewards credits (1 for the hit).
 * Consecutive Hit bonus triggers when a player scores a hit on the turn immediately following a hit (regardless of target ship). The bonus is in addition to the base 1-credit hit reward, for 6 total.
-* Total base credits available per player: 5 (starting) + 18 (hits including decoy) + 85 (5 sinks) = 108, plus consecutive hit bonuses.
+* Total base credits available per player: 5 (starting) + 23 (hits including decoy) + 70 (7 sinks) = 98, plus consecutive hit bonuses.
 
 ## **5.3 Perk Store**
 
@@ -185,7 +187,7 @@ Perks compress the effective search space, making the 512-cell grid tractable wi
 | **Sonar Ping** | Binary yes/no: is a ship present in a single cell? | 3 | Ping (does not consume attack) |
 | **Recon Drone** | Reveals contents of a 3×3×3 volume (up to 27 cells). Shows which cells contain ship segments, but not ship identity. | 10 | Attack (consumes attack) |
 | **Depth Charge** | Strikes all occupied cells in a 3×3×3 volume (27 cells). Area denial. | 25 | Attack (consumes attack) |
-| **G-SONAR** | Scans an entire depth layer (64 cells). Reveals which cells contain ship segments. | 18 | Attack (consumes attack) |
+| **G-SONAR** | Scans an entire depth layer (49 cells). Reveals which cells contain ship segments. | 18 | Attack (consumes attack) |
 
 ### Defensive Perks
 
@@ -247,7 +249,7 @@ Both setup and combat screens share a canvas-dominant overlay layout: the 3D son
 
 * **View Mode Selector (overlay, left edge):** CUBE / SLICE / X-RAY toggle buttons, vertically stacked.
 
-* **Depth Layer Selector (overlay, right edge):** ALL \+ individual depth layer buttons (D1–D8), vertically stacked.
+* **Depth Layer Selector (overlay, right edge):** ALL \+ individual depth layer buttons (D1–D7), vertically stacked.
 
 * **Controls Hint (overlay, bottom center):** "DRAG TO ROTATE · SCROLL TO ZOOM · CLICK CELL TO ..."
 
@@ -309,7 +311,7 @@ Synthesized chiptune audio via Tone.js. Ambient sonar pings at regular intervals
 
 ## **8.2 Game State Model**
 
-Each player maintains two 8×8×8 grids:
+Each player maintains two 7×7×7 grids:
 
 * **Own Grid:** Ship placements, Decoy placement, incoming hits/misses.
 
@@ -321,7 +323,7 @@ Game state includes: current player, turn count, credit balance per player, perk
 
 * **SceneManager** is the single orchestrator — used by both setup and combat screens. Manages scene, camera, renderer, orbit controls, grid cube, view manager, and raycaster.
 
-* Each cell is a Three.js BoxGeometry mesh with EdgesGeometry wireframe overlay (512 cells, shared geometry instances)
+* Each cell is a Three.js BoxGeometry mesh with EdgesGeometry wireframe overlay (343 cells, shared geometry instances)
 
 * **MaterialPool** provides three material tiers per cell state: normal, dimmed (30% opacity), ghost (15% opacity). Opacity lerps for smooth transitions between view modes.
 

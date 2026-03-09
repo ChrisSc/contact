@@ -11,7 +11,7 @@ import {
 } from '../../src/engine/grid';
 
 describe('Grid', () => {
-  it('should create an 8x8x8 grid with 512 cells', () => {
+  it('should create a 7x7x7 grid with 343 cells', () => {
     const grid = createEmptyGrid();
 
     expect(grid).toHaveLength(GRID_SIZE);
@@ -27,7 +27,7 @@ describe('Grid', () => {
       }
     }
 
-    expect(cellCount).toBe(512);
+    expect(cellCount).toBe(343);
   });
 
   it('should initialize all cells as Empty with null shipId', () => {
@@ -61,14 +61,14 @@ describe('Grid', () => {
 describe('isValidCoordinate', () => {
   it('accepts valid coordinates', () => {
     expect(isValidCoordinate({ col: 0, row: 0, depth: 0 })).toBe(true);
-    expect(isValidCoordinate({ col: 7, row: 7, depth: 7 })).toBe(true);
+    expect(isValidCoordinate({ col: 6, row: 6, depth: 6 })).toBe(true);
     expect(isValidCoordinate({ col: 3, row: 5, depth: 2 })).toBe(true);
   });
 
   it('rejects out-of-range coordinates', () => {
-    expect(isValidCoordinate({ col: 8, row: 0, depth: 0 })).toBe(false);
-    expect(isValidCoordinate({ col: 0, row: 8, depth: 0 })).toBe(false);
-    expect(isValidCoordinate({ col: 0, row: 0, depth: 8 })).toBe(false);
+    expect(isValidCoordinate({ col: 7, row: 0, depth: 0 })).toBe(false);
+    expect(isValidCoordinate({ col: 0, row: 7, depth: 0 })).toBe(false);
+    expect(isValidCoordinate({ col: 0, row: 0, depth: 7 })).toBe(false);
   });
 
   it('rejects negative coordinates', () => {
@@ -83,11 +83,11 @@ describe('isValidCoordinate', () => {
 });
 
 describe('createGrid', () => {
-  it('creates an 8x8x8 grid of empty cells', () => {
+  it('creates a 7x7x7 grid of empty cells', () => {
     const grid = createGrid();
-    expect(grid).toHaveLength(8);
+    expect(grid).toHaveLength(7);
     expect(getCell(grid, { col: 0, row: 0, depth: 0 })!.state).toBe(CellState.Empty);
-    expect(getCell(grid, { col: 7, row: 7, depth: 7 })!.state).toBe(CellState.Empty);
+    expect(getCell(grid, { col: 6, row: 6, depth: 6 })!.state).toBe(CellState.Empty);
   });
 });
 
@@ -101,7 +101,7 @@ describe('getCell', () => {
 
   it('returns undefined for out-of-bounds', () => {
     const grid = createGrid();
-    expect(getCell(grid, { col: 8, row: 0, depth: 0 })).toBeUndefined();
+    expect(getCell(grid, { col: 7, row: 0, depth: 0 })).toBeUndefined();
     expect(getCell(grid, { col: 0, row: -1, depth: 0 })).toBeUndefined();
   });
 });
@@ -131,7 +131,7 @@ describe('setCell', () => {
   it('throws on invalid coordinate', () => {
     const grid = createGrid();
     expect(() =>
-      setCell(grid, { col: 8, row: 0, depth: 0 }, { state: CellState.Empty, shipId: null }),
+      setCell(grid, { col: 7, row: 0, depth: 0 }, { state: CellState.Empty, shipId: null }),
     ).toThrow();
   });
 });
@@ -140,7 +140,7 @@ describe('parseCoordinate', () => {
   it('parses valid coordinate strings', () => {
     expect(parseCoordinate('A-1-D1')).toEqual({ col: 0, row: 0, depth: 0 });
     expect(parseCoordinate('C-4-D3')).toEqual({ col: 2, row: 3, depth: 2 });
-    expect(parseCoordinate('H-8-D8')).toEqual({ col: 7, row: 7, depth: 7 });
+    expect(parseCoordinate('G-7-D7')).toEqual({ col: 6, row: 6, depth: 6 });
   });
 
   it('handles case insensitivity', () => {
@@ -151,9 +151,9 @@ describe('parseCoordinate', () => {
     expect(parseCoordinate('')).toBeNull();
     expect(parseCoordinate('Z-1-D1')).toBeNull();
     expect(parseCoordinate('A-0-D1')).toBeNull();
-    expect(parseCoordinate('A-9-D1')).toBeNull();
+    expect(parseCoordinate('A-8-D1')).toBeNull();
     expect(parseCoordinate('A-1-D0')).toBeNull();
-    expect(parseCoordinate('A-1-D9')).toBeNull();
+    expect(parseCoordinate('A-1-D8')).toBeNull();
     expect(parseCoordinate('invalid')).toBeNull();
   });
 });
@@ -162,7 +162,7 @@ describe('formatCoordinate', () => {
   it('formats coordinates correctly', () => {
     expect(formatCoordinate({ col: 0, row: 0, depth: 0 })).toBe('A-1-D1');
     expect(formatCoordinate({ col: 2, row: 3, depth: 2 })).toBe('C-4-D3');
-    expect(formatCoordinate({ col: 7, row: 7, depth: 7 })).toBe('H-8-D8');
+    expect(formatCoordinate({ col: 6, row: 6, depth: 6 })).toBe('G-7-D7');
   });
 
   it('round-trips with parseCoordinate', () => {

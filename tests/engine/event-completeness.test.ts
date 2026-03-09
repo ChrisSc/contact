@@ -10,6 +10,8 @@ const akula = FLEET_ROSTER[1]!;
 const seawolf = FLEET_ROSTER[2]!;
 const virginia = FLEET_ROSTER[3]!;
 const midget = FLEET_ROSTER[4]!;
+const narwhal = FLEET_ROSTER[5]!;
+const piranha = FLEET_ROSTER[6]!;
 
 function placeFullFleet(gc: GameController) {
   gc.placeShipForCurrentPlayer(typhoon, { col: 0, row: 0, depth: 0 }, 'col');
@@ -17,6 +19,8 @@ function placeFullFleet(gc: GameController) {
   gc.placeShipForCurrentPlayer(seawolf, { col: 0, row: 2, depth: 0 }, 'col');
   gc.placeShipForCurrentPlayer(virginia, { col: 0, row: 3, depth: 0 }, 'col');
   gc.placeShipForCurrentPlayer(midget, { col: 0, row: 4, depth: 0 }, 'col');
+  gc.placeShipForCurrentPlayer(narwhal, { col: 0, row: 5, depth: 0 }, 'col');
+  gc.placeShipForCurrentPlayer(piranha, { col: 0, row: 6, depth: 0 }, 'col');
 }
 
 function setupBothPlayers(gc: GameController) {
@@ -38,7 +42,9 @@ describe('event completeness', () => {
     //   seawolf:  (0,2,0)-(2,2,0)  size 3
     //   virginia: (0,3,0)-(2,3,0)  size 3
     //   midget:   (0,4,0)-(1,4,0)  size 2
-    // Total: 17 cells
+    //   narwhal:  (0,5,0)-(2,5,0)  size 3
+    //   piranha:  (0,6,0)-(1,6,0)  size 2
+    // Total: 22 cells
 
     // Build list of all target cells for each player's ships
     const bravoShipCells = [
@@ -57,11 +63,16 @@ describe('event completeness', () => {
       { col: 2, row: 3, depth: 0 },
       // midget
       { col: 0, row: 4, depth: 0 }, { col: 1, row: 4, depth: 0 },
+      // narwhal
+      { col: 0, row: 5, depth: 0 }, { col: 1, row: 5, depth: 0 },
+      { col: 2, row: 5, depth: 0 },
+      // piranha
+      { col: 0, row: 6, depth: 0 }, { col: 1, row: 6, depth: 0 },
     ];
 
     // BRAVO fires misses (into empty space) so turns alternate
-    let bravoMissCol = 7;
-    let bravoMissRow = 7;
+    let bravoMissCol = 6;
+    let bravoMissRow = 6;
     let bravoMissDepth = 0;
 
     for (let i = 0; i < bravoShipCells.length; i++) {
@@ -80,7 +91,7 @@ describe('event completeness', () => {
       // BRAVO fires a miss into empty space
       gc.fireTorpedo({ col: bravoMissCol, row: bravoMissRow, depth: bravoMissDepth });
       bravoMissDepth++;
-      if (bravoMissDepth >= 8) {
+      if (bravoMissDepth >= 7) {
         bravoMissDepth = 0;
         bravoMissRow--;
       }
@@ -103,14 +114,14 @@ describe('event completeness', () => {
     // --- Assertion 1: game.start is the first event ---
     expect(buffer[0]!.event).toBe('game.start');
 
-    // --- Assertion 2: fleet.place events (5 ships per player = 10 total) ---
+    // --- Assertion 2: fleet.place events (7 ships per player = 14 total) ---
     const fleetPlaceEvents = eventsOfType('fleet.place');
-    expect(fleetPlaceEvents).toHaveLength(10);
-    // Verify 5 per player
+    expect(fleetPlaceEvents).toHaveLength(14);
+    // Verify 7 per player
     const p0Places = fleetPlaceEvents.filter(e => e.data.player === 0);
     const p1Places = fleetPlaceEvents.filter(e => e.data.player === 1);
-    expect(p0Places).toHaveLength(5);
-    expect(p1Places).toHaveLength(5);
+    expect(p0Places).toHaveLength(7);
+    expect(p1Places).toHaveLength(7);
 
     // --- Assertion 3: game.phase_change events for each transition ---
     const phaseChanges = eventsOfType('game.phase_change');
@@ -150,7 +161,7 @@ describe('event completeness', () => {
 
     // --- Assertion 5: Every ship sunk has a combat.sunk event ---
     const sunkEvents = eventsOfType('combat.sunk');
-    expect(sunkEvents).toHaveLength(5); // All 5 of BRAVO's ships sunk
+    expect(sunkEvents).toHaveLength(7); // All 7 of BRAVO's ships sunk
 
     // Verify each sunk event has remaining: 0
     for (const sunk of sunkEvents) {
@@ -193,7 +204,7 @@ describe('event completeness', () => {
 
     // --- Assertion 10: combat.hit count matches total ship cells hit ---
     const hitEvents = eventsOfType('combat.hit');
-    expect(hitEvents).toHaveLength(17); // All 17 ship cells of BRAVO hit
+    expect(hitEvents).toHaveLength(22); // All 22 ship cells of BRAVO hit
 
     // --- Assertion 11: combat.miss events exist for BRAVO's misses ---
     const missEvents = eventsOfType('combat.miss');

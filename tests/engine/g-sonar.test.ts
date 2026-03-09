@@ -43,7 +43,7 @@ describe('executeGSonar', () => {
     const defender = createTestPlayerState();
 
     const result = executeGSonar(3, attacker, defender);
-    expect(result.cells).toHaveLength(64);
+    expect(result.cells).toHaveLength(49);
     expect(result.cells.every(c => !c.displayedResult)).toBe(true);
     expect(result.cells.every(c => !c.rawResult)).toBe(true);
     expect(result.cloaked).toBe(false);
@@ -59,7 +59,7 @@ describe('executeGSonar', () => {
     defender.ownGrid = setCell(defender.ownGrid, { col: 3, row: 5, depth: 2 }, { state: CellState.Ship, shipId: 'akula' });
 
     const result = executeGSonar(2, attacker, defender);
-    expect(result.cells).toHaveLength(64);
+    expect(result.cells).toHaveLength(49);
 
     const positives = result.cells.filter(c => c.displayedResult);
     expect(positives).toHaveLength(3);

@@ -1,8 +1,8 @@
-export const GRID_SIZE = 8;
+export const GRID_SIZE = 7;
 
-export const COLUMN_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as const;
-export const ROW_LABELS = ['1', '2', '3', '4', '5', '6', '7', '8'] as const;
-export const DEPTH_LABELS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'] as const;
+export const COLUMN_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G'] as const;
+export const ROW_LABELS = ['1', '2', '3', '4', '5', '6', '7'] as const;
+export const DEPTH_LABELS = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7'] as const;
 
 export type ColumnLabel = (typeof COLUMN_LABELS)[number];
 export type RowLabel = (typeof ROW_LABELS)[number];

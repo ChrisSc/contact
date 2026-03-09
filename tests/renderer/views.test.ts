@@ -196,25 +196,25 @@ describe('ViewManager', () => {
   });
 
   describe('getInteractableMeshes', () => {
-    it('CUBE ALL: returns all 512 meshes', () => {
+    it('CUBE ALL: returns all 343 meshes', () => {
       const grid = createTestGrid();
       views.applyView(grid);
-      expect(views.getInteractableMeshes().length).toBe(512);
+      expect(views.getInteractableMeshes().length).toBe(343);
     });
 
-    it('CUBE depth: returns 64 meshes at selected depth', () => {
+    it('CUBE depth: returns 49 meshes at selected depth', () => {
       const grid = createTestGrid();
       views.setDepth(3);
       views.applyView(grid);
-      expect(views.getInteractableMeshes().length).toBe(64);
+      expect(views.getInteractableMeshes().length).toBe(49);
     });
 
-    it('SLICE: returns 64 meshes at selected depth', () => {
+    it('SLICE: returns 49 meshes at selected depth', () => {
       const grid = createTestGrid();
       views.setMode('slice');
       views.setDepth(2);
       views.applyView(grid);
-      expect(views.getInteractableMeshes().length).toBe(64);
+      expect(views.getInteractableMeshes().length).toBe(49);
     });
 
     it('X-RAY: returns only visible meshes', () => {

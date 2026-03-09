@@ -18,12 +18,14 @@ function placeStandardFleet(game: GameController): void {
     { id: 'seawolf',  col: 0, row: 2 },
     { id: 'virginia', col: 0, row: 3 },
     { id: 'midget',   col: 0, row: 4 },
+    { id: 'narwhal',  col: 0, row: 5 },
+    { id: 'piranha',  col: 0, row: 6 },
   ];
   for (const p of placements) {
     const entry = FLEET_ROSTER.find((r) => r.id === p.id)!;
     game.placeShipForCurrentPlayer(entry, { col: p.col, row: p.row, depth: 0 }, 'col');
   }
-  game.placeDecoyForCurrentPlayer({ col: 7, row: 7, depth: 7 });
+  game.placeDecoyForCurrentPlayer({ col: 6, row: 6, depth: 6 });
 }
 
 interface HandoffTestContext {

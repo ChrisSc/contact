@@ -69,8 +69,8 @@ describe('calculateScanArea', () => {
     expect(coords).toHaveLength(18);
   });
 
-  it('far corner (7,7,7) returns 8 coords', () => {
-    const coords = calculateScanArea({ col: 7, row: 7, depth: 7 });
+  it('far corner (6,6,6) returns 8 coords', () => {
+    const coords = calculateScanArea({ col: 6, row: 6, depth: 6 });
     expect(coords).toHaveLength(8);
   });
 });
