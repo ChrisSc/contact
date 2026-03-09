@@ -9,6 +9,7 @@
 - **`raycaster.test.ts`** — NDC normalization, no-intersection handling, mesh source filtering, default mesh source fallback, dispose
 - **`animations.test.ts`** — hit flash (private materials, full opacity start, pulse after 200ms, infinite loop), sunk cascade (multi-cell entries, stagger timing, RED→ORANGE lerp, completion with pooled restore), miss fade (zero start, target opacity at 300ms, one-shot completion), sonar sweep (private materials, zero start, pulse phase, completion restores pooled SonarPositive/SonarNegative, negative variant), cancelAt/cancelAll, isAnimating, duplicate cancellation, dispose cleanup
 - **`scene.test.ts`** — sub-component wiring, AnimationManager instantiation, ViewManager/Raycaster instantiation, canvas appended, start/stop rAF, animations.update in render loop, setViewMode/setDepth/setBoardType delegation, dispose cleanup (including animations.dispose), callback registration
+- **`visual-audit.test.ts`** — GDD §2.3 visual state audit: all 11 CellState material definitions (colors + opacities), CRT color palette completeness, material consistency (valid ranges, opacity ordering), hit flash animation contract (looping, sinusoidal pulse 0.5–1.0, period 1.5s), X-RAY board type filtering (TARGETING_VISIBLE_STATES excludes Ship, OWN_VISIBLE_STATES includes Ship). 33 tests across 5 describe blocks. Documents accepted deviation: no decoy blink animation (static yellow).
 
 ## Architecture
 

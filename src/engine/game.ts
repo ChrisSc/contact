@@ -23,7 +23,6 @@ import type { SonarPingResult } from './sonar';
 import { executeReconDrone } from './drone';
 import type { DroneScanResult } from './drone';
 import { calculateDepthChargeTargets } from './depth-charge';
-import type { DepthChargeTargets as _DepthChargeTargets } from './depth-charge';
 import { isShipSilentRunning, decrementSilentRunning } from './silent-running';
 import { executeGSonar } from './g-sonar';
 import type { GSonarResult } from './g-sonar';

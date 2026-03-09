@@ -8,6 +8,7 @@ export class NotificationBanner {
   private el: HTMLElement;
   private queue: NotificationConfig[] = [];
   private isShowing = false;
+  private activeTimers: ReturnType<typeof setTimeout>[] = [];
 
   constructor() {
     this.el = document.createElement('div');
@@ -38,9 +39,9 @@ export class NotificationBanner {
     this.el.appendChild(msg);
 
     // Auto-dismiss after duration
-    setTimeout(() => {
+    const dismissTimer = setTimeout(() => {
       msg.classList.add('notification-banner__message--dismiss');
-      setTimeout(() => {
+      const fadeTimer = setTimeout(() => {
         msg.remove();
         this.isShowing = false;
         // Show next in queue
@@ -48,10 +49,16 @@ export class NotificationBanner {
           this.displayNotification(this.queue.shift()!);
         }
       }, 400); // fade out time
+      this.activeTimers.push(fadeTimer);
     }, duration);
+    this.activeTimers.push(dismissTimer);
   }
 
   destroy(): void {
+    for (const timer of this.activeTimers) {
+      clearTimeout(timer);
+    }
+    this.activeTimers = [];
     this.queue = [];
     this.isShowing = false;
     this.el.innerHTML = '';

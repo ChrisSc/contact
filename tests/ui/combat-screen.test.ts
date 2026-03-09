@@ -51,7 +51,6 @@ vi.mock('../../src/audio/audio-manager', () => ({
   initAudioContext: vi.fn(),
   isAudioReady: vi.fn(() => false),
   setGamePhase: vi.fn(),
-  getGamePhase: vi.fn(() => 'setup'),
   getAudioPhaseFromTurn: vi.fn(() => 'combat_early'),
   toggleMute: vi.fn(),
   isMuted: vi.fn(() => false),

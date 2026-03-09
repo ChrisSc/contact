@@ -35,7 +35,7 @@ export const ABILITY_DEFINITIONS: readonly AbilityDefinition[] = [
     type: 'offensive',
     pair: 'intelligence',
     cost: 'free',
-    description: 'Reveal whether a 2x2x2 quadrant contains a ship',
+    description: 'Binary yes/no: is a ship present in a single cell?',
   },
   {
     id: 'radar_jammer',
@@ -43,7 +43,7 @@ export const ABILITY_DEFINITIONS: readonly AbilityDefinition[] = [
     type: 'defensive',
     pair: 'intelligence',
     cost: 'free',
-    description: 'Invert the next Sonar Ping result against you',
+    description: 'Inverts next enemy Sonar Ping result; returns all-false for Recon Drone',
   },
   {
     id: 'recon_drone',
@@ -51,7 +51,7 @@ export const ABILITY_DEFINITIONS: readonly AbilityDefinition[] = [
     type: 'offensive',
     pair: 'reconnaissance',
     cost: 'attack',
-    description: 'Reveal all cells in a single row, column, or depth layer',
+    description: 'Reveals contents of a 3x3x3 volume (up to 27 cells)',
   },
   {
     id: 'decoy',
@@ -67,7 +67,7 @@ export const ABILITY_DEFINITIONS: readonly AbilityDefinition[] = [
     type: 'offensive',
     pair: 'heavy_ordnance',
     cost: 'attack',
-    description: 'Attack a 2x2x1 area (4 cells)',
+    description: 'Strikes all occupied cells in a 3x3x3 volume (up to 27 cells)',
   },
   {
     id: 'silent_running',
@@ -75,7 +75,7 @@ export const ABILITY_DEFINITIONS: readonly AbilityDefinition[] = [
     type: 'defensive',
     pair: 'heavy_ordnance',
     cost: 'free',
-    description: 'Hide your remaining ships from scans for 2 opponent turns',
+    description: 'Masks a single ship from recon for 2 opponent turns',
   },
   {
     id: 'g_sonar',
@@ -83,7 +83,7 @@ export const ABILITY_DEFINITIONS: readonly AbilityDefinition[] = [
     type: 'offensive',
     pair: 'global_intel',
     cost: 'attack',
-    description: 'Reveal exact cell count of enemy ships in each depth layer',
+    description: 'Scans an entire depth layer (64 cells), reveals ship segments',
   },
   {
     id: 'acoustic_cloak',
@@ -91,7 +91,7 @@ export const ABILITY_DEFINITIONS: readonly AbilityDefinition[] = [
     type: 'defensive',
     pair: 'global_intel',
     cost: 'free',
-    description: 'Scramble G-SONAR results when enemy uses it',
+    description: 'All ships masked from recon for 2 opponent turns',
   },
 ] as const;
 
@@ -125,7 +125,7 @@ export const STARTING_CREDITS = 5;
 
 export const PERK_CATALOG: readonly PerkDefinition[] = [
   { id: 'sonar_ping', name: 'Sonar Ping', type: 'offensive', slot: 'ping', cost: 3, description: 'Binary yes/no: is a ship present in a single cell?' },
-  { id: 'recon_drone', name: 'Recon Drone', type: 'offensive', slot: 'attack', cost: 10, description: 'Reveals contents of a 3x3x1 slice (9 cells)' },
+  { id: 'recon_drone', name: 'Recon Drone', type: 'offensive', slot: 'attack', cost: 10, description: 'Reveals contents of a 3x3x3 volume (up to 27 cells)' },
   { id: 'depth_charge', name: 'Depth Charge', type: 'offensive', slot: 'attack', cost: 25, description: 'Strikes all occupied cells in a 3x3x3 volume' },
   { id: 'g_sonar', name: 'G-SONAR', type: 'offensive', slot: 'attack', cost: 18, description: 'Scans an entire depth layer (64 cells)' },
   { id: 'radar_jammer', name: 'Radar Jammer', type: 'defensive', slot: 'defend', cost: 5, description: 'Inverts next enemy Sonar Ping or Recon Drone result' },

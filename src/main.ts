@@ -1,6 +1,8 @@
 import { getLogger } from './observability/logger';
 import { GameController } from './engine/game';
 import { ScreenRouter } from './ui/screen-router';
+import { mountTitleScreen } from './ui/screens/title-screen';
+import { mountHelpScreen } from './ui/screens/help-screen';
 import { mountSetupScreen } from './ui/screens/setup-screen';
 import { mountHandoffScreen } from './ui/screens/handoff-screen';
 import { mountCombatScreen } from './ui/screens/combat-screen';
@@ -24,6 +26,8 @@ function initApp(): void {
   const router = new ScreenRouter(app, game);
 
   // Register screens
+  router.register('title', mountTitleScreen);
+  router.register('help', mountHelpScreen);
   router.register('setup', mountSetupScreen);
   router.register('handoff', mountHandoffScreen);
   router.register('combat', mountCombatScreen);
@@ -41,12 +45,25 @@ function initApp(): void {
   // Wire noise into ability overlay cross-effects
   AbilityOverlayManager.setNoiseInstance(noise);
 
-  // Navigate to first setup screen
-  router.navigate('setup');
+  // Persistent footer
+  const footer = document.createElement('div');
+  footer.className = 'app-footer';
+  const footerLeft = document.createElement('span');
+  footerLeft.className = 'app-footer__left';
+  footerLeft.textContent = 'CLASSIFIED // SONAR COMMAND';
+  const footerRight = document.createElement('span');
+  footerRight.className = 'app-footer__right';
+  footerRight.textContent = `v${__APP_VERSION__} | ${__BUILD_DATE__}`;
+  footer.appendChild(footerLeft);
+  footer.appendChild(footerRight);
+  app.appendChild(footer);
+
+  // Navigate to title screen
+  router.navigate('title');
 
   getLogger().emit('system.init', {
-    version: '0.3.0',
-    screen: 'setup',
+    version: __APP_VERSION__,
+    screen: 'title',
     userAgent: navigator.userAgent,
   });
 }

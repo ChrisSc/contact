@@ -2,15 +2,12 @@
 
 ## Files
 
-- **`screen-router.ts`** — `ScreenRouter` class: manages screen mount/unmount lifecycle, navigation with context passing, `setGame()` for restart flow
+- **`screen-router.ts`** — `ScreenRouter` class: manages screen mount/unmount lifecycle, navigation with context passing, `setGame()` for restart flow. `ScreenId` union: `'title' | 'setup' | 'handoff' | 'combat' | 'victory' | 'help'`
 - **`flicker.ts`** — CRT flicker effect (persists across screen navigations). Exports `FlickerController` interface with `stop()` and `pulse(intensity, durationMs)`. Module-level singleton via `getFlickerController()`. `pulse()` widens opacity range temporarily (intensity 0.5 → min 0.92, intensity 1.0 → min 0.85) using `performance.now()` timestamps.
 - **`effects/crt-noise.ts`** — `CRTNoise` class: 256×256 canvas grain tiled full-screen via CSS `background-repeat`, updates every 3 frames (~20fps). `z-index: 999`, `opacity: 0.04`. API: `render(): HTMLElement` (returns wrapper div), `start()`, `stop()`, `pulse(intensity, durationMs)` (boosts opacity temporarily), `dispose()`.
 - **`effects/ability-overlays.ts`** — `AbilityOverlayManager` class: single canvas at `z-index: 50`, `pointer-events: none`. 7 ability-specific 2D canvas animations (sonar_ping: green radial sweep; recon_drone: cyan scan line; radar_jammer: static noise flashes; silent_running: radial darken; depth_charge: sequential band flashes; g_sonar: expanding ring; acoustic_cloak: converging dots). API: `render(): HTMLCanvasElement`, `play(type, onComplete?)`, `cancel()`, `dispose()`. Cross-effects: radar_jammer/acoustic_cloak/depth_charge pulse flicker and noise. Static `setNoiseInstance()` for CRTNoise coupling. Logs `view.change` events.
 - **`components/slice-grid.ts`** — `SliceGrid` class: 8x8 grid for one depth layer, cell state rendering, ghost preview, click handling
-- **`components/depth-selector.ts`** — `DepthSelector` class: ALL + D1-D8 depth layer navigation (ALL = depth -1, clamped by screens)
-- **`components/axis-selector.ts`** — `AxisSelector` class: 8-axis toggle (COL/ROW/DIAG↗/DIAG↘/COL+D/COL-D/ROW+D/ROW-D) for ship placement
 - **`components/ship-roster.ts`** — `ShipRoster` class: fleet list (5 ships + decoy) with placement status, selection callbacks (`onShipSelect`, `onShipRemove`, `onDecoySelect`). Decoy entry styled amber, enabled via `setDecoyState(enabled, placed)`. Exports `DECOY_ID` constant.
-- **`components/coordinate-display.ts`** — `CoordinateDisplay` class: shows hovered/selected cell coordinate
 - **`components/perk-store.ts`** — `PerkStore` class: slide-out store panel with OFFENSIVE (red border) / DEFENSIVE (green border) sections. Each perk shows name, cost badge (amber), description, BUY button. `update(credits)` refreshes button enabled/disabled states. Callbacks: `onPurchase(perkId)`, `onClose()`.
 - **`components/inventory-tray.ts`** — `InventoryTray` class: purchased perks grouped by perkId with count badges (e.g., "x3"). Slot badges (PING/ATK/DEF). Offensive red-tinted, defensive green-tinted. Selected state with glow border. `update(inventory)`, `getSelected()`, `clearSelection()`. Callback: `onSelect(instance)`.
 - **`components/action-slots.ts`** — `ActionSlots` class: PING / ATTACK / DEFEND slot HUD. Three states: available (dim), used (bright + checkmark), unavailable (dark). `update(turnSlots, hasInventory)`.
@@ -18,12 +15,16 @@
 - **`screens/setup-screen.ts`** — `mountSetupScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), depth panel, 8-axis selector, ship roster overlay, ghost cell preview via raycaster hover, ship/decoy placement via raycaster click, R key to cycle axes, AUTO DEPLOY button (random valid placement of all ships + decoy), confirm flow. Placement phases: `ships` → `decoy-pending` → `decoy` → `confirm`. Decoy requires explicit roster selection before placement.
 - **`screens/handoff-screen.ts`** — `mountHandoffScreen()`: player transition with ready confirmation
 - **`screens/combat-screen.ts`** — `mountCombatScreen()`: canvas-dominant 3D layout with SceneManager, view mode selector (CUBE/SLICE/X-RAY), targeting/own board toggle, fire torpedo via raycaster with 3D animations, coordinate hover feedback, HUD stats, friendly fleet status (per-pip damage), enemy fleet status, F key fleet reveal overlay, credit display (amber), STORE button, perk store panel, inventory tray, action slots, notification banner, ability deployment overlays, ping mode flow, drone mode flow, depth charge mode flow, silent running mode flow, screen shake on hit/sunk, audio integration, end turn
-- **`screens/victory-screen.ts`** — `mountVictoryScreen()`: winner display, stats summary, session export, new engagement restart
+- **`screens/title-screen.ts`** — `mountTitleScreen()`: "CLASSIFIED // SONAR COMMAND" label, "CONTACT" title with triple-layer green glow, "3D NAVAL COMBAT" subtitle, version/date line from `__APP_VERSION__`/`__BUILD_DATE__` Vite defines, START → `'setup'`, HELP → `'help'`. Emits `view.change` with `screen: 'title'`.
+- **`screens/help-screen.ts`** — `mountHelpScreen()`: scrollable Operations Manual with 9 sections (objective, game flow, fleet roster, combat actions, credit economy, perk store table, perk interactions, keyboard shortcuts, view modes). All content hardcoded from GDD. RETURN → `'title'`. Built entirely via `createElement` (no innerHTML). Emits `view.change` with `screen: 'help'`.
+- **`screens/victory-screen.ts`** — `mountVictoryScreen()`: winner display, stats summary, session export, NEW ENGAGEMENT → `'title'` (creates fresh GameController)
 
 ## Architecture
 
 - **Screen mount pattern**: Each screen exports `mount(container, context): ScreenCleanup`. ScreenRouter manages the lifecycle.
+- **Game flow**: title → setup (P1) → handoff → setup (P2) → handoff → combat → ... → victory → title (via NEW ENGAGEMENT). Help screen accessible from title.
 - **CRT overlay** persists across navigations — not re-created per screen.
+- **Persistent footer**: Created in `main.ts`, appended to `#app`. Shows "CLASSIFIED // SONAR COMMAND" (left) and version/date (right). z-index 5, pointer-events none. All bottom-positioned screen elements offset 20px to clear it.
 - **Vanilla DOM only** — `createElement`, `appendChild`, `classList`. No innerHTML for dynamic content. No frameworks.
 - **Both setup and combat screens** use canvas-dominant overlay layout with SceneManager. Setup shows own grid with ghost cell preview; combat shows targeting/own grid toggle.
 

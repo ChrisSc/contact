@@ -1,7 +1,7 @@
 import type { GameController } from '../engine/game';
 import { getLogger } from '../observability/logger';
 
-export type ScreenId = 'title' | 'setup' | 'handoff' | 'combat' | 'victory';
+export type ScreenId = 'title' | 'setup' | 'handoff' | 'combat' | 'victory' | 'help';
 
 export interface ScreenContext {
   game: GameController;

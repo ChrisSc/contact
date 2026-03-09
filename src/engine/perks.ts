@@ -8,11 +8,6 @@ export function getPerkDefinition(perkId: PerkId): PerkDefinition {
   return def;
 }
 
-export function canPurchase(credits: number, perkId: PerkId): boolean {
-  const def = getPerkDefinition(perkId);
-  return credits >= def.cost;
-}
-
 export function generateInstanceId(perkId: PerkId, inventory: PerkInstance[]): string {
   const existing = inventory.filter((p) => p.perkId === perkId).length;
   return `${perkId}_${existing + 1}`;
