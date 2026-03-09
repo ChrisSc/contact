@@ -536,6 +536,8 @@ export class GameController {
     let totalCreditsAwarded = 0;
     let hitCount = 0;
 
+    currentAttacker.shotsFired++;
+
     for (const targetCell of targets.cells) {
       if (targetCell.alreadyResolved) {
         cellResults.push({ coord: targetCell.coord, result: 'already_resolved' });

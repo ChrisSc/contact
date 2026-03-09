@@ -29,6 +29,7 @@ interface PlayerReport {
   shotsFired: number;
   torpedoHits: number;
   torpedoMisses: number;
+  totalHits: number;
   hitRate: number;
   shipsSunk: number;
   shipsLost: number;
@@ -464,7 +465,17 @@ function buildPlayerReport(
   const fires = events.filter(e => e.event === 'combat.fire' && e.data.player === playerIdx);
   const torpedoHits = fires.filter(e => e.data.result === 'hit').length;
   const torpedoMisses = fires.filter(e => e.data.result === 'miss').length;
-  const shotsFired = fires.length;
+
+  // Depth charges count as shots fired; each cell hit counts as a hit
+  const dcUseEvents = events.filter(e => e.event === 'perk.use' && e.data.player === playerIdx && e.data.perkId === 'depth_charge');
+  let dcHitCount = 0;
+  for (const e of dcUseEvents) {
+    const result = e.data.result as string;
+    const match = result.match(/(\d+) hits?/);
+    if (match) dcHitCount += parseInt(match[1]!, 10);
+  }
+  const shotsFired = fires.length + dcUseEvents.length;
+  const totalHits = torpedoHits + dcHitCount;
 
   // Hit streak
   let maxStreak = 0, streak = 0;
@@ -572,7 +583,8 @@ function buildPlayerReport(
     shotsFired,
     torpedoHits,
     torpedoMisses,
-    hitRate: shotsFired > 0 ? torpedoHits / shotsFired : 0,
+    totalHits,
+    hitRate: shotsFired > 0 ? totalHits / shotsFired : 0,
     shipsSunk: killsByPlayer.length,
     shipsLost: lostByPlayer.length,
     longestHitStreak: maxStreak,
@@ -648,7 +660,7 @@ function printReport(r: BattleReport): void {
   row('', 'ALPHA', 'BRAVO');
   console.log(`\u2551  ${thin}\u2551`);
   row('Shots Fired', String(a.shotsFired), String(b.shotsFired));
-  row('Torpedo Hits', String(a.torpedoHits), String(b.torpedoHits));
+  row('Total Hits', String(a.totalHits), String(b.totalHits));
   row('Torpedo Misses', String(a.torpedoMisses), String(b.torpedoMisses));
   row('Hit Rate', `${(a.hitRate * 100).toFixed(1)}%`, `${(b.hitRate * 100).toFixed(1)}%`);
   row('Hit Streak', String(a.longestHitStreak), String(b.longestHitStreak));
