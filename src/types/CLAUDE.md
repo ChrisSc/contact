@@ -1,48 +1,22 @@
 # src/types/ — TypeScript Type Definitions
 
+Pure type definitions and readonly constants only. No runtime logic. Imported by all layers.
+
 ## Files
 
-- **`grid.ts`** — `Grid3D`, `Cell`, `Coordinate` types; `CellState` enum; column/row/depth label constants
-- **`fleet.ts`** — `Ship`, `FleetRosterEntry`, `PlacementAxis` type; `FLEET_ROSTER` constant (7 ships); `PLACEMENT_AXES` constant (8-axis cycle order); `TOTAL_SHIP_CELLS` constant
-- **`game.ts`** — `GamePhase` enum, `PlayerState`, `GameState`, `TurnSlots`, `SilentRunningEntry` interfaces; `PlayerIndex = 0 | 1`
-- **`abilities.ts`** — `AbilityId` union, `AbilityState` interface, `ABILITY_DEFINITIONS` constant (descriptions match v1.0 implementation); `PerkId` union, `PerkSlot` union, `PerkDefinition`/`PerkInstance` interfaces, `PlayerInventory` type, `STARTING_CREDITS` constant, `PERK_CATALOG` constant (descriptions match v1.0 implementation)
-- **`events.ts`** — `LogEventType` string literal union (includes `fleet.decoy_place`, `view.depth_change`, `view.mode_change`, `view.board_toggle`, `economy.credit`, `economy.purchase`, `economy.balance`, `perk.use`, `perk.effect`, `perk.expire`, `audio.phase_change`), `LogEvent` interface, payload interfaces per event category
-- **`globals.d.ts`** — Ambient type declarations for Vite `define` constants: `__APP_VERSION__` and `__BUILD_DATE__` (string)
+| File | Key Exports |
+|---|---|
+| `grid.ts` | `Grid3D`, `Cell`, `Coordinate`, `CellState` enum, column/row/depth labels |
+| `fleet.ts` | `Ship`, `PlacementAxis` (8 axes), `FLEET_ROSTER` (7 ships), `PLACEMENT_AXES`, `TOTAL_SHIP_CELLS` |
+| `game.ts` | `GamePhase` enum, `PlayerState`, `GameState`, `TurnSlots`, `SilentRunningEntry`, `PlayerIndex = 0 \| 1` |
+| `abilities.ts` | `PerkId` (7 perks), `PerkSlot` (ping/attack/defend), `PerkDefinition`, `PerkInstance`, `PERK_CATALOG`, `STARTING_CREDITS` |
+| `events.ts` | `LogEventType` union, `LogEvent` interface, per-category payload interfaces |
+| `globals.d.ts` | Ambient declarations for `__APP_VERSION__`, `__BUILD_DATE__` |
 
-## Architecture
+## Conventions
 
-- **Pure type definitions + readonly constants only.** No runtime logic. No functions.
-- Imported by all layers (engine, UI, observability, renderer).
-- Types define the contract; implementations live in their respective directories.
-
-## Style Guide
-
-- `enum` for finite state sets: `CellState`, `GamePhase`.
-- String literal unions for IDs: `AbilityId`, `PerkId`, `PerkSlot`, `PlacementAxis`, `LogEventType`.
-- `as const` for immutable arrays (`FLEET_ROSTER`, `ABILITY_DEFINITIONS`, `PERK_CATALOG`, label arrays).
-- `interface` over `type` alias for object shapes.
-- `readonly` modifier on arrays that should not be mutated (rosters, labels, catalogs).
-
-## Patterns
-
-- **0-indexed internally, 1-indexed for display.** Column labels A-G, Row labels 1-7, Depth labels D1-D7.
-- `PlayerIndex = 0 | 1` — ALPHA is 0, BRAVO is 1. Used throughout engine and UI.
-- Event payload interfaces are per-category (fleet, combat, ability, economy, perk) — each event type has a typed payload.
-- `CellState` enum values are used directly as CSS class suffixes in the UI layer.
-
-## Perk System Types
-
-- **`PerkId`**: 7 perks — `sonar_ping`, `recon_drone`, `depth_charge`, `g_sonar`, `radar_jammer`, `silent_running`, `acoustic_cloak`
-- **`PerkSlot`**: `'ping' | 'attack' | 'defend'` — determines which turn slot a perk consumes
-- **`PerkDefinition`**: Catalog entry with id, name, type (offensive/defensive), slot, cost, description
-- **`PerkInstance`**: Runtime instance with unique id (e.g., `sonar_ping_1`), perkId, purchasedOnTurn
-- **`PlayerState`** now includes `credits: number`, `inventory: PerkInstance[]`, `lastTurnHit: boolean`, `silentRunningShips: SilentRunningEntry[]`
-- **`SilentRunningEntry`**: `{ shipId: string, turnsRemaining: number }` — tracks active SR state per ship
-- **`TurnSlots`**: `{ pingUsed, attackUsed, defendUsed }` — replaces old `actionTaken: boolean`
-
-## PlacementAxis
-
-8 axes — no purely vertical (depth-only): `'col' | 'row' | 'diag+' | 'diag-' | 'col-depth' | 'col-depth-' | 'row-depth' | 'row-depth-'`
-- Within-slice: `col`, `row`, `diag+`, `diag-`
-- Cross-slice: `col-depth`, `col-depth-`, `row-depth`, `row-depth-`
-- `PLACEMENT_AXES` constant defines the cycle order for R-key rotation
+- `enum` for finite state sets (`CellState`, `GamePhase`)
+- String literal unions for IDs (`PerkId`, `PerkSlot`, `PlacementAxis`, `LogEventType`)
+- `as const` for immutable arrays (`FLEET_ROSTER`, `PERK_CATALOG`)
+- `interface` over `type` for object shapes
+- `CellState` enum values used directly as CSS class suffixes

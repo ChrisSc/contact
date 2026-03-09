@@ -2,94 +2,33 @@
 
 ## Files
 
-- **`materials.ts`** — `CRT_COLORS` palette (includes CYAN for recon states), `MaterialSet`/`MaterialDef` interfaces, `MATERIAL_DEFS` lookup, `MaterialPool` class (normal + dimmed + ghost material pools per `CellState`)
-- **`orbit.ts`** — Custom `OrbitControls` (spherical coords, pointer/wheel/pinch events, damping). Exports pure helpers: `sphericalToCartesian`, `clampPhi`, `clampDistance`. Public `dragging` getter for live drag state; `wasDragging` getter + `consumeDrag()` for post-drag click suppression (5px movement threshold). Default camera: `initialPhi: π/3`, `initialTheta: π×1.15` (elevated oblique view).
-- **`cube.ts`** — `GridCube` class (343 `BoxGeometry` + `EdgesGeometry` meshes in 7x7x7 layout), `coordToPosition` helper, layer helpers (`getCellMeshesAtDepth`, `getAllCellMeshes`, `setLayerVisible`)
-- **`views.ts`** — `ViewManager` class: three view modes (CUBE, SLICE, X-RAY), depth layer control, board type, smooth opacity transitions, interactable mesh filtering
-- **`raycaster.ts`** — `GridRaycaster` class: wraps `THREE.Raycaster` for cell picking via NDC normalization, configurable mesh source
-- **`animations.ts`** — `AnimationManager` class: combat and perk animation effects (hit flash, sunk cascade, miss fade, sonar sweep, drone scan, g-sonar scan, depth charge blast). Private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop. Multi-key animations (sunk cascade, drone scan, g_sonar_scan, depth charge blast) share one `ActiveAnimation` object across all cell keys; `update(dt)` deduplicates via `processed` Set to avoid N× speedup.
-- **`scene.ts`** — `SceneManager` orchestrator (scene, camera, renderer, orbit, cube, views, animations, raycaster, render loop with delta time, pointer events, ghost cell overlay, friendly fleet overlay, resize, dispose)
+| File | Role |
+|---|---|
+| `materials.ts` | `CRT_COLORS` palette, `MaterialPool` (normal + dimmed + ghost tiers per `CellState`) |
+| `orbit.ts` | Custom `OrbitControls` (spherical coords, pointer/wheel/pinch). `wasDragging` + `consumeDrag()` for click suppression (5px threshold). |
+| `cube.ts` | `GridCube` — 343 cells (shared `BoxGeometry`/`EdgesGeometry`), O(1) coord↔mesh lookups, layer helpers |
+| `views.ts` | `ViewManager` — CUBE/SLICE/X-RAY modes, depth layer control, board type, opacity transitions |
+| `raycaster.ts` | `GridRaycaster` — cell picking via NDC, mesh source filtered by ViewManager |
+| `animations.ts` | `AnimationManager` — private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop. Multi-cell animations deduplicate via `processed` Set. |
+| `scene.ts` | `SceneManager` — orchestrator (scene, camera, renderer, all sub-systems, render loop, pointer events, overlays, resize, dispose) |
 
-## Architecture
+## Key Decisions
 
-- **No OrbitControls from Three.js** — custom implementation using spherical coordinates and pointer events.
-- **MaterialPool** creates three tiers of materials: normal, dimmed (30% opacity), ghost (15% opacity). Per-tier opacity can be animated via `setDimOpacity(t)` / `setGhostOpacity(t)`. Exports `MATERIAL_DEFS` for reading base opacity values.
-- **AnimationManager** creates **private material copies** per animated cell (not shared pool materials) so opacity/color can be modulated independently. Keyed by coordKey — new animation on same cell cancels previous and disposes its materials. `update(dt)` runs after `ViewManager.update(dt)` so animation materials overwrite view materials. Completed one-shot animations restore cells to pooled materials via `MaterialPool`.
-- **GridCube** uses shared `BoxGeometry` and `EdgesGeometry` for all 343 cells. Two Maps for O(1) lookups: coord→CellMesh and mesh→Coordinate.
-- **ViewManager** controls cell visibility and material assignment per view mode:
-  - CUBE ALL: all visible, normal materials
-  - CUBE depth: selected layer normal, others dimmed
-  - SLICE: selected visible+normal, ±1 visible+ghost, rest hidden
-  - X-RAY: only non-empty cells visible (filtered by board type)
-- **GridRaycaster** picks cells via `THREE.Raycaster`, mesh source filtered by ViewManager.
-- **SceneManager** is the entry point for both setup and combat screens. Call `updateGrid(grid)` to push state; `setViewMode()`, `setDepth()`, `setBoardType()` to control view. Pointer events for cell click/hover with orbit drag suppression (click suppressed via `orbit.wasDragging` when drag exceeds 5px threshold). Ghost cell overlay via `setGhostCells(coords, valid)` / `clearGhostCells()` for placement preview. Silent Running overlay via `setSilentRunningOverlay(coords)` / `clearSilentRunningOverlay()` (CYAN, separate from ghost cells). Friendly fleet overlay via `setFriendlyFleetOverlay(coords)` / `clearFriendlyFleetOverlay()` (GREEN, separate from ghost/SR overlays). Combat animations via `playHitAnimation(coord)`, `playSunkAnimation(coords)`, `playMissAnimation(coord)`, `playSonarAnimation(coord, positive)`, `playDepthChargeAnimation(center, results)`, `playGSonarScanAnimation(cells)`. Screen shake via `playScreenShake(intensity?, duration?)`.
-- **ResizeObserver** handles responsive canvas sizing. `devicePixelRatio` capped at 2.
+- **No THREE.OrbitControls** — custom spherical coordinate implementation.
+- **Three overlay systems** coexist independently: ghost cells (placement preview), SR overlay (CYAN), friendly fleet overlay (GREEN). Each has separate storage; `updateGrid()` clears all.
+- **AnimationManager creates private material copies** per cell, not shared pool materials. Completed one-shots restore to pooled materials via `MaterialPool`.
+- **Coordinate system**: `grid[col][row][depth]` → 3D position: `x = col - 3`, `y = row - 3`, `z = depth - 3`. Cell size 0.9, spacing 1.0.
 
-## Ghost Cell Overlay
+## View Modes
 
-- `setGhostCells(coords, valid)` temporarily swaps materials on specified cells to green (valid) or red (invalid)
-- `clearGhostCells()` restores original materials
-- Ghost materials (valid/invalid fill + edge) created once in constructor, disposed on cleanup
-- Used by setup screen for ship/decoy placement preview in 3D
-- **Important:** `updateGrid()` calls `clearGhostCells()` first to prevent stale ghost materials from overwriting newly applied grid state (e.g., after ship placement)
-
-## Combat Animations
-
-| Animation | Trigger | Duration | Behavior |
-|-----------|---------|----------|----------|
-| **Hit Flash** | `playHitFlash(coord)` | Infinite (looping) | 200ms full red opacity, then sinusoidal pulse 0.5–1.0, period 1.5s |
-| **Sunk Cascade** | `playSunkCascade(coords)` | `125ms × (n-1) + 300ms` | Sequential RED→ORANGE color lerp per cell, 125ms stagger. Completes → restores pooled Sunk materials |
-| **Miss Fade** | `playMissFade(coord)` | 300ms | Linear fade-in from 0 to target opacity (0.15 fill, 0.2 edge). Completes → restores pooled Miss materials |
-| **Sonar Sweep** | `playSonarSweep(coord, positive)` | 500ms | Two-phase: 0–300ms pulse opacity up (0→0.8), 300–500ms settle to target. CYAN if positive, GREEN_DIM if negative. Completes → restores pooled SonarPositive or SonarNegative materials |
-| **Drone Scan** | `playDroneScan(results)` | `30ms × (n-1) + 500ms` | Staggered per-cell pulse (same two-phase as sonar). CYAN if positive, GREEN_DIM if negative. Stores `positiveFlags` for correct per-cell cancel restore. Completes → restores pooled DronePositive or DroneNegative materials per cell |
-| **G-SONAR Scan** | `playGSonarScan(results)` | `15ms × (n-1) + 500ms` (~1.2s for 49 cells) | Same two-phase staggered pulse as drone scan but 15ms stagger (vs 30ms). CYAN if positive, GREEN_DIM if negative. Stores `positiveFlags` for correct per-cell cancel restore. Completes → restores pooled DronePositive or DroneNegative materials per cell |
-| **Depth Charge Blast** | `playDepthChargeBlast(center, results)` | ~1200ms | Three-phase: (1) 0–200ms center cell ORANGE flash, (2) 200–700ms expanding shockwave by Manhattan distance (80ms per ring), (3) 700–1200ms settle to final state. Stores `hitFlags` for per-cell cancel restore. Completes → restores pooled Hit (hits) or Miss (misses) materials |
-
-| **Screen Shake** | `playScreenShake(intensity?, duration?)` | 250ms (default) | Additive random XYZ camera offset with quadratic decay. Applied after `orbit.update()` so it doesn't accumulate. Default intensity 0.15, duration 0.25s |
-
-- Duplicate animation on same cell cancels previous and disposes its materials.
-- Combat screen wires animations in `handleFire()`: hit→`playHitAnimation`, sunk→`playSunkAnimation` (using ship cells from opponent state), miss→`playMissAnimation`. Sonar wired in `handlePing()`: `playSonarAnimation(coord, result.displayedResult)`. Drone wired in `handleDroneScan()`: `playDroneScanAnimation(writtenCells)` — only cells actually written to targeting grid, not skipped Hit/Sunk cells. Depth charge wired in `handleDepthChargeStrike()`: `playDepthChargeAnimation(center, animResults)` — filters out already_resolved cells. G-SONAR wired in `handleGSonar()`: `playGSonarScanAnimation(writtenCells)` — only cells actually written to targeting grid.
-- Logger emits `view.change` with `animation_start`/`animation_complete` actions.
-- `_cancelKey` restore state mapping: hit_flash→Hit, sunk_cascade→Sunk, sonar_sweep→SonarPositive, drone_scan→per-cell DronePositive/DroneNegative (via `positiveFlags`), g_sonar_scan→per-cell DronePositive/DroneNegative (via `positiveFlags`), depth_charge_blast→per-cell Hit/Miss (via `hitFlags`), miss_fade→Miss.
-
-## Silent Running Overlay
-
-- `setSilentRunningOverlay(coords)` temporarily swaps materials on specified cells to CYAN (fill opacity 0.2, edge opacity 0.4)
-- `clearSilentRunningOverlay()` restores original materials
-- Separate storage from ghost cells (`srOverlayEntries` vs `ghostEntries`) — both can coexist
-- Used by combat screen when viewing own grid to highlight SR'd ship cells
-- `updateSceneGrid()` calls `clearSilentRunningOverlay()` before `updateGrid()`, then rebuilds if viewing own grid
-- SR overlay materials created once in SceneManager constructor, disposed on cleanup
-
-## Friendly Fleet Overlay
-
-- `setFriendlyFleetOverlay(coords)` temporarily swaps materials on specified cells to GREEN (fill opacity 0.3, edge opacity 0.6)
-- `clearFriendlyFleetOverlay()` restores original materials
-- Separate storage from ghost cells and SR overlay (`friendlyOverlayEntries`) — all three can coexist
-- Used by combat screen on F key hold to reveal friendly ship positions on any board view
-- `updateGrid()` calls `clearFriendlyFleetOverlay()` to prevent stale materials
-- Friendly overlay materials created once in SceneManager constructor, disposed on cleanup
-
-## Recon State Colors
-
-- `DronePositive` and `SonarPositive` use `CRT_COLORS.CYAN` (0x33ffcc) to visually differentiate from standard green ship/empty states.
-
-## Patterns
-
-- Dispose pattern: every class has `dispose()` that cleans up Three.js resources and event listeners.
-- Camera targets origin (0,0,0). Grid is centered at origin via `GRID_OFFSET = (GRID_SIZE - 1) / 2`.
-- Fog (`FogExp2`) fades distant cells for depth perception.
-- Logger events: `view.rotate` on drag end, `view.change` on scene init / screen shake, `view.mode_change` on mode switch, `view.depth_change` on depth change.
-- View transitions: ~200ms opacity lerp for dimmed/ghost materials.
-
-## Coordinate System
-
-- Internal: `grid[col][row][depth]`, 0-indexed
-- 3D position: `x = col - GRID_OFFSET`, `y = row - GRID_OFFSET`, `z = depth - GRID_OFFSET`
-- Cell size 0.9, spacing 1.0
+| Mode | Behavior |
+|---|---|
+| CUBE ALL | All 343 cells visible, normal materials |
+| CUBE depth | Selected layer normal, others dimmed (30% opacity) |
+| SLICE | Selected visible, ±1 ghost (15% opacity), rest hidden |
+| X-RAY | Only non-empty cells visible (filtered by board type) |
 
 ## Testing
 
-- Materials, cube, views, and raycaster tests run without jsdom (Three.js geometry works headlessly)
-- Orbit and scene tests use `@vitest-environment jsdom`
-- Scene tests mock `THREE.WebGLRenderer` and polyfill `ResizeObserver`
+- Materials, cube, views, animations, raycaster: run **without jsdom** (Three.js geometry works headlessly).
+- Orbit, scene: require `// @vitest-environment jsdom`. Scene mocks `THREE.WebGLRenderer` and polyfills `ResizeObserver`.
