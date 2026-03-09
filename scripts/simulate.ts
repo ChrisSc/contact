@@ -4,7 +4,7 @@
  * simulate.ts — Run full CONTACT game simulations with bot players.
  *
  * Usage:
- *   npx tsx scripts/simulate.ts [numGames] [--verbose]
+ *   npx tsx scripts/simulate.ts [numGames] [--verbose] [--export]
  *
  * Each bot:
  *   - Places fleet randomly across all 8 axes in the 7x7x7 grid
@@ -15,6 +15,8 @@
  *   - Uses recon drones, g-sonar, and depth charges situationally
  */
 
+import * as fs from 'fs';
+import * as path from 'path';
 import { GameController } from '../src/engine/game';
 import { FLEET_ROSTER, PLACEMENT_AXES } from '../src/types/fleet';
 import type { FleetRosterEntry, PlacementAxis } from '../src/types/fleet';
@@ -24,6 +26,8 @@ import { GamePhase } from '../src/types/game';
 import type { PlayerIndex } from '../src/types/game';
 import type { PerkId } from '../src/types/abilities';
 import { getCell } from '../src/engine/grid';
+import { getLogger } from '../src/observability/logger';
+import { serializeSession } from '../src/observability/export';
 
 // ---------------------------------------------------------------------------
 // Random helpers
@@ -596,6 +600,7 @@ function printResults(metrics: AggregateMetrics): void {
 
 const args = process.argv.slice(2);
 const verbose = args.includes('--verbose') || args.includes('-v');
+const exportJsonl = args.includes('--export') || args.includes('-e');
 const numGames = parseInt(args.find(a => !a.startsWith('-')) ?? '100', 10);
 
 console.log(`\nRunning ${numGames} simulated games${verbose ? ' (verbose)' : ''}...\n`);
@@ -609,6 +614,16 @@ for (let i = 0; i < numGames; i++) {
   }
   const result = runGame(verbose);
   results.push(result);
+
+  if (exportJsonl) {
+    const logger = getLogger();
+    const jsonl = serializeSession(logger.getBuffer());
+    const filename = `contact-${logger.getSessionId()}.jsonl`;
+    fs.writeFileSync(filename, jsonl + '\n');
+    if (verbose) {
+      console.log(`  → exported ${filename} (${logger.getBuffer().length} events)`);
+    }
+  }
 
   if (verbose) {
     const w = result.winner === 0 ? 'ALPHA' : 'BRAVO';

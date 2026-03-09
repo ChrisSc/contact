@@ -118,6 +118,7 @@ Run automated bot-vs-bot games to test game balance and perk economy:
 npm run simulate            # 100 games (default)
 npm run simulate -- 1000    # custom game count
 npm run simulate -- 1 -v    # single game, verbose turn-by-turn output
+npm run simulate -- 1 --export   # export JSONL session log per game
 ```
 
 Bots place fleets randomly across all 8 axes, buy and deploy perks with a phase-based spending strategy, and use hunt/target logic with sonar-guided targeting. Results include win rates, average game length, hit rates, credit spending, and perk purchase/usage breakdowns.
