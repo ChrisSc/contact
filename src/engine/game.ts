@@ -51,6 +51,7 @@ function createPlayerState(index: PlayerIndex): PlayerState {
     shipsSunk: 0,
     shotsFired: 0,
     shotsHit: 0,
+    perksUsed: 0,
     credits: STARTING_CREDITS,
     inventory: [],
     lastTurnHit: false,
@@ -400,6 +401,7 @@ export class GameController {
       }
     }
 
+    this.state.players[idx]!.perksUsed++;
     this.logger.emit('perk.use', {
       player: idx,
       perkId: 'sonar_ping',
@@ -462,6 +464,7 @@ export class GameController {
 
     this.turnSlots.attackUsed = true;
 
+    this.state.players[idx]!.perksUsed++;
     this.logger.emit('perk.use', {
       player: idx,
       perkId: 'recon_drone',
@@ -490,6 +493,7 @@ export class GameController {
     player.abilities.radar_jammer.active = true;
     this.turnSlots.defendUsed = true;
 
+    this.state.players[player.index]!.perksUsed++;
     this.logger.emit('perk.use', {
       player: player.index,
       perkId: 'radar_jammer',
@@ -641,6 +645,7 @@ export class GameController {
       this.checkVictory();
     }
 
+    this.state.players[idx]!.perksUsed++;
     this.logger.emit('perk.use', {
       player: idx,
       perkId: 'depth_charge',
@@ -680,6 +685,7 @@ export class GameController {
 
     this.turnSlots.defendUsed = true;
 
+    this.state.players[idx]!.perksUsed++;
     this.logger.emit('perk.effect', {
       player: idx,
       perkId: 'silent_running',
@@ -730,6 +736,7 @@ export class GameController {
 
     this.turnSlots.attackUsed = true;
 
+    this.state.players[idx]!.perksUsed++;
     this.logger.emit('perk.use', {
       player: idx,
       perkId: 'g_sonar',
@@ -767,6 +774,7 @@ export class GameController {
 
     this.turnSlots.defendUsed = true;
 
+    this.state.players[idx]!.perksUsed++;
     this.logger.emit('perk.use', {
       player: idx,
       perkId: 'acoustic_cloak',

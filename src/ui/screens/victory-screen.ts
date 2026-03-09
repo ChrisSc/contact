@@ -38,7 +38,7 @@ export function mountVictoryScreen(container: HTMLElement, context: ScreenContex
     ['TURNS', String(state.turnCount)],
     ['SHOTS FIRED', String(player.shotsFired)],
     ['HIT RATE', hitRate],
-    ['ABILITIES USED', '0'],
+    ['ABILITIES USED', String(player.perksUsed)],
   ];
 
   for (const [key, value] of statDefs) {

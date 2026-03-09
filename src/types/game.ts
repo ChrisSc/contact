@@ -35,6 +35,7 @@ export interface PlayerState {
   shotsHit: number;
   credits: number;
   inventory: PerkInstance[];
+  perksUsed: number;
   lastTurnHit: boolean;
   silentRunningShips: SilentRunningEntry[];
 }
