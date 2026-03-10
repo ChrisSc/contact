@@ -902,6 +902,10 @@ export class GameController {
       return false;
     }
     this.state.rank = rank;
+    this.logger.emit('game.start', {
+      sessionId: this.state.sessionId,
+      rank: this.state.rank,
+    });
     return true;
   }
 

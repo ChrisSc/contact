@@ -203,8 +203,8 @@ function analyze(events: LogEvent[]): BattleReport {
   const session = events[0]?.session ?? 'unknown';
   const sysInit = events.find(e => e.event === 'system.init');
   const version = (sysInit?.data.version as string) ?? 'unknown';
-  const gameStartEvent = events.find(e => e.event === 'game.start');
-  const rank = (gameStartEvent?.data.rank as string) ?? 'unknown';
+  const gameStartEvents = events.filter(e => e.event === 'game.start');
+  const rank = (gameStartEvents[gameStartEvents.length - 1]?.data.rank as string) ?? 'unknown';
   const gameStart = events[0]!.ts;
   const gameEnd = events[events.length - 1]!.ts;
   const date = gameStart.split('T')[0]!;
