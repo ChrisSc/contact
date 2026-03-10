@@ -67,6 +67,7 @@ interface TurnEvent {
 interface BattleReport {
   session: string;
   version: string;
+  rank: string;
   date: string;
   duration: { total: number; setup: number; combat: number };
   totalTurns: number;
@@ -202,6 +203,8 @@ function analyze(events: LogEvent[]): BattleReport {
   const session = events[0]?.session ?? 'unknown';
   const sysInit = events.find(e => e.event === 'system.init');
   const version = (sysInit?.data.version as string) ?? 'unknown';
+  const gameStartEvent = events.find(e => e.event === 'game.start');
+  const rank = (gameStartEvent?.data.rank as string) ?? 'unknown';
   const gameStart = events[0]!.ts;
   const gameEnd = events[events.length - 1]!.ts;
   const date = gameStart.split('T')[0]!;
@@ -443,6 +446,7 @@ function analyze(events: LogEvent[]): BattleReport {
   return {
     session,
     version,
+    rank,
     date,
     duration: { total: totalDuration, setup: setupDuration, combat: combatDuration },
     totalTurns,
@@ -636,6 +640,7 @@ function printReport(r: BattleReport): void {
   console.log(`\u2551  Session:  ${r.session.padEnd(W - 12)}\u2551`);
   console.log(`\u2551  Date:     ${r.date.padEnd(W - 12)}\u2551`);
   console.log(`\u2551  Version:  ${r.version.padEnd(W - 12)}\u2551`);
+  console.log(`\u2551  Rank:     ${r.rank.toUpperCase().padEnd(W - 12)}\u2551`);
   console.log(`\u2551  Duration: ${formatDuration(r.duration.total).padEnd(15)} (setup: ${formatDuration(r.duration.setup)}, combat: ${formatDuration(r.duration.combat)})  \u2551`);
   console.log(`\u2551  Turns:    ${String(r.totalTurns).padEnd(W - 12)}\u2551`);
   console.log(`\u2560${line}\u2563`);

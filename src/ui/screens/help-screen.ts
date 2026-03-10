@@ -137,9 +137,25 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ]),
   ));
 
-  // 6. PERK STORE
+  // 6. RANK (DIFFICULTY)
+  const rankWrapper = document.createElement('div');
+  rankWrapper.appendChild(createLines([
+    'Select a rank on the title screen to set difficulty. Lower ranks award bonus credits when neither player makes contact for too long (stalemate bonus).',
+    '',
+  ]));
+  rankWrapper.appendChild(createTable(
+    ['RANK', 'DRY THRESHOLD', 'BONUS', 'DESCRIPTION'],
+    [
+      ['Recruit', '10 turns', '+8cr', 'Generous bonuses keep the perk economy flowing'],
+      ['Enlisted', '16 turns', '+5cr', 'Moderate safety net for intermediate players'],
+      ['Officer', '—', '—', 'No bonuses (default, original experience)'],
+    ],
+  ));
+  content.appendChild(createSection('06. RANK (DIFFICULTY)', rankWrapper));
+
+  // 7. PERK STORE
   content.appendChild(createSection(
-    '06. PERK STORE',
+    '07. PERK STORE',
     createTable(
       ['PERK', 'COST', 'SLOT', 'DESCRIPTION'],
       [
@@ -154,9 +170,9 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ),
   ));
 
-  // 7. PERK INTERACTIONS
+  // 8. PERK INTERACTIONS
   content.appendChild(createSection(
-    '07. PERK INTERACTIONS',
+    '08. PERK INTERACTIONS',
     createLines([
       'RADAR JAMMER vs SONAR PING: Per-cell results are inverted (yes becomes no, no becomes yes).',
       'RADAR JAMMER vs RECON DRONE: All cells in the scan return empty (all-false).',
@@ -167,9 +183,9 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ]),
   ));
 
-  // 8. KEYBOARD SHORTCUTS
+  // 9. KEYBOARD SHORTCUTS
   content.appendChild(createSection(
-    '08. KEYBOARD SHORTCUTS',
+    '09. KEYBOARD SHORTCUTS',
     createTable(
       ['KEY', 'CONTEXT', 'ACTION'],
       [
@@ -180,9 +196,9 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ),
   ));
 
-  // 9. VIEW MODES
+  // 10. VIEW MODES
   content.appendChild(createSection(
-    '09. VIEW MODES',
+    '10. VIEW MODES',
     createLines([
       'CUBE: Full 3D volumetric view. Orbit with click-drag; zoom with scroll.',
       'SLICE: Single depth layer shown as a flat 2D grid. Use D1-D7 to change depth.',
