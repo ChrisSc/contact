@@ -4,7 +4,7 @@
  * simulate.ts — Run full CONTACT game simulations with bot players.
  *
  * Usage:
- *   npx tsx scripts/simulate.ts [numGames] [--verbose] [--export]
+ *   npx tsx scripts/simulate.ts [numGames] [--verbose] [--export] [--rank recruit|enlisted|officer]
  *
  * Each bot:
  *   - Places fleet randomly across all 8 axes in the 7x7x7 grid
@@ -24,6 +24,8 @@ import type { Coordinate } from '../src/types/grid';
 import { CellState, GRID_SIZE } from '../src/types/grid';
 import { GamePhase } from '../src/types/game';
 import type { PlayerIndex } from '../src/types/game';
+import type { Rank } from '../src/types/game';
+import { RANK_CONFIGS } from '../src/types/game';
 import type { PerkId } from '../src/types/abilities';
 import { getCell } from '../src/engine/grid';
 import { getLogger } from '../src/observability/logger';
@@ -396,6 +398,8 @@ interface GameResult {
   turns: number;
   turnLogs: TurnLog[];
   stats: [PlayerStats, PlayerStats];
+  rankBonuses: number;
+  rankCreditsAwarded: number;
 }
 
 interface PlayerStats {
@@ -416,8 +420,8 @@ function emptyPerkCounts(): Record<PerkId, number> {
   };
 }
 
-function runGame(verbose: boolean): GameResult {
-  const gc = new GameController();
+function runGame(verbose: boolean, rank: Rank): GameResult {
+  const gc = new GameController(undefined, rank);
 
   // Setup both players
   placeFleetRandomly(gc);
@@ -427,10 +431,25 @@ function runGame(verbose: boolean): GameResult {
 
   const turnLogs: TurnLog[] = [];
   let safety = 0;
+  let rankBonuses = 0;
+  let rankCreditsAwarded = 0;
+  const rankConfig = RANK_CONFIGS[rank];
 
   while (gc.getState().phase === GamePhase.Combat && safety < 1000) {
     const log = executeTurn(gc, verbose);
     turnLogs.push(log);
+
+    // Check if a rank bonus was awarded this turn
+    const bonus = gc.getLastRankBonus();
+    if (bonus) {
+      rankBonuses++;
+      rankCreditsAwarded += bonus.amount;
+      if (verbose) {
+        const p = bonus.player === 0 ? 'ALPHA' : 'BRAVO';
+        console.log(`        ⤷ STALEMATE BONUS: ${p} +${bonus.amount} CR`);
+      }
+    }
+
     safety++;
   }
 
@@ -450,7 +469,7 @@ function runGame(verbose: boolean): GameResult {
     stats[pi].credits = p.credits;
   }
 
-  return { winner, turns: state.turnCount, turnLogs, stats };
+  return { winner, turns: state.turnCount, turnLogs, stats, rankBonuses, rankCreditsAwarded };
 }
 
 function buildStats(logs: TurnLog[], player: PlayerIndex): PlayerStats {
@@ -481,6 +500,7 @@ function buildStats(logs: TurnLog[], player: PlayerIndex): PlayerStats {
 
 interface AggregateMetrics {
   gamesPlayed: number;
+  rank: Rank;
   alphaWins: number;
   bravoWins: number;
   turns: { min: number; max: number; avg: number; median: number };
@@ -489,9 +509,10 @@ interface AggregateMetrics {
   perksBought: Record<PerkId, number>;
   perksUsed: Record<PerkId, number>;
   avgShipsSunk: { alpha: number; bravo: number };
+  rankBonuses: { total: number; avg: number; avgCredits: number };
 }
 
-function aggregate(results: GameResult[]): AggregateMetrics {
+function aggregate(results: GameResult[], rank: Rank): AggregateMetrics {
   const n = results.length;
   const turns = results.map(r => r.turns).sort((a, b) => a - b);
   const alphaWins = results.filter(r => r.winner === 0).length;
@@ -501,6 +522,8 @@ function aggregate(results: GameResult[]): AggregateMetrics {
   let alphaHitRate = 0, bravoHitRate = 0;
   let alphaSpent = 0, bravoSpent = 0;
   let alphaSunk = 0, bravoSunk = 0;
+  let totalRankBonuses = 0;
+  let totalRankCredits = 0;
 
   for (const r of results) {
     alphaHitRate += r.stats[0].hitRate;
@@ -509,6 +532,8 @@ function aggregate(results: GameResult[]): AggregateMetrics {
     bravoSpent += r.stats[1].creditsSpent;
     alphaSunk += r.stats[0].shipsSunk;
     bravoSunk += r.stats[1].shipsSunk;
+    totalRankBonuses += r.rankBonuses;
+    totalRankCredits += r.rankCreditsAwarded;
 
     for (const pi of [0, 1] as PlayerIndex[]) {
       for (const [k, v] of Object.entries(r.stats[pi].perksBought)) {
@@ -522,6 +547,7 @@ function aggregate(results: GameResult[]): AggregateMetrics {
 
   return {
     gamesPlayed: n,
+    rank,
     alphaWins,
     bravoWins: n - alphaWins,
     turns: {
@@ -535,6 +561,11 @@ function aggregate(results: GameResult[]): AggregateMetrics {
     perksBought: totalBought,
     perksUsed: totalUsed,
     avgShipsSunk: { alpha: alphaSunk / n, bravo: bravoSunk / n },
+    rankBonuses: {
+      total: totalRankBonuses,
+      avg: totalRankBonuses / n,
+      avgCredits: totalRankCredits / n,
+    },
   };
 }
 
@@ -542,10 +573,17 @@ function printResults(metrics: AggregateMetrics): void {
   const bar = '═'.repeat(56);
   console.log();
   console.log(`╔${bar}╗`);
+  const rankLabel = RANK_CONFIGS[metrics.rank].label;
+  const threshold = RANK_CONFIGS[metrics.rank].dryTurnThreshold;
+  const bonus = RANK_CONFIGS[metrics.rank].creditBonus;
+  const rankDesc = threshold !== null
+    ? `${rankLabel} (${threshold} dry → +${bonus} CR)`
+    : `${rankLabel} (no bonus)`;
   console.log(`║  CONTACT — SIMULATION RESULTS                        ║`);
   console.log(`╠${bar}╣`);
 
   console.log(`║  Games played:  ${String(metrics.gamesPlayed).padStart(6)}                             ║`);
+  console.log(`║  Rank:          ${rankDesc.padEnd(37)}║`);
   console.log(`╠${bar}╣`);
 
   // Win rates
@@ -580,6 +618,15 @@ function printResults(metrics: AggregateMetrics): void {
   console.log(`║    BRAVO: ${metrics.avgCreditsSpent.bravo.toFixed(0).padStart(5)} CR                                  ║`);
   console.log(`╠${bar}╣`);
 
+  // Rank bonuses
+  if (metrics.rank !== 'officer') {
+    console.log(`║  STALEMATE BONUSES                                   ║`);
+    console.log(`║    Total triggers: ${String(metrics.rankBonuses.total).padStart(5)}                              ║`);
+    console.log(`║    Avg per game:   ${metrics.rankBonuses.avg.toFixed(1).padStart(5)}                              ║`);
+    console.log(`║    Avg CR awarded: ${metrics.rankBonuses.avgCredits.toFixed(1).padStart(5)}                              ║`);
+    console.log(`╠${bar}╣`);
+  }
+
   // Perk usage
   console.log(`║  PERKS PURCHASED (total across all games)            ║`);
   const perkOrder: PerkId[] = ['sonar_ping', 'radar_jammer', 'acoustic_cloak', 'recon_drone', 'silent_running', 'g_sonar', 'depth_charge'];
@@ -601,9 +648,23 @@ function printResults(metrics: AggregateMetrics): void {
 const args = process.argv.slice(2);
 const verbose = args.includes('--verbose') || args.includes('-v');
 const exportJsonl = args.includes('--export') || args.includes('-e');
-const numGames = parseInt(args.find(a => !a.startsWith('-')) ?? '100', 10);
+const numGames = parseInt(args.find(a => !a.startsWith('-') && !['recruit', 'enlisted', 'officer'].includes(a)) ?? '100', 10);
 
-console.log(`\nRunning ${numGames} simulated games${verbose ? ' (verbose)' : ''}...\n`);
+// Parse --rank <value> or just rank name as positional
+let rank: Rank = 'officer';
+const rankIdx = args.indexOf('--rank');
+if (rankIdx !== -1 && args[rankIdx + 1]) {
+  const val = args[rankIdx + 1] as string;
+  if (val === 'recruit' || val === 'enlisted' || val === 'officer') {
+    rank = val;
+  } else {
+    console.error(`Invalid rank: ${val}. Use recruit, enlisted, or officer.`);
+    process.exit(1);
+  }
+}
+
+const rankLabel = RANK_CONFIGS[rank].label;
+console.log(`\nRunning ${numGames} simulated games [${rankLabel}]${verbose ? ' (verbose)' : ''}...\n`);
 
 const results: GameResult[] = [];
 const startTime = performance.now();
@@ -612,7 +673,7 @@ for (let i = 0; i < numGames; i++) {
   if (verbose) {
     console.log(`\n── Game ${i + 1} ${'─'.repeat(44)}`);
   }
-  const result = runGame(verbose);
+  const result = runGame(verbose, rank);
   results.push(result);
 
   if (exportJsonl) {
@@ -639,6 +700,6 @@ for (let i = 0; i < numGames; i++) {
 
 const elapsed = ((performance.now() - startTime) / 1000).toFixed(2);
 
-const metrics = aggregate(results);
+const metrics = aggregate(results, rank);
 printResults(metrics);
 console.log(`Completed in ${elapsed}s (${(parseFloat(elapsed) / numGames * 1000).toFixed(1)}ms per game)\n`);

@@ -55,6 +55,18 @@ Credits fund the perk store. You earn them by landing shots:
 
 Starting credits: **5**. Credits accumulate across turns within a game.
 
+### Rank (Difficulty)
+
+Select a rank on the title screen to control the **stalemate bonus** — a dry spell mechanic that awards bonus credits when neither player makes contact for too long. This softens the early game at lower ranks while preserving the pure experience for veterans.
+
+| Rank | Dry Turn Threshold | Bonus Credits | Description |
+|---|:---:|:---:|---|
+| Recruit | 10 | +8 | Generous bonuses keep the perk economy flowing |
+| Enlisted | 16 | +5 | Moderate safety net for intermediate players |
+| Officer | -- | -- | No bonuses (default, original experience) |
+
+When the threshold is reached, both players receive the bonus credits. The counter resets on any contact — torpedo hit, sonar positive, drone contact, depth charge hit, or decoy hit. The bottom bar shows a `DRY` counter for non-officer ranks.
+
 ### Fleet
 
 | Vessel | Size |
@@ -115,13 +127,24 @@ See [docs/JSONL_FORMAT.md](docs/JSONL_FORMAT.md) for the full event schema, payl
 Run automated bot-vs-bot games to test game balance and perk economy:
 
 ```sh
-npm run simulate            # 100 games (default)
-npm run simulate -- 1000    # custom game count
-npm run simulate -- 1 -v    # single game, verbose turn-by-turn output
-npm run simulate -- 1 --export   # export JSONL session log per game
+npm run simulate                        # 100 games, officer rank (default)
+npm run simulate -- 1000                # custom game count
+npm run simulate -- 1 -v                # single game, verbose turn-by-turn output
+npm run simulate -- 1 --export          # export JSONL session log per game
+npm run simulate -- --rank recruit      # simulate with recruit rank
+npm run simulate -- --rank enlisted     # simulate with enlisted rank
+npm run simulate -- 500 --rank recruit  # combine options
 ```
 
-Bots place fleets randomly across all 8 axes, buy and deploy perks with a phase-based spending strategy, and use hunt/target logic with sonar-guided targeting. Results include win rates, average game length, hit rates, credit spending, and perk purchase/usage breakdowns.
+Use the `--rank` flag to test the stalemate bonus mechanic at different difficulty levels:
+
+| Rank | Dry Turn Threshold | Bonus Credits |
+|---|:---:|:---:|
+| Recruit | 10 | +8 |
+| Enlisted | 16 | +5 |
+| Officer | -- | -- |
+
+Bots place fleets randomly across all 8 axes, buy and deploy perks with a phase-based spending strategy, and use hunt/target logic with sonar-guided targeting. Results include win rates, average game length, hit rates, credit spending, perk purchase/usage breakdowns, and stalemate bonus statistics (for non-officer ranks).
 
 ## Log Analysis
 

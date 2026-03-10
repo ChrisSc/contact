@@ -7,7 +7,7 @@
 | `variables.css` | Design tokens (colors, spacing, fonts) + CSS reset. Single source of truth for theming. |
 | `crt.css` | Scanline overlay, vignette, barrel distortion (`#app` border-radius + inset box-shadow) |
 | `grid.css` | Slice grid layout, cell state classes (map 1:1 to `CellState` enum), ghost preview, hover |
-| `ui.css` | All screen layouts, buttons, panels, ship roster, depth/axis selectors, perk store, inventory tray, action slots, credit display, notification banner, persistent footer |
+| `ui.css` | All screen layouts, buttons, panels, ship roster, depth/axis selectors, perk store, inventory tray, action slots, credit display, notification banner, persistent footer, rank selector, rank bonus notification |
 | `effects.css` | Phosphor bloom utility (brightness/blur filter + multi-layer text-shadow) |
 
 ## Conventions

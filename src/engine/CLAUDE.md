@@ -6,7 +6,7 @@
 |---|---|
 | `grid.ts` | `createGrid`, `getCell`, `setCell`, `parseCoordinate`, `formatCoordinate`, `isValidCoordinate` |
 | `fleet.ts` | `calculateShipCells`, `validatePlacement`, `placeShip`, `removeShip`, `placeDecoy`, `isFleetComplete`, `checkSunk`, `getShipHealth`. Uses `AXIS_DELTAS` for 8-axis placement. |
-| `game.ts` | `GameController` — single stateful orchestrator. Setup flow, combat, victory, credit economy, all ability methods. |
+| `game.ts` | `GameController` — single stateful orchestrator. Setup flow, combat, victory, credit economy, all ability methods, rank system with dry-turn bonus. |
 | `credits.ts` | Pure `calculateFireCredits()`. Hit=1, consecutive=+5, sink=+10. |
 | `perks.ts` | Pure perk store functions. Returns new `PlayerState` (immutable pattern). |
 | `sonar.ts` | Pure `executeSonarPing()`. Applies SR → cloak → jammer modifier chain. |
@@ -29,6 +29,20 @@
 ## Credit Economy
 
 `STARTING_CREDITS = 5`. Awards via `calculateFireCredits()` after torpedo resolution. `lastTurnHit` set at `endTurn()` for consecutive tracking. Decoy hit counts as hit (1 CR + consecutive eligible).
+
+## Rank System (Stalemate Bonus)
+
+Constructor accepts optional `rank` param (default `'officer'`). Tracks `dryTurnCounter` and `currentTurnContact` per turn. Contact = any positive result from torpedo hit, depth charge hit, sonar/drone/G-SONAR positive (including jammer false positives — player perceives contact).
+
+When `dryTurnCounter >= threshold`, both players get `pendingRankBonus = true`, counter resets. Each player receives their bonus credits on their next turn start. `setRank()` only allowed before combat phase.
+
+| Rank | Threshold | Bonus |
+|---|:---:|:---:|
+| Recruit | 10 | +8 CR |
+| Enlisted | 16 | +5 CR |
+| Officer | -- | -- |
+
+Public methods: `setRank()`, `getRankConfig()`, `getDryTurnCounter()`, `getLastRankBonus()`.
 
 ## Ability Interactions (Decision Table)
 

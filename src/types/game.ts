@@ -18,6 +18,21 @@ export const PLAYER_DESIGNATIONS: Record<PlayerIndex, PlayerDesignation> = {
   1: 'BRAVO',
 };
 
+export type Rank = 'recruit' | 'enlisted' | 'officer';
+
+export interface RankConfig {
+  rank: Rank;
+  label: string;
+  dryTurnThreshold: number | null; // null = no mechanic
+  creditBonus: number;
+}
+
+export const RANK_CONFIGS: Record<Rank, RankConfig> = {
+  recruit:  { rank: 'recruit',  label: 'RECRUIT',  dryTurnThreshold: 10, creditBonus: 8 },
+  enlisted: { rank: 'enlisted', label: 'ENLISTED', dryTurnThreshold: 16, creditBonus: 5 },
+  officer:  { rank: 'officer',  label: 'OFFICER',  dryTurnThreshold: null, creditBonus: 0 },
+};
+
 export interface SilentRunningEntry {
   shipId: string;
   turnsRemaining: number;
@@ -38,6 +53,7 @@ export interface PlayerState {
   perksUsed: number;
   lastTurnHit: boolean;
   silentRunningShips: SilentRunningEntry[];
+  pendingRankBonus: boolean;
 }
 
 export interface TurnSlots {
@@ -53,4 +69,5 @@ export interface GameState {
   players: [PlayerState, PlayerState];
   winner: PlayerIndex | null;
   sessionId: string;
+  rank: Rank;
 }

@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.6.0] - 2026-03-10
+
+### Added
+
+- **Rank system** with stalemate bonus mechanic — difficulty selector on title screen (Recruit/Enlisted/Officer) that awards bonus credits when players go too long without making contact, softening the early-game credit drought at lower ranks
+- Dry-turn counter tracking across all contact methods (torpedo, depth charge, sonar, drone, G-SONAR, decoy hits)
+- Rank bonus notification banner in combat ("STALEMATE BONUS: +N CREDITS")
+- DRY counter stat in combat bottom bar for non-officer ranks
+- `--rank` flag for simulator to test balance across difficulty levels
+- 15 new rank system engine tests
+
 ## [1.0.0] - 2026-03-08
 
 ### Added
