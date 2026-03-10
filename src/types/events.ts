@@ -40,6 +40,7 @@ export type LogEventType =
   | 'economy.credit'
   | 'economy.purchase'
   | 'economy.balance'
+  | 'economy.rank_bonus'
   // Perks
   | 'perk.use'
   | 'perk.effect'
@@ -99,7 +100,7 @@ export interface GameVictoryPayload {
 
 export interface EconomyCreditPayload {
   player: PlayerIndex;
-  type: 'hit' | 'consecutive_hit' | 'sink';
+  type: 'hit' | 'consecutive_hit' | 'sink' | 'rank_bonus';
   amount: number;
   balance: number;
 }

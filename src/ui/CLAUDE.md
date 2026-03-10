@@ -21,10 +21,10 @@ title → setup (P1) → handoff → setup (P2) → handoff → combat ↔ hando
 | `components/inventory-tray.ts` | `InventoryTray` — purchased perks grouped by type with count badges |
 | `components/action-slots.ts` | `ActionSlots` — PING / ATTACK / DEFEND slot HUD |
 | `components/notification-banner.ts` | `NotificationBanner` — queued CRT notifications with auto-dismiss |
-| `screens/title-screen.ts` | Title with CRT aesthetic. START → setup, HELP → help |
+| `screens/title-screen.ts` | Title with CRT aesthetic. Rank selector (recruit/enlisted/officer, default officer). START → `setRank()` + setup, HELP → help |
 | `screens/setup-screen.ts` | Canvas-dominant 3D layout. Ship/decoy placement via raycaster. 8-axis selector, AUTO DEPLOY, ghost preview. Phases: ships → decoy-pending → decoy → confirm. |
 | `screens/handoff-screen.ts` | Player transition with ready confirmation |
-| `screens/combat-screen.ts` | Canvas-dominant 3D. Fire/abilities via raycaster. Board toggle (own/targeting). All perk modes, animations, audio, notifications. |
+| `screens/combat-screen.ts` | Canvas-dominant 3D. Fire/abilities via raycaster. Board toggle (own/targeting). All perk modes, animations, audio, notifications. Rank bonus notification on mount, DRY counter in bottom bar for non-officer ranks. |
 | `screens/victory-screen.ts` | Winner display, stats, session export, NEW ENGAGEMENT → title |
 | `screens/help-screen.ts` | Scrollable Operations Manual (9 sections from GDD) |
 

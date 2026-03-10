@@ -1,5 +1,6 @@
-import type { GameState, PlayerState, PlayerIndex, TurnSlots } from '../types/game';
-import { GamePhase, PLAYER_DESIGNATIONS } from '../types/game';
+import type { GameState, PlayerState, PlayerIndex, TurnSlots, RankConfig } from '../types/game';
+import type { Rank } from '../types/game';
+import { GamePhase, PLAYER_DESIGNATIONS, RANK_CONFIGS } from '../types/game';
 import type { Coordinate } from '../types/grid';
 import { CellState, GRID_SIZE } from '../types/grid';
 import type { FleetRosterEntry, PlacementAxis } from '../types/fleet';
@@ -56,6 +57,7 @@ function createPlayerState(index: PlayerIndex): PlayerState {
     inventory: [],
     lastTurnHit: false,
     silentRunningShips: [],
+    pendingRankBonus: false,
   };
 }
 
@@ -82,8 +84,11 @@ export class GameController {
   private turnSlots: TurnSlots = { pingUsed: false, attackUsed: false, defendUsed: false };
   private currentTurnHit: boolean = false;
   private lastSRExpired: string[] = [];
+  private dryTurnCounter: number = 0;
+  private currentTurnContact: boolean = false;
+  private lastRankBonus: { player: PlayerIndex; amount: number } | null = null;
 
-  constructor(sessionId?: string) {
+  constructor(sessionId?: string, rank?: Rank) {
     this.logger = initLogger(sessionId);
     this.state = {
       phase: GamePhase.SetupP1,
@@ -92,10 +97,12 @@ export class GameController {
       players: [createPlayerState(0), createPlayerState(1)],
       winner: null,
       sessionId: this.logger.getSessionId(),
+      rank: rank ?? 'officer',
     };
 
     this.logger.emit('game.start', {
       sessionId: this.state.sessionId,
+      rank: this.state.rank,
     });
   }
 
@@ -318,6 +325,7 @@ export class GameController {
 
     // Track hit for consecutive bonus
     this.currentTurnHit = fireResult === 'hit' || fireResult === 'sunk';
+    if (this.currentTurnHit) this.currentTurnContact = true;
 
     if (fireResult === 'sunk') {
       this.checkVictory();
@@ -388,6 +396,7 @@ export class GameController {
       );
       if (cellResult.displayedResult) positiveCount++;
     }
+    if (positiveCount > 0) this.currentTurnContact = true;
 
     this.turnSlots.pingUsed = true;
 
@@ -451,6 +460,8 @@ export class GameController {
         { state: droneState, shipId: null },
       );
     }
+    const droneContacts = result.cells.filter(c => c.written && c.displayedResult).length;
+    if (droneContacts > 0) this.currentTurnContact = true;
 
     // Jammer consumption
     if (result.jammerConsumed) {
@@ -642,6 +653,7 @@ export class GameController {
 
     this.turnSlots.attackUsed = true;
     this.currentTurnHit = hitCount > 0;
+    if (hitCount > 0) this.currentTurnContact = true;
 
     // Check victory after all sinks
     if (shipsSunk.length > 0) {
@@ -736,6 +748,8 @@ export class GameController {
         { state: droneState, shipId: null },
       );
     }
+    const gsonarContacts = result.cells.filter(c => c.written && c.displayedResult).length;
+    if (gsonarContacts > 0) this.currentTurnContact = true;
 
     this.turnSlots.attackUsed = true;
 
@@ -801,10 +815,48 @@ export class GameController {
       turn: this.state.turnCount,
     });
 
+    // --- Rank dry-turn tracking ---
+    if (this.currentTurnContact) {
+      this.dryTurnCounter = 0;
+    } else {
+      this.dryTurnCounter++;
+    }
+    this.currentTurnContact = false;
+
+    const rankConfig = RANK_CONFIGS[this.state.rank];
+    if (rankConfig.dryTurnThreshold !== null && this.dryTurnCounter >= rankConfig.dryTurnThreshold) {
+      // Set pending bonus on BOTH players
+      this.state.players[0].pendingRankBonus = true;
+      this.state.players[1].pendingRankBonus = true;
+      this.logger.emit('economy.rank_bonus', {
+        dryTurns: this.dryTurnCounter,
+        threshold: rankConfig.dryTurnThreshold,
+        creditBonus: rankConfig.creditBonus,
+        rank: this.state.rank,
+      });
+      this.dryTurnCounter = 0;
+    }
+
     this.state.currentPlayer = this.state.currentPlayer === 0 ? 1 : 0;
     this.state.turnCount++;
     this.turnSlots = { pingUsed: false, attackUsed: false, defendUsed: false };
     this.currentTurnHit = false;
+
+    // Award pending rank bonus to the new current player
+    const newPlayer = this.state.players[this.state.currentPlayer];
+    if (newPlayer.pendingRankBonus) {
+      newPlayer.credits += rankConfig.creditBonus;
+      newPlayer.pendingRankBonus = false;
+      this.lastRankBonus = { player: this.state.currentPlayer, amount: rankConfig.creditBonus };
+      this.logger.emit('economy.credit', {
+        player: this.state.currentPlayer,
+        type: 'rank_bonus',
+        amount: rankConfig.creditBonus,
+        balance: newPlayer.credits,
+      });
+    } else {
+      this.lastRankBonus = null;
+    }
 
     // Decrement Silent Running for the new current player
     // (their opponent just finished a turn, so one opponent turn has passed)
@@ -843,6 +895,26 @@ export class GameController {
 
   getLastSRExpired(): string[] {
     return this.lastSRExpired;
+  }
+
+  setRank(rank: Rank): boolean {
+    if (this.state.phase === GamePhase.Combat || this.state.phase === GamePhase.Victory) {
+      return false;
+    }
+    this.state.rank = rank;
+    return true;
+  }
+
+  getRankConfig(): RankConfig {
+    return RANK_CONFIGS[this.state.rank];
+  }
+
+  getDryTurnCounter(): number {
+    return this.dryTurnCounter;
+  }
+
+  getLastRankBonus(): { player: PlayerIndex; amount: number } | null {
+    return this.lastRankBonus;
   }
 
   checkVictory(): boolean {

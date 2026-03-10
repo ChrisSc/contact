@@ -1409,3 +1409,57 @@
   flex-shrink: 0;
   margin-bottom: var(--spacing-lg);
 }
+
+/* Rank Selector (Title Screen) */
+.title-screen__rank-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-sm);
+}
+
+.title-screen__rank-label {
+  font-family: var(--font-display);
+  font-size: 8px;
+  color: var(--crt-green-dim);
+  letter-spacing: 2px;
+  opacity: 0.6;
+}
+
+.title-screen__rank-buttons {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.title-screen__rank-btn {
+  font-family: var(--font-display);
+  font-size: 10px;
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid rgba(0, 255, 65, 0.25);
+  color: var(--crt-green-dim);
+  cursor: pointer;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transition: all 0.15s;
+}
+
+.title-screen__rank-btn:hover {
+  border-color: var(--crt-green);
+  color: var(--crt-green);
+}
+
+.title-screen__rank-btn--active {
+  border-color: var(--crt-green);
+  color: var(--crt-green);
+  background: rgba(0, 255, 65, 0.1);
+  text-shadow: 0 0 8px var(--crt-green-glow);
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.15);
+}
+
+/* Rank Bonus Notification */
+.notification-banner__message--rank-bonus {
+  color: #ffaa00;
+  text-shadow: 0 0 8px #ffaa00, 0 0 16px #ffaa00;
+  border-color: #ffaa00;
+}

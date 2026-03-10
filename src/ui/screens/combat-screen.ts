@@ -358,6 +358,16 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   refreshInventory();
   refreshActionSlots();
 
+  // Check for pending rank bonus notification
+  const rankBonus = game.getLastRankBonus();
+  if (rankBonus) {
+    notifications.show({
+      text: `STALEMATE BONUS: +${rankBonus.amount} CREDITS`,
+      duration: 3000,
+      className: 'notification-banner__message--rank-bonus',
+    });
+  }
+
   // --- Handlers ---
 
   function handleViewModeChange(mode: ViewMode): void {
@@ -1000,6 +1010,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       { label: 'SUNK', value: `${uiState.sunkShipIds.length}/5` },
       { label: 'MODE', value: uiState.viewMode.toUpperCase() },
     ];
+
+    // Add dry turn counter for non-officer ranks
+    const rankConfig = game.getRankConfig();
+    if (rankConfig.dryTurnThreshold !== null) {
+      stats.push({
+        label: 'DRY',
+        value: `${game.getDryTurnCounter()}/${rankConfig.dryTurnThreshold}`,
+      });
+    }
 
     for (const stat of stats) {
       const group = document.createElement('div');

@@ -8,9 +8,9 @@ Pure type definitions and readonly constants only. No runtime logic. Imported by
 |---|---|
 | `grid.ts` | `Grid3D`, `Cell`, `Coordinate`, `CellState` enum, column/row/depth labels |
 | `fleet.ts` | `Ship`, `PlacementAxis` (8 axes), `FLEET_ROSTER` (7 ships), `PLACEMENT_AXES`, `TOTAL_SHIP_CELLS` |
-| `game.ts` | `GamePhase` enum, `PlayerState`, `GameState`, `TurnSlots`, `SilentRunningEntry`, `PlayerIndex = 0 \| 1` |
+| `game.ts` | `GamePhase` enum, `PlayerState`, `GameState`, `TurnSlots`, `SilentRunningEntry`, `PlayerIndex = 0 \| 1`, `Rank`, `RankConfig`, `RANK_CONFIGS` |
 | `abilities.ts` | `PerkId` (7 perks), `PerkSlot` (ping/attack/defend), `PerkDefinition`, `PerkInstance`, `PERK_CATALOG`, `STARTING_CREDITS` |
-| `events.ts` | `LogEventType` union, `LogEvent` interface, per-category payload interfaces |
+| `events.ts` | `LogEventType` union (incl. `economy.rank_bonus`), `LogEvent` interface, per-category payload interfaces |
 | `globals.d.ts` | Ambient declarations for `__APP_VERSION__`, `__BUILD_DATE__` |
 
 ## Conventions

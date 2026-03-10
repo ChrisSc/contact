@@ -14,6 +14,7 @@
 | `depth-charge.test.ts` | Area targeting, multi-ship, already-resolved cells, decoy, edge clipping |
 | `g-sonar.test.ts` | Full-layer scan, SR masking, cloak masking, decoy false positive |
 | `acoustic-cloak.test.ts` | Deploy, countdown, expiry, masks sonar/drone/G-SONAR, doesn't block damage |
+| `rank.test.ts` | Rank system: officer/recruit/enlisted thresholds, bonus awards to both players, counter reset on hit/decoy/contact, counter persistence on miss, multiple triggers, `setRank()` rejection during combat |
 | `silent-running.test.ts` | Lookup, decrement, expiry, immutability |
 | `event-completeness.test.ts` | Full game audit: event counts, pairing, ordering, monotonic sequences |
 
