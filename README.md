@@ -4,7 +4,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-Browser-based 3D Battleship variant. Two players command submarine fleets hidden in a 7x7x7 volumetric grid, firing torpedoes and deploying earned abilities to locate and destroy enemy vessels. Hot-seat local multiplayer, zero server dependencies.
+Browser-based 3D Battleship variant. Command submarine fleets hidden in a 7x7x7 volumetric grid, firing torpedoes and deploying earned abilities to locate and destroy enemy vessels. Play locally in hot-seat multiplayer or challenge Claude AI in Human vs AI mode. Zero server dependencies.
 
 ![CONTACT gameplay — Recon Drone scan revealing contacts in the 7x7x7 volumetric grid](game-play.png)
 
@@ -35,9 +35,19 @@ npm run dev
 | `npm run simulate` | Run bot-vs-bot game simulations |
 | `docker compose up -d` | Serve on port 8080 |
 
+## Game Modes
+
+### Local Multiplayer (Hot-Seat)
+
+Two players share one screen, taking turns with a handoff screen between them. The default mode.
+
+### Human vs AI
+
+Play as ALPHA against Claude Sonnet as BRAVO. Select **VS AI** on the title screen and enter your Anthropic API key. The AI places its fleet automatically, reasons about strategy via tool use, and plays with embedded tactical knowledge from prior games. All controls are locked during the AI's turn. See [HUMAN_V_AI.md](HUMAN_V_AI.md) for full details.
+
 ## How to Play
 
-1. **Setup** — Each player places 7 submarines + 1 decoy in the 7x7x7 grid
+1. **Setup** — Each player places 7 submarines + 1 decoy in the 7x7x7 grid (AI places automatically in VS AI mode)
 2. **Combat** — Alternate turns: fire a torpedo, use a perk, or do both (one per slot)
 3. **Victory** — Sink all 7 enemy subs to win
 
@@ -188,6 +198,7 @@ Requires `ANTHROPIC_API_KEY` environment variable. See [AGENT_V_AGENT.md](AGENT_
 
 - [Game Design Document](artifacts/design/CONTACT_GDD_v1.0.md)
 - [Delivery Plan](artifacts/delivery/CONTACT_Delivery_Plan_v1.2.md)
+- [Human vs AI](HUMAN_V_AI.md)
 - [Agent vs Agent](AGENT_V_AGENT.md)
 - [JSONL Log Format](docs/JSONL_FORMAT.md)
 - [Changelog](CHANGELOG.md)
