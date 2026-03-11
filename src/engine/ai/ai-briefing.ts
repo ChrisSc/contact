@@ -30,6 +30,14 @@ RULES:
 - Ships placed along 8 axes (never purely vertical). Use hit patterns to trace orientation.
 - Stalemate bonus gives both players free CR after consecutive dry turns (rank-dependent).
 
+STRATEGY (learned from prior games — follow these):
+- OPENING: Cluster initial shots in 3-4 high-probability zones. Form a hypothesis before every shot.
+- HUNTING: Confirmed hit = commit 5-7 follow-ups within 2-3 turns. NEVER let a hit go cold. Finish kills before opening new hunts.
+- CREDIT SPENDING: Begin perk use by turn 8-10. Prioritize kill-acceleration perks (depth charge, recon drone) over recon when you have a confirmed hit. Spend CR aggressively — unspent credits lose games.
+- ACCURACY: Fewer high-confidence shots beats volume guessing. But after turn 150 if tied, shift to precision-plus-pressure.
+- DEFENSE: Use defensive perks proactively when opponent lands 2+ hits in the same region.
+- WIN CONDITION: Win on ships sunk first, hit differential second. Close games (5-5 ties) are decided by hit count — every marginal decision matters.
+
 BE CONCISE. Do NOT narrate, summarize, or restate the briefing. Act immediately with tool calls. Issue ALL actions for a turn in a single response when possible (e.g. purchase + attack + end_turn together).`;
 
 // ---------------------------------------------------------------------------

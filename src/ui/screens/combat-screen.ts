@@ -378,6 +378,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   // --- Handlers ---
 
   function handleViewModeChange(mode: ViewMode): void {
+    if (aiTurnInProgress) return;
     if (mode === uiState.viewMode) return;
     uiState.viewMode = mode;
     sceneManager.setViewMode(mode);
@@ -398,6 +399,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleDepthChange(depth: number): void {
+    if (aiTurnInProgress) return;
     if (uiState.gSonarMode && depth >= 0) {
       handleGSonarScan(depth);
       return;
@@ -445,6 +447,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleBoardToggle(view: 'targeting' | 'own'): void {
+    if (aiTurnInProgress) return;
     if (uiState.pingMode) {
       uiState.pingMode = false;
       sceneManager.clearGhostCells();
@@ -514,6 +517,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleStoreToggle(): void {
+    if (aiTurnInProgress) return;
     uiState.storeOpen = !uiState.storeOpen;
     perkStore.render().style.display = uiState.storeOpen ? '' : 'none';
     storeBtn.classList.toggle('combat-screen__store-btn--active', uiState.storeOpen);
@@ -523,6 +527,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handlePurchase(perkId: PerkId): void {
+    if (aiTurnInProgress) return;
     const instance = game.purchasePerk(perkId);
     if (!instance) {
       playInsufficientFundsSound();
@@ -536,6 +541,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleInventorySelect(instance: PerkInstance): void {
+    if (aiTurnInProgress) return;
     // Cancel any active mode when selecting a new item
     if (uiState.pingMode) {
       uiState.pingMode = false;
@@ -957,6 +963,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleEndTurn(): void {
+    if (aiTurnInProgress) return;
     initAudioContext();
     if (!isAmbientRunning()) startAmbient();
     game.endTurn();
@@ -1027,9 +1034,16 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   function setControlsEnabled(enabled: boolean): void {
     aiTurnInProgress = !enabled;
     endTurnBtn.disabled = !enabled || !game.getTurnSlots().attackUsed;
+    storeBtn.disabled = !enabled;
+    el.classList.toggle('combat-screen--ai-thinking', !enabled);
     if (!enabled) {
       inventoryTray.clearSelection();
       cancelAllModes();
+      if (uiState.storeOpen) {
+        uiState.storeOpen = false;
+        perkStore.render().style.display = 'none';
+        storeBtn.classList.remove('combat-screen__store-btn--active');
+      }
     }
   }
 

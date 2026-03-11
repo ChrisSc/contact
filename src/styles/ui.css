@@ -1534,3 +1534,12 @@
   0%, 100% { opacity: 0.4; }
   50% { opacity: 1; }
 }
+
+/* Lock down all interactive controls while AI is thinking */
+.combat-screen--ai-thinking .combat-screen__mode-btn,
+.combat-screen--ai-thinking .combat-screen__depth-btn,
+.combat-screen--ai-thinking .combat-screen__toggle-btn,
+.combat-screen--ai-thinking .combat-screen__store-btn {
+  pointer-events: none;
+  opacity: 0.3;
+}
