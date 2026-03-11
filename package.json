@@ -11,9 +11,11 @@
     "test": "vitest",
     "test:run": "vitest run",
     "typecheck": "tsc --noEmit",
-    "simulate": "npx tsx scripts/simulate.ts"
+    "simulate": "npx tsx scripts/simulate.ts",
+    "agent-play": "npx tsx scripts/agent-play.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.78.0",
     "three": "^0.128.0",
     "tone": "^14.9.2"
   },
