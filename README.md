@@ -6,7 +6,9 @@
 
 Browser-based 3D Battleship variant. Command submarine fleets hidden in a 7x7x7 volumetric grid, firing torpedoes and deploying earned abilities to locate and destroy enemy vessels. Play locally in hot-seat multiplayer or challenge Claude AI in Human vs AI mode. Zero server dependencies.
 
-![CONTACT gameplay — Recon Drone scan revealing contacts in the 7x7x7 volumetric grid](screen.png)
+![CONTACT](screen.png)
+
+![CONTACT gameplay](game-play.png)
 
 ## Tech Stack
 
