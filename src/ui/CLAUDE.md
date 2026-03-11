@@ -26,7 +26,7 @@ title → setup (P1) → handoff → setup (P2) → handoff → combat ↔ hando
 | `screens/handoff-screen.ts` | Player transition with ready confirmation |
 | `screens/combat-screen.ts` | Canvas-dominant 3D. Fire/abilities via raycaster. Board toggle (own/targeting). All perk modes, animations, audio, notifications. Rank bonus notification on mount, DRY counter in bottom bar for non-officer ranks. AI mode: auto-executes AI turns via `context.aiOpponent.executeTurn()`, locks UI during AI thinking. |
 | `screens/victory-screen.ts` | Winner display, stats, session export, NEW ENGAGEMENT → title |
-| `screens/help-screen.ts` | Scrollable Operations Manual (9 sections from GDD) |
+| `screens/help-screen.ts` | Scrollable Operations Manual (11 sections). Includes Game Modes (LOCAL / VS AI). |
 
 ## Key Patterns
 

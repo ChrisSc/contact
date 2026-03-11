@@ -96,9 +96,20 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ]),
   ));
 
-  // 3. FLEET ROSTER
+  // 3. GAME MODES
+  const modesWrapper = document.createElement('div');
+  modesWrapper.appendChild(createLines([
+    'LOCAL (HOT-SEAT): Two human players share one screen, alternating turns with a handoff screen between each turn to prevent peeking.',
+    '',
+    'VS AI: Play against a Claude-powered AI opponent. Select "VS AI" on the title screen and enter your Anthropic API key (starts with sk-). The AI controls BRAVO and plays a full turn automatically — purchasing perks, using abilities, and firing torpedoes. Your controls are locked while the AI is thinking.',
+    '',
+    'In VS AI mode, you always play as ALPHA (first turn). The AI places its fleet randomly during setup. All game rules, perks, and abilities work identically in both modes.',
+  ]));
+  content.appendChild(createSection('03. GAME MODES', modesWrapper));
+
+  // 4. FLEET ROSTER
   content.appendChild(createSection(
-    '03. FLEET ROSTER',
+    '04. FLEET ROSTER',
     createTable(
       ['VESSEL', 'SIZE', 'NOTES'],
       [
@@ -114,9 +125,9 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ),
   ));
 
-  // 4. COMBAT ACTIONS
+  // 5. COMBAT ACTIONS
   content.appendChild(createSection(
-    '04. COMBAT ACTIONS',
+    '05. COMBAT ACTIONS',
     createLines([
       'FIRE TORPEDO: Target any cell in the enemy grid. Hit or miss is immediately resolved.',
       'DEPLOY PERK: Use a perk from your inventory (costs your attack slot for offensive perks).',
@@ -125,9 +136,9 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ]),
   ));
 
-  // 5. CREDIT ECONOMY
+  // 6. CREDIT ECONOMY
   content.appendChild(createSection(
-    '05. CREDIT ECONOMY',
+    '06. CREDIT ECONOMY',
     createLines([
       'Starting credits: 5cr',
       'Torpedo hit: +1cr',
@@ -137,7 +148,7 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ]),
   ));
 
-  // 6. RANK (DIFFICULTY)
+  // 7. RANK (DIFFICULTY)
   const rankWrapper = document.createElement('div');
   rankWrapper.appendChild(createLines([
     'Select a rank on the title screen to set difficulty. Lower ranks award bonus credits when neither player makes contact for too long (stalemate bonus).',
@@ -151,11 +162,11 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
       ['Officer', '—', '—', 'No bonuses (default, original experience)'],
     ],
   ));
-  content.appendChild(createSection('06. RANK (DIFFICULTY)', rankWrapper));
+  content.appendChild(createSection('07. RANK (DIFFICULTY)', rankWrapper));
 
-  // 7. PERK STORE
+  // 8. PERK STORE
   content.appendChild(createSection(
-    '07. PERK STORE',
+    '08. PERK STORE',
     createTable(
       ['PERK', 'COST', 'SLOT', 'DESCRIPTION'],
       [
@@ -170,9 +181,9 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ),
   ));
 
-  // 8. PERK INTERACTIONS
+  // 9. PERK INTERACTIONS
   content.appendChild(createSection(
-    '08. PERK INTERACTIONS',
+    '09. PERK INTERACTIONS',
     createLines([
       'RADAR JAMMER vs SONAR PING: Per-cell results are inverted (yes becomes no, no becomes yes).',
       'RADAR JAMMER vs RECON DRONE: All cells in the scan return empty (all-false).',
@@ -183,9 +194,9 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ]),
   ));
 
-  // 9. KEYBOARD SHORTCUTS
+  // 10. KEYBOARD SHORTCUTS
   content.appendChild(createSection(
-    '09. KEYBOARD SHORTCUTS',
+    '10. KEYBOARD SHORTCUTS',
     createTable(
       ['KEY', 'CONTEXT', 'ACTION'],
       [
@@ -196,9 +207,9 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     ),
   ));
 
-  // 10. VIEW MODES
+  // 11. VIEW MODES
   content.appendChild(createSection(
-    '10. VIEW MODES',
+    '11. VIEW MODES',
     createLines([
       'CUBE: Full 3D volumetric view. Orbit with click-drag; zoom with scroll.',
       'SLICE: Single depth layer shown as a flat 2D grid. Use D1-D7 to change depth.',
