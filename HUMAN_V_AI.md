@@ -86,7 +86,7 @@ Your API key is:
 
 ## Cost
 
-A typical game runs 60-120 turns (30-60 AI turns). Each AI turn uses 1-3 API calls with `max_tokens: 300`. Expect roughly **$0.10-0.50 per game** depending on length and rank. Recruit rank games tend to be shorter (more credits = faster kills), officer rank games run longer.
+A typical game runs 60-120 turns (30-60 AI turns). Each AI turn uses 1-3 API calls with `max_tokens: 300`. Expect roughly **$1 - $2 per game** depending on length and rank. Recruit rank games tend to be shorter (more credits = faster kills), officer rank games run longer.
 
 ## Architecture
 
