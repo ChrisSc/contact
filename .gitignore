@@ -2,3 +2,4 @@ node_modules/
 dist/
 *.local
 scripts/memory/
+.DS_Store
