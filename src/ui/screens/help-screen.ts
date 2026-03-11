@@ -157,9 +157,9 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
   rankWrapper.appendChild(createTable(
     ['RANK', 'DRY THRESHOLD', 'BONUS', 'DESCRIPTION'],
     [
-      ['Recruit', '10 turns', '+8cr', 'Generous bonuses keep the perk economy flowing'],
-      ['Enlisted', '16 turns', '+5cr', 'Moderate safety net for intermediate players'],
-      ['Officer', '—', '—', 'No bonuses (default, original experience)'],
+      ['Recruit', '8 turns', '+8cr', 'Generous bonuses keep the perk economy flowing'],
+      ['Enlisted', '10 turns', '+5cr', 'Moderate safety net for intermediate players'],
+      ['Officer', '--', '--', 'No bonuses (default, original experience)'],
     ],
   ));
   content.appendChild(createSection('07. RANK (DIFFICULTY)', rankWrapper));

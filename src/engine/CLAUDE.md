@@ -42,8 +42,8 @@ When `dryTurnCounter >= threshold`, both players get `pendingRankBonus = true`, 
 
 | Rank | Threshold | Bonus |
 |---|:---:|:---:|
-| Recruit | 10 | +8 CR |
-| Enlisted | 16 | +5 CR |
+| Recruit | 8 | +8 CR |
+| Enlisted | 10 | +5 CR |
 | Officer | -- | -- |
 
 Public methods: `setRank()`, `getRankConfig()`, `getDryTurnCounter()`, `getLastRankBonus()`.
