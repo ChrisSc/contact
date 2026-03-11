@@ -28,8 +28,8 @@ export interface RankConfig {
 }
 
 export const RANK_CONFIGS: Record<Rank, RankConfig> = {
-  recruit:  { rank: 'recruit',  label: 'RECRUIT',  dryTurnThreshold: 10, creditBonus: 8 },
-  enlisted: { rank: 'enlisted', label: 'ENLISTED', dryTurnThreshold: 16, creditBonus: 5 },
+  recruit:  { rank: 'recruit',  label: 'RECRUIT',  dryTurnThreshold: 8, creditBonus: 8 },
+  enlisted: { rank: 'enlisted', label: 'ENLISTED', dryTurnThreshold: 10, creditBonus: 5 },
   officer:  { rank: 'officer',  label: 'OFFICER',  dryTurnThreshold: null, creditBonus: 0 },
 };
 

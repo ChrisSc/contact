@@ -8,13 +8,14 @@
  * actions via tool use — no random heuristics, pure strategic reasoning.
  *
  * Usage:
- *   npx tsx scripts/agent-play.ts [--verbose] [--rank recruit|enlisted|officer] [--export]
+ *   npx tsx scripts/agent-play.ts [--verbose] [--rank recruit|enlisted|officer] [--export] [--no-memory]
  *
  * Requires ANTHROPIC_API_KEY environment variable.
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import * as fs from 'fs';
+import * as path from 'path';
 import { GameController } from '../src/engine/game';
 import type { FireResult, DepthChargeResult } from '../src/engine/game';
 import { FLEET_ROSTER, PLACEMENT_AXES } from '../src/types/fleet';
@@ -36,6 +37,7 @@ import { serializeSession } from '../src/observability/export';
 const args = process.argv.slice(2);
 const verbose = args.includes('--verbose') || args.includes('-v');
 const exportJsonl = args.includes('--export') || args.includes('-e');
+const noMemory = args.includes('--no-memory');
 let rank: Rank = 'officer';
 const rankIdx = args.indexOf('--rank');
 if (rankIdx !== -1 && args[rankIdx + 1]) {
@@ -45,11 +47,46 @@ if (rankIdx !== -1 && args[rankIdx + 1]) {
 }
 
 // ---------------------------------------------------------------------------
+// Persistent memory
+// ---------------------------------------------------------------------------
+
+const MEMORY_DIR = path.join(path.dirname(new URL(import.meta.url).pathname), 'memory');
+const MEMORY_MAX_CHARS = 2000;
+
+type PlayerKey = 'alpha' | 'bravo';
+
+function memoryPath(playerKey: PlayerKey): string {
+  return path.join(MEMORY_DIR, `agent-${playerKey}.md`);
+}
+
+function loadMemory(playerKey: PlayerKey): string | null {
+  const fp = memoryPath(playerKey);
+  try {
+    const content = fs.readFileSync(fp, 'utf-8').trim();
+    return content || null;
+  } catch {
+    return null;
+  }
+}
+
+function saveMemory(playerKey: PlayerKey, content: string): void {
+  fs.mkdirSync(MEMORY_DIR, { recursive: true });
+  let text = content;
+  if (text.length > MEMORY_MAX_CHARS) {
+    // Truncate at last complete line within limit
+    text = text.slice(0, MEMORY_MAX_CHARS);
+    const lastNewline = text.lastIndexOf('\n');
+    if (lastNewline > 0) text = text.slice(0, lastNewline);
+  }
+  fs.writeFileSync(memoryPath(playerKey), text, 'utf-8');
+}
+
+// ---------------------------------------------------------------------------
 // Anthropic client
 // ---------------------------------------------------------------------------
 
 const client = new Anthropic();
-const MODEL = 'claude-sonnet-4-20250514';
+const MODEL = 'claude-sonnet-4-6';
 
 // ---------------------------------------------------------------------------
 // Tool definitions for Claude
@@ -194,11 +231,21 @@ function serializeTargetingGrid(gc: GameController): string {
   const lines: string[] = [];
 
   lines.push('YOUR TARGETING GRID (what you know about the enemy):');
-  lines.push('Each depth layer D1-D7 is a 7x7 grid. Columns A-G, Rows 1-7.');
-  lines.push('Legend: · = unknown, + = sonar/drone positive, - = sonar/drone negative, X = hit, O = miss, S = sunk');
+  lines.push('Legend: · = unknown, + = positive, - = negative, X = hit, O = miss, S = sunk');
+  lines.push('Only depth layers with activity are shown. Omitted layers are entirely unexplored.');
   lines.push('');
 
   for (let depth = 0; depth < GRID_SIZE; depth++) {
+    // Check if this layer has any activity
+    let hasActivity = false;
+    for (let row = 0; row < GRID_SIZE && !hasActivity; row++) {
+      for (let col = 0; col < GRID_SIZE && !hasActivity; col++) {
+        const cell = getCell(grid, { col, row, depth });
+        if (cell && cell.state !== CellState.Empty) hasActivity = true;
+      }
+    }
+    if (!hasActivity) continue;
+
     lines.push(`  Depth ${DEPTH_LABELS[depth]}:`);
     lines.push('    A B C D E F G');
     for (let row = 0; row < GRID_SIZE; row++) {
@@ -221,16 +268,100 @@ function serializeTargetingGrid(gc: GameController): string {
   return lines.join('\n');
 }
 
+function serializeActionableIntel(gc: GameController): string {
+  const player = gc.getCurrentPlayer();
+  const grid = player.targetingGrid;
+  const lines: string[] = [];
+
+  // Collect unsunk hits and positive contacts
+  const unsunkHits: string[] = [];
+  const positives: string[] = [];
+  let totalExplored = 0;
+
+  for (let depth = 0; depth < GRID_SIZE; depth++) {
+    for (let row = 0; row < GRID_SIZE; row++) {
+      for (let col = 0; col < GRID_SIZE; col++) {
+        const cell = getCell(grid, { col, row, depth });
+        if (!cell || cell.state === CellState.Empty) continue;
+        totalExplored++;
+        const coord = formatCoordinate({ col, row, depth });
+        if (cell.state === CellState.Hit) unsunkHits.push(coord);
+        else if (cell.state === CellState.SonarPositive || cell.state === CellState.DronePositive) positives.push(coord);
+      }
+    }
+  }
+
+  lines.push('ACTIONABLE INTEL:');
+  lines.push(`  Explored: ${totalExplored}/343 cells (${(totalExplored / 343 * 100).toFixed(0)}%)`);
+
+  if (unsunkHits.length > 0) {
+    lines.push(`  UNSUNK HITS (${unsunkHits.length}) — ships damaged but not yet sunk, investigate adjacent cells:`);
+    // Group hits and find unexplored neighbors
+    for (const hitCoord of unsunkHits) {
+      const parsed = parseCoordinate(hitCoord);
+      if (!parsed) continue;
+      const neighbors: string[] = [];
+      // Check all 26 neighbors for unexplored cells
+      for (let dc = -1; dc <= 1; dc++) {
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dd = -1; dd <= 1; dd++) {
+            if (dc === 0 && dr === 0 && dd === 0) continue;
+            const nc = parsed.col + dc, nr = parsed.row + dr, nd = parsed.depth + dd;
+            if (nc < 0 || nc >= GRID_SIZE || nr < 0 || nr >= GRID_SIZE || nd < 0 || nd >= GRID_SIZE) continue;
+            const nCell = getCell(grid, { col: nc, row: nr, depth: nd });
+            if (!nCell || nCell.state === CellState.Empty) {
+              neighbors.push(formatCoordinate({ col: nc, row: nr, depth: nd }));
+            }
+          }
+        }
+      }
+      if (neighbors.length > 0) {
+        lines.push(`    ${hitCoord} → unexplored neighbors: ${neighbors.join(', ')}`);
+      } else {
+        lines.push(`    ${hitCoord} → all neighbors explored`);
+      }
+    }
+  } else {
+    lines.push('  No unsunk hits. Fire at unexplored areas to find ships.');
+  }
+
+  if (positives.length > 0) {
+    lines.push(`  POSITIVE CONTACTS (${positives.length}) — confirmed ship presence, HIGH PRIORITY torpedo targets:`);
+    for (const posCoord of positives) {
+      const parsed = parseCoordinate(posCoord);
+      if (!parsed) continue;
+      // Check if this cell itself is still targetable (not yet resolved by torpedo)
+      const cell = getCell(grid, parsed);
+      const targetable = cell && (cell.state === CellState.SonarPositive || cell.state === CellState.DronePositive);
+      if (targetable) {
+        lines.push(`    ${posCoord} ← FIRE HERE (confirmed ship presence)`);
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
 function serializeOwnGrid(gc: GameController): string {
   const player = gc.getCurrentPlayer();
   const grid = player.ownGrid;
   const lines: string[] = [];
 
   lines.push('YOUR OWN GRID (your ships and incoming damage):');
-  lines.push('Legend: · = empty, # = your ship, D = decoy, X = hit on your ship, O = enemy miss, S = sunk segment, d = decoy hit');
+  lines.push('Legend: · = empty, # = your ship, D = decoy, X = hit, O = enemy miss, S = sunk, d = decoy hit');
+  lines.push('Only layers with your ships or incoming fire shown.');
   lines.push('');
 
   for (let depth = 0; depth < GRID_SIZE; depth++) {
+    let hasContent = false;
+    for (let row = 0; row < GRID_SIZE && !hasContent; row++) {
+      for (let col = 0; col < GRID_SIZE && !hasContent; col++) {
+        const cell = getCell(grid, { col, row, depth });
+        if (cell && cell.state !== CellState.Empty) hasContent = true;
+      }
+    }
+    if (!hasContent) continue;
+
     lines.push(`  Depth ${DEPTH_LABELS[depth]}:`);
     lines.push('    A B C D E F G');
     for (let row = 0; row < GRID_SIZE; row++) {
@@ -345,14 +476,42 @@ function serializeTurnSlots(gc: GameController): string {
   return lines.join('\n');
 }
 
-function buildTurnBriefing(gc: GameController): string {
+function serializeRankInfo(gc: GameController): string {
+  const rankConfig = gc.getRankConfig();
+  const dryTurns = gc.getDryTurnCounter();
+  const lines: string[] = [];
+
+  lines.push(`RANK: ${rankConfig.label}`);
+  if (rankConfig.dryTurnThreshold !== null) {
+    lines.push(`  Stalemate bonus: +${rankConfig.creditBonus} CR to BOTH players after ${rankConfig.dryTurnThreshold} consecutive dry turns (no contact by either side).`);
+    lines.push(`  Current dry turn streak: ${dryTurns}/${rankConfig.dryTurnThreshold}`);
+  } else {
+    lines.push(`  No stalemate bonus at this rank.`);
+  }
+
+  return lines.join('\n');
+}
+
+function buildTurnBriefing(gc: GameController, stalemateBonusAwarded: boolean = false): string {
   const state = gc.getState();
   const designation = state.currentPlayer === 0 ? 'ALPHA' : 'BRAVO';
+  const rankConfig = gc.getRankConfig();
 
-  const sections = [
+  const header = [
     `═══════════════════════════════════════════════════`,
     `TURN ${state.turnCount} — COMMANDER ${designation}`,
     `═══════════════════════════════════════════════════`,
+    '',
+  ];
+
+  if (stalemateBonusAwarded) {
+    header.push(`⚡ STALEMATE BONUS RECEIVED: +${rankConfig.creditBonus} CR awarded to you (and your opponent) because ${rankConfig.dryTurnThreshold} consecutive turns passed with no contact by either side. This is a rank mechanic, NOT a hit reward.`);
+    header.push('');
+  }
+
+  const sections = [
+    ...header,
+    serializeRankInfo(gc),
     '',
     serializeTurnSlots(gc),
     '',
@@ -361,6 +520,8 @@ function buildTurnBriefing(gc: GameController): string {
     serializeFleetStatus(gc),
     '',
     serializeEnemyStatus(gc),
+    '',
+    serializeActionableIntel(gc),
     '',
     serializeTargetingGrid(gc),
     '',
@@ -374,44 +535,22 @@ function buildTurnBriefing(gc: GameController): string {
 // System prompt for Claude agents
 // ---------------------------------------------------------------------------
 
-const SYSTEM_PROMPT = `You are COMMANDER CLAUDE, an elite submarine warfare tactician playing CONTACT — a 3D Battleship variant on a 7×7×7 volumetric grid (343 cells).
+const SYSTEM_PROMPT = `You are playing CONTACT — 3D Battleship on a 7×7×7 grid (343 cells). Sink all 7 enemy subs to win.
 
-MISSION: Locate and destroy all 7 enemy submarines hidden in the grid.
+COORDINATES: "Col-Row-Depth", 1-indexed. Columns A-G, Rows 1-7, Depth D1-D7. Example: "C-3-D2"
 
-COORDINATE SYSTEM: Coordinates are "Column-Row-Depth" format, 1-indexed.
-- Columns: A-G (left to right)
-- Rows: 1-7 (top to bottom)
-- Depth: D1-D7 (shallow to deep)
-- Example: "C-3-D2" = column C, row 3, depth layer 2
+FLEET: Typhoon(5), Akula(4), Seawolf(3), Virginia(3), Narwhal(3), Midget Sub(2), Piranha(2) = 22 cells.
 
-FLEET (both sides have identical compositions):
-- Typhoon (5 cells), Akula (4), Seawolf (3), Virginia (3), Narwhal (3), Midget Sub (2), Piranha (2)
-- Total: 7 ships, 22 cells out of 343
+TURN SLOTS: Ping(free), Attack(REQUIRED), Defend(free). Purchase perks anytime (no slot). You MUST attack before ending.
 
-TURN STRUCTURE — you have 3 independent action slots per turn:
-1. PING SLOT (free): Use a sonar ping if you have one in inventory
-2. ATTACK SLOT (required): Fire torpedo OR use recon drone OR depth charge OR G-SONAR
-3. DEFEND SLOT (free): Deploy radar jammer OR silent running OR acoustic cloak
-- You can also purchase perks at any time (no slot cost)
-- You MUST use your attack slot before ending your turn
+RULES:
+- Cannot fire on X/O/S cells. CAN fire on +/- cells.
+- Hit=+1CR, consecutive hit=+8CR, sink=+15CR.
+- Ships are STATIC — once placed, they never move. A confirmed contact remains valid until you torpedo it.
+- Ships placed along 8 axes (never purely vertical). Use hit patterns to trace orientation.
+- Stalemate bonus gives both players free CR after consecutive dry turns (rank-dependent).
 
-STRATEGY GUIDANCE:
-- Early game: Buy sonar pings (3 CR) to scout cheaply. Fire torpedoes at spread-out positions.
-- When you get a hit (+): Focus fire on adjacent cells to trace the ship's axis.
-- Ships are placed along 8 axes (horizontal, vertical, diagonal). Use hit patterns to deduce orientation.
-- Sonar positive (+) means a ship exists somewhere in the 2x2x2 volume — narrow it down.
-- Save up for recon drone (10 CR) when you have a promising area.
-- Depth charges (25 CR) are devastating when you have clustered hits — use them to finish ships.
-- Deploy defensive perks proactively: jammer when expecting enemy recon, cloak to protect the fleet.
-- Silent Running masks recon but NOT damage — use it on your most valuable surviving ship.
-
-CRITICAL RULES:
-- You cannot fire on cells already marked as Hit (X), Miss (O), or Sunk (S).
-- You CAN fire on cells marked as sonar/drone positive (+) or negative (-).
-- Consecutive hits earn bonus credits (+8 CR). Sinking a ship earns +15 CR.
-- Think strategically about credit management — expensive perks can be game-changing.
-
-Play to WIN. Be aggressive with attacks, smart with recon, and protective of your fleet.`;
+BE CONCISE. Do NOT narrate, summarize, or restate the briefing. Act immediately with tool calls. Issue ALL actions for a turn in a single response when possible (e.g. purchase + attack + end_turn together).`;
 
 // ---------------------------------------------------------------------------
 // Fleet placement (reuse random from simulate.ts for now)
@@ -454,11 +593,24 @@ interface ToolResult {
   turnOver?: boolean;
 }
 
+function safeParseCoordinate(input: Record<string, unknown>): Coordinate | null {
+  const raw = input.coordinate;
+  if (typeof raw !== 'string') return null;
+  return parseCoordinate(raw);
+}
+
 function executeTool(gc: GameController, toolName: string, input: Record<string, unknown>): ToolResult {
   switch (toolName) {
     case 'purchase_perk': {
-      const perkId = input.perk_id as PerkId;
-      const result = gc.purchasePerk(perkId);
+      const perkId = input.perk_id;
+      if (typeof perkId !== 'string') {
+        return { success: false, message: `Missing perk_id. Valid perks: sonar_ping, recon_drone, depth_charge, g_sonar, radar_jammer, silent_running, acoustic_cloak` };
+      }
+      const validPerks = ['sonar_ping', 'recon_drone', 'depth_charge', 'g_sonar', 'radar_jammer', 'silent_running', 'acoustic_cloak'];
+      if (!validPerks.includes(perkId)) {
+        return { success: false, message: `Invalid perk_id: "${perkId}". Valid perks: ${validPerks.join(', ')}` };
+      }
+      const result = gc.purchasePerk(perkId as PerkId);
       if (result) {
         const player = gc.getCurrentPlayer();
         return { success: true, message: `Purchased ${perkId}. Credits remaining: ${player.credits} CR` };
@@ -467,62 +619,97 @@ function executeTool(gc: GameController, toolName: string, input: Record<string,
     }
 
     case 'use_sonar_ping': {
-      const coord = parseCoordinate(input.coordinate as string);
-      if (!coord) return { success: false, message: `Invalid coordinate: ${input.coordinate}` };
+      const coord = safeParseCoordinate(input);
+      if (!coord) return { success: false, message: `Invalid coordinate: ${JSON.stringify(input.coordinate)}. Use format "C-3-D2" (column-row-depth, 1-indexed).` };
       const result = gc.useSonarPing(coord);
       if (result) {
-        const positives = result.cells.filter(c => c.displayedResult).length;
+        const positiveCells = result.cells.filter(c => c.displayedResult);
         const total = result.cells.length;
-        return { success: true, message: `Sonar ping at ${input.coordinate}: ${positives}/${total} cells positive.${result.jammed ? ' (WARNING: result may have been jammed!)' : ''}` };
+        const negativeCells = result.cells.filter(c => !c.displayedResult);
+        let msg = `Sonar ping at ${input.coordinate}: ${positiveCells.length}/${total} cells positive.`;
+        if (positiveCells.length > 0) {
+          msg += ` CONTACTS at: ${positiveCells.map(c => formatCoordinate(c.coord)).join(', ')}.`;
+        }
+        if (negativeCells.length > 0) {
+          msg += ` Clear: ${negativeCells.map(c => formatCoordinate(c.coord)).join(', ')}.`;
+        }
+        if (result.jammed) msg += ' (WARNING: result may have been jammed!)';
+        return { success: true, message: msg };
       }
       return { success: false, message: `Cannot use sonar ping. Check: ping slot available? Sonar ping in inventory?` };
     }
 
     case 'fire_torpedo': {
-      const coord = parseCoordinate(input.coordinate as string);
-      if (!coord) return { success: false, message: `Invalid coordinate: ${input.coordinate}` };
+      const coord = safeParseCoordinate(input);
+      if (!coord) return { success: false, message: `Invalid coordinate: ${JSON.stringify(input.coordinate)}. Use format "C-3-D2" (column-row-depth, 1-indexed).` };
+      if (gc.getTurnSlots().attackUsed) {
+        return { success: false, message: `Attack slot already used this turn. Call end_turn now.` };
+      }
+      // Check if cell is already resolved
+      const targetCell = getCell(gc.getCurrentPlayer().targetingGrid, coord);
+      if (targetCell && (targetCell.state === CellState.Hit || targetCell.state === CellState.Miss || targetCell.state === CellState.Sunk)) {
+        return { success: false, message: `Cell ${input.coordinate} already resolved (${targetCell.state}). Pick a different unexplored cell.` };
+      }
       const result = gc.fireTorpedo(coord);
       if (result) {
         let msg = `Torpedo at ${input.coordinate}: ${result.result.toUpperCase()}`;
         if (result.result === 'sunk') msg += ` — ${result.shipId} destroyed!`;
         if (result.creditsAwarded) msg += ` (+${result.creditsAwarded} CR)`;
+        msg += ' Attack slot used. End your turn now or use remaining free slots (ping/defend).';
         return { success: true, message: msg };
       }
-      return { success: false, message: `Cannot fire torpedo at ${input.coordinate}. Cell may already be resolved or attack slot already used.` };
+      return { success: false, message: `Cannot fire torpedo at ${input.coordinate}. Try a different cell.` };
     }
 
     case 'use_recon_drone': {
-      const coord = parseCoordinate(input.coordinate as string);
-      if (!coord) return { success: false, message: `Invalid coordinate: ${input.coordinate}` };
+      const coord = safeParseCoordinate(input);
+      if (!coord) return { success: false, message: `Invalid coordinate: ${JSON.stringify(input.coordinate)}. Use format "C-3-D2" (column-row-depth, 1-indexed).` };
       const result = gc.useReconDrone(coord);
       if (result) {
-        const contacts = result.cells.filter(c => c.written && c.displayedResult).length;
-        return { success: true, message: `Recon drone at ${input.coordinate}: ${contacts} contacts detected in 3x3x3 volume.` };
+        const positiveCells = result.cells.filter(c => c.displayedResult);
+        let msg = `Recon drone at ${input.coordinate}: ${positiveCells.length} contacts in 3x3x3 volume.`;
+        if (positiveCells.length > 0) {
+          msg += ` SHIP SEGMENTS at: ${positiveCells.map(c => formatCoordinate(c.coord)).join(', ')}.`;
+        }
+        msg += ' Attack slot used. End your turn now or use remaining free slots (ping/defend).';
+        return { success: true, message: msg };
       }
       return { success: false, message: `Cannot deploy recon drone. Check: attack slot available? Drone in inventory?` };
     }
 
     case 'use_depth_charge': {
-      const coord = parseCoordinate(input.coordinate as string);
-      if (!coord) return { success: false, message: `Invalid coordinate: ${input.coordinate}` };
+      const coord = safeParseCoordinate(input);
+      if (!coord) return { success: false, message: `Invalid coordinate: ${JSON.stringify(input.coordinate)}. Use format "C-3-D2" (column-row-depth, 1-indexed).` };
       const result = gc.useDepthCharge(coord);
       if (result) {
-        const hits = result.cellResults.filter(c => c.result === 'hit' || c.result === 'sunk').length;
-        let msg = `Depth charge at ${input.coordinate}: ${hits} hits`;
-        if (result.shipsSunk.length > 0) msg += `, ${result.shipsSunk.length} ships sunk (${result.shipsSunk.join(', ')})`;
+        const hitCells = result.cellResults.filter(c => c.result === 'hit' || c.result === 'sunk');
+        let msg = `Depth charge at ${input.coordinate}: ${hitCells.length} hits`;
+        if (hitCells.length > 0) {
+          msg += ` at ${hitCells.map(c => `${formatCoordinate(c.coord)}(${c.result})`).join(', ')}`;
+        }
+        if (result.shipsSunk.length > 0) msg += `. Ships sunk: ${result.shipsSunk.join(', ')}`;
         msg += ` (+${result.totalCreditsAwarded} CR)`;
+        msg += '. Attack slot used. End your turn now or use remaining free slots (ping/defend).';
         return { success: true, message: msg };
       }
       return { success: false, message: `Cannot deploy depth charge. Check: attack slot available? Depth charge in inventory?` };
     }
 
     case 'use_g_sonar': {
-      const depthInput = input.depth as number;
+      const depthInput = typeof input.depth === 'number' ? input.depth : parseInt(input.depth as string);
+      if (isNaN(depthInput) || depthInput < 1 || depthInput > 7) {
+        return { success: false, message: `Invalid depth: ${JSON.stringify(input.depth)}. Use 1-7.` };
+      }
       const depth = depthInput - 1; // Convert 1-indexed to 0-indexed
       const result = gc.useGSonar(depth);
       if (result) {
-        const contacts = result.cells.filter(c => c.written && c.displayedResult).length;
-        return { success: true, message: `G-SONAR at depth D${depthInput}: ${contacts} contacts across the entire layer.` };
+        const positiveCells = result.cells.filter(c => c.displayedResult);
+        let msg = `G-SONAR at depth D${depthInput}: ${positiveCells.length} contacts across the entire layer.`;
+        if (positiveCells.length > 0) {
+          msg += ` SHIP SEGMENTS at: ${positiveCells.map(c => formatCoordinate(c.coord)).join(', ')}.`;
+        }
+        msg += ' Attack slot used. End your turn now or use remaining free slots (ping/defend).';
+        return { success: true, message: msg };
       }
       return { success: false, message: `Cannot deploy G-SONAR. Check: attack slot available? G-SONAR in inventory?` };
     }
@@ -534,7 +721,10 @@ function executeTool(gc: GameController, toolName: string, input: Record<string,
     }
 
     case 'use_silent_running': {
-      const shipId = input.ship_id as string;
+      const shipId = input.ship_id;
+      if (typeof shipId !== 'string') {
+        return { success: false, message: `Missing ship_id. Valid IDs: typhoon, akula, seawolf, virginia, narwhal, midget_sub, piranha` };
+      }
       const result = gc.useSilentRunning(shipId);
       if (result) return { success: true, message: `Silent running activated on ${shipId} for 2 opponent turns.` };
       return { success: false, message: `Cannot activate silent running on ${shipId}. Check: defend slot available? SR in inventory? Ship alive and not already under SR?` };
@@ -564,13 +754,15 @@ function executeTool(gc: GameController, toolName: string, input: Record<string,
 async function executeAgentTurn(
   gc: GameController,
   turnMessages: Array<{ alpha: Anthropic.MessageParam[]; bravo: Anthropic.MessageParam[] }>,
+  systemPrompt: string,
+  stalemateBonusAwarded: boolean = false,
 ): Promise<void> {
   const state = gc.getState();
   const playerIdx = state.currentPlayer;
   const designation = playerIdx === 0 ? 'ALPHA' : 'BRAVO';
   const msgKey = playerIdx === 0 ? 'alpha' : 'bravo';
 
-  const briefing = buildTurnBriefing(gc);
+  const briefing = buildTurnBriefing(gc, stalemateBonusAwarded);
 
   if (verbose) {
     console.log(`\n${'─'.repeat(56)}`);
@@ -578,10 +770,9 @@ async function executeAgentTurn(
     console.log(`${'─'.repeat(56)}`);
   }
 
-  // Build messages: carry forward this player's conversation history for continuity
-  const playerHistory = turnMessages.length > 0
-    ? turnMessages.flatMap(t => t[msgKey])
-    : [];
+  // Keep only last 3 turns of history per player to bound context size
+  const recentHistory = turnMessages.slice(-3);
+  const playerHistory = recentHistory.flatMap(t => t[msgKey]);
 
   const messages: Anthropic.MessageParam[] = [
     ...playerHistory,
@@ -590,15 +781,15 @@ async function executeAgentTurn(
 
   let turnOver = false;
   let apiCalls = 0;
-  const maxApiCalls = 15; // safety limit per turn
+  const maxApiCalls = 8; // safety limit per turn
 
   while (!turnOver && apiCalls < maxApiCalls && gc.getState().phase === GamePhase.Combat) {
     apiCalls++;
 
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 1024,
-      system: SYSTEM_PROMPT,
+      max_tokens: 300,
+      system: systemPrompt,
       tools: gameTools,
       messages,
     });
@@ -618,7 +809,7 @@ async function executeAgentTurn(
     const toolUses = assistantContent.filter(b => b.type === 'tool_use');
     if (toolUses.length === 0) {
       // Claude didn't use any tools — might need prompting
-      messages.push({ role: 'user', content: 'You must take an action. Use your available tools to make your move. Remember: you MUST use your attack slot (fire torpedo, recon drone, depth charge, or G-SONAR) before ending your turn.' });
+      messages.push({ role: 'user', content: 'Act now. Use tools — do not narrate.' });
       continue;
     }
 
@@ -674,14 +865,79 @@ async function executeAgentTurn(
     gc.endTurn();
   }
 
-  // Store this turn's messages for continuity
+  // Store a minimal turn summary for short-term continuity (not the full briefing)
+  const lastActions = messages
+    .filter(m => m.role === 'user' && Array.isArray(m.content))
+    .flatMap(m => (m.content as Anthropic.ToolResultBlockParam[]))
+    .filter(b => b.type === 'tool_result' && !b.is_error)
+    .map(b => b.content)
+    .join('; ');
   const turnRecord = { alpha: [] as Anthropic.MessageParam[], bravo: [] as Anthropic.MessageParam[] };
-  // Only store the briefing + final summary to keep context manageable
   turnRecord[msgKey] = [
-    { role: 'user', content: briefing },
-    { role: 'assistant', content: `Turn ${state.turnCount} complete.` },
+    { role: 'user' as const, content: `[Turn ${state.turnCount} summary] ${lastActions || 'no actions'}` },
+    { role: 'assistant' as const, content: 'Acknowledged.' },
   ];
   turnMessages.push(turnRecord);
+}
+
+// ---------------------------------------------------------------------------
+// Post-game reflection — agents update their persistent memory
+// ---------------------------------------------------------------------------
+
+async function reflectAndUpdateMemory(
+  playerKey: PlayerKey,
+  designation: string,
+  gameState: ReturnType<GameController['getState']>,
+  existingMemory: string | null,
+): Promise<void> {
+  const pi = playerKey === 'alpha' ? 0 : 1;
+  const opp = playerKey === 'alpha' ? 1 : 0;
+  const p = gameState.players[pi]!;
+  const o = gameState.players[opp]!;
+  const won = gameState.winner === pi;
+  const hitRate = p.shotsFired > 0 ? ((p.shotsHit / p.shotsFired) * 100).toFixed(1) : '0.0';
+  const oppHitRate = o.shotsFired > 0 ? ((o.shotsHit / o.shotsFired) * 100).toFixed(1) : '0.0';
+
+  const memoryContext = existingMemory
+    ? `YOUR EXISTING STRATEGIC MEMORY (from previous games):\n${existingMemory}`
+    : 'This is your FIRST game — you have no prior memory.';
+
+  console.log(`  ${designation} reflection: outcome=${won ? 'WON' : 'LOST'} (winner=${gameState.winner}, pi=${pi})`);
+
+  const reflectionPrompt = `You just finished a game of CONTACT (3D submarine warfare). Reflect on the game and produce a strategic memory document.
+
+GAME RESULTS:
+- Outcome: *** YOU ${won ? 'WON' : 'LOST'} ***
+- Game ended on turn ${gameState.turnCount}
+- Your stats: ${p.shotsFired} shots, ${p.shotsHit} hits (${hitRate}%), ${p.shipsSunk} ships sunk, ${p.perksUsed} perks used, ${p.credits} CR remaining
+- Opponent stats: ${o.shotsFired} shots, ${o.shotsHit} hits (${oppHitRate}%), ${o.shipsSunk} ships sunk, ${o.perksUsed} perks used
+- REMINDER: You ${won ? 'WON this game. Your strategy worked — analyze what went RIGHT and preserve those lessons.' : 'LOST this game. Analyze what went WRONG and how to improve.'}
+
+${memoryContext}
+
+Write a REPLACEMENT strategic memory document (not an append). This document will be loaded before your next game to help you play better.
+
+RULES FOR THE DOCUMENT:
+- Maximum 2000 characters — be concise
+- Use second person: "You should...", "Avoid...", "Remember..."
+- Focus on ACTIONABLE tactical advice, not game narration
+- Include insights about: opening strategy, credit management, recon vs attack balance, defensive perk timing, ship hunting patterns, common mistakes to avoid
+- If you have existing memory, integrate what still seems valid and update/remove what doesn't
+- Prioritize lessons that changed your understanding over obvious advice`;
+
+  const response = await client.messages.create({
+    model: MODEL,
+    max_tokens: 600,
+    messages: [{ role: 'user', content: reflectionPrompt }],
+  });
+
+  const text = response.content
+    .filter(b => b.type === 'text')
+    .map(b => (b as Anthropic.TextBlock).text)
+    .join('\n');
+
+  saveMemory(playerKey, text);
+  console.log(`  ${designation} memory updated (${Math.min(text.length, MEMORY_MAX_CHARS)} chars)`);
 }
 
 // ---------------------------------------------------------------------------
@@ -708,17 +964,40 @@ async function runGame(): Promise<void> {
 
   console.log(`\nCombat begins. 7 ships each, 343 cells. Fight!\n`);
 
+  // Load persistent memory and build per-agent system prompts
+  const alphaMemory = noMemory ? null : loadMemory('alpha');
+  const bravoMemory = noMemory ? null : loadMemory('bravo');
+
+  function buildSystemPrompt(memory: string | null): string {
+    if (!memory) return SYSTEM_PROMPT;
+    return `${SYSTEM_PROMPT}\n\n═══════════════════════════════════════════════════\nSTRATEGIC MEMORY — LESSONS FROM PREVIOUS GAMES\n═══════════════════════════════════════════════════\n${memory}`;
+  }
+
+  const alphaSystemPrompt = buildSystemPrompt(alphaMemory);
+  const bravoSystemPrompt = buildSystemPrompt(bravoMemory);
+
+  if (!noMemory) {
+    console.log(`Memory: ALPHA ${alphaMemory ? `(${alphaMemory.length} chars)` : '(none)'}, BRAVO ${bravoMemory ? `(${bravoMemory.length} chars)` : '(none)'}`);
+  }
+
   const turnMessages: Array<{ alpha: Anthropic.MessageParam[]; bravo: Anthropic.MessageParam[] }> = [];
   let safety = 0;
+  let nextTurnStalemateBonus = false;
 
   while (gc.getState().phase === GamePhase.Combat && safety < 200) {
-    await executeAgentTurn(gc, turnMessages);
+    const currentSystemPrompt = gc.getState().currentPlayer === 0 ? alphaSystemPrompt : bravoSystemPrompt;
+    await executeAgentTurn(gc, turnMessages, currentSystemPrompt, nextTurnStalemateBonus);
 
-    // Check rank bonus
+    // Check rank bonus — if awarded, the NEXT player's turn should be informed
     const bonus = gc.getLastRankBonus();
-    if (bonus && verbose) {
-      const p = bonus.player === 0 ? 'ALPHA' : 'BRAVO';
-      console.log(`  ⤷ STALEMATE BONUS: ${p} +${bonus.amount} CR`);
+    if (bonus) {
+      nextTurnStalemateBonus = true;
+      if (verbose) {
+        const p = bonus.player === 0 ? 'ALPHA' : 'BRAVO';
+        console.log(`  ⤷ STALEMATE BONUS: ${p} +${bonus.amount} CR`);
+      }
+    } else {
+      nextTurnStalemateBonus = false;
     }
 
     safety++;
@@ -742,6 +1021,15 @@ async function runGame(): Promise<void> {
     console.log(`║         Credits: ${p.credits} CR remaining, ${p.perksUsed} perks used${' '.repeat(Math.max(0, 16 - String(p.credits).length))}║`);
   }
   console.log(`╚════════════════════════════════════════════════════════╝`);
+
+  // Post-game reflection — both agents update their memory in parallel
+  if (!noMemory) {
+    console.log('\nReflecting on game...');
+    await Promise.all([
+      reflectAndUpdateMemory('alpha', 'ALPHA', state, alphaMemory),
+      reflectAndUpdateMemory('bravo', 'BRAVO', state, bravoMemory),
+    ]);
+  }
 
   // Export JSONL if requested
   if (exportJsonl) {

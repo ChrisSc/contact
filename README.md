@@ -61,8 +61,8 @@ Select a rank on the title screen to control the **stalemate bonus** — a dry s
 
 | Rank | Dry Turn Threshold | Bonus Credits | Description |
 |---|:---:|:---:|---|
-| Recruit | 10 | +8 | Generous bonuses keep the perk economy flowing |
-| Enlisted | 16 | +5 | Moderate safety net for intermediate players |
+| Recruit | 8 | +8 | Generous bonuses keep the perk economy flowing |
+| Enlisted | 10 | +5 | Moderate safety net for intermediate players |
 | Officer | -- | -- | No bonuses (default, original experience) |
 
 When the threshold is reached, both players receive the bonus credits. The counter resets on any contact — torpedo hit, sonar positive, drone contact, depth charge hit, or decoy hit. The bottom bar shows a `DRY` counter for non-officer ranks.
@@ -140,8 +140,8 @@ Use the `--rank` flag to test the stalemate bonus mechanic at different difficul
 
 | Rank | Dry Turn Threshold | Bonus Credits |
 |---|:---:|:---:|
-| Recruit | 10 | +8 |
-| Enlisted | 16 | +5 |
+| Recruit | 8 | +8 |
+| Enlisted | 10 | +5 |
 | Officer | -- | -- |
 
 Bots place fleets randomly across all 8 axes, buy and deploy perks with a phase-based spending strategy, and use hunt/target logic with sonar-guided targeting. Results include win rates, average game length, hit rates, credit spending, perk purchase/usage breakdowns, and stalemate bonus statistics (for non-officer ranks).
@@ -168,10 +168,27 @@ The report includes:
 
 The analyzer handles both current and legacy log formats.
 
+## Agent vs Agent
+
+Run AI-powered games where two Claude instances play against each other with full strategic reasoning:
+
+```sh
+npx tsx scripts/agent-play.ts                          # default game (officer rank, memory enabled)
+npx tsx scripts/agent-play.ts --verbose                # see agent reasoning and tool calls
+npx tsx scripts/agent-play.ts --rank recruit           # play at recruit rank
+npx tsx scripts/agent-play.ts --no-memory              # disable persistent memory
+npx tsx scripts/agent-play.ts --export                 # export JSONL session log
+```
+
+Agents accumulate strategic wisdom across games via persistent memory files. After each game, both agents reflect on the match and update their memory with tactical lessons. Over multiple games, agents evolve their strategies based on experience.
+
+Requires `ANTHROPIC_API_KEY` environment variable. See [AGENT_V_AGENT.md](AGENT_V_AGENT.md) for full documentation.
+
 ## Docs
 
 - [Game Design Document](artifacts/design/CONTACT_GDD_v1.0.md)
 - [Delivery Plan](artifacts/delivery/CONTACT_Delivery_Plan_v1.2.md)
+- [Agent vs Agent](AGENT_V_AGENT.md)
 - [JSONL Log Format](docs/JSONL_FORMAT.md)
 - [Changelog](CHANGELOG.md)
 
