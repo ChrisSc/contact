@@ -14,6 +14,10 @@
 | `depth-charge.ts` | Pure `calculateDepthChargeTargets()`. Reuses `calculateScanArea()`. SR does NOT mask damage. |
 | `g-sonar.ts` | Pure `executeGSonar()`. Scans all 49 cells at a depth layer. No jammer interaction. |
 | `silent-running.ts` | Pure helpers: `isShipSilentRunning()`, `decrementSilentRunning()`. |
+| `ai/ai-briefing.ts` | State serializers + `SYSTEM_PROMPT` for Claude AI agents. Converts game state to structured text briefings. Pure game logic. |
+| `ai/ai-opponent.ts` | `AIOpponent` class — browser-side AI turn executor using Anthropic SDK. Tool-use loop with turn history (last 3 turns). Model: `claude-sonnet-4-6`. |
+| `ai/ai-placement.ts` | `placeFleetRandomly()` — random fleet + decoy placement for AI setup. Pure game logic. |
+| `ai/ai-tools.ts` | Tool definitions (`gameTools`) and `executeTool()` dispatcher for Claude tool use. Maps tool calls to `GameController` methods. `forceEndTurn()` fallback. |
 
 ## Key Patterns
 

@@ -11,7 +11,7 @@ title → setup (P1) → handoff → setup (P2) → handoff → combat ↔ hando
 
 | File | Role |
 |---|---|
-| `screen-router.ts` | `ScreenRouter` — mount/unmount lifecycle, navigation with context. `ScreenId`: title, setup, handoff, combat, victory, help |
+| `screen-router.ts` | `ScreenRouter` — mount/unmount lifecycle, navigation with context. `ScreenId`: title, setup, handoff, combat, victory, help. `ScreenContext` carries `aiMode` + `aiOpponent`. `setAIMode()` / `clearAIMode()` manage AI lifecycle. |
 | `flicker.ts` | CRT flicker (persists across screens). `getFlickerController()` singleton. `pulse(intensity, duration)` for ability cross-effects. |
 | `effects/crt-noise.ts` | `CRTNoise` — 256x256 canvas grain tiled full-screen, z-index 999. Pulseable. |
 | `effects/ability-overlays.ts` | `AbilityOverlayManager` — single canvas at z-index 50, 7 ability-specific 2D animations. Cross-effects with flicker + noise. |
@@ -21,10 +21,10 @@ title → setup (P1) → handoff → setup (P2) → handoff → combat ↔ hando
 | `components/inventory-tray.ts` | `InventoryTray` — purchased perks grouped by type with count badges |
 | `components/action-slots.ts` | `ActionSlots` — PING / ATTACK / DEFEND slot HUD |
 | `components/notification-banner.ts` | `NotificationBanner` — queued CRT notifications with auto-dismiss |
-| `screens/title-screen.ts` | Title with CRT aesthetic. Rank selector (recruit/enlisted/officer, default officer). START → `setRank()` + setup, HELP → help |
+| `screens/title-screen.ts` | Title with CRT aesthetic. Mode selector (LOCAL/AI). Rank selector (recruit/enlisted/officer, default officer). AI mode prompts for Anthropic API key → creates `AIOpponent`. START → `setRank()` + setup, HELP → help |
 | `screens/setup-screen.ts` | Canvas-dominant 3D layout. Ship/decoy placement via raycaster. 8-axis selector, AUTO DEPLOY, ghost preview. Phases: ships → decoy-pending → decoy → confirm. |
 | `screens/handoff-screen.ts` | Player transition with ready confirmation |
-| `screens/combat-screen.ts` | Canvas-dominant 3D. Fire/abilities via raycaster. Board toggle (own/targeting). All perk modes, animations, audio, notifications. Rank bonus notification on mount, DRY counter in bottom bar for non-officer ranks. |
+| `screens/combat-screen.ts` | Canvas-dominant 3D. Fire/abilities via raycaster. Board toggle (own/targeting). All perk modes, animations, audio, notifications. Rank bonus notification on mount, DRY counter in bottom bar for non-officer ranks. AI mode: auto-executes AI turns via `context.aiOpponent.executeTurn()`, locks UI during AI thinking. |
 | `screens/victory-screen.ts` | Winner display, stats, session export, NEW ENGAGEMENT → title |
 | `screens/help-screen.ts` | Scrollable Operations Manual (9 sections from GDD) |
 
