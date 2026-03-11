@@ -9,6 +9,7 @@ import { ShipRoster, DECOY_ID } from '../components/ship-roster';
 import { SceneManager } from '../../renderer/scene';
 import type { ViewMode } from '../../renderer/views';
 import { PLAYER_DESIGNATIONS } from '../../types/game';
+import { placeFleetRandomly } from '../../engine/ai/ai-placement';
 
 interface SetupUIState {
   selectedShipId: string | null;
@@ -438,7 +439,14 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   function handleConfirm(): void {
     const success = game.confirmSetup();
     if (success) {
-      router.navigate('handoff');
+      if (context.aiMode) {
+        // Auto-place AI fleet and skip P2 setup entirely
+        placeFleetRandomly(game);
+        game.confirmSetup();
+        router.navigate('combat');
+      } else {
+        router.navigate('handoff');
+      }
     }
   }
 

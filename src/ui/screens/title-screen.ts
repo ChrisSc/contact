@@ -4,6 +4,7 @@ declare const __BUILD_DATE__: string;
 import type { ScreenContext, ScreenCleanup } from '../screen-router';
 import type { Rank } from '../../types/game';
 import { RANK_CONFIGS } from '../../types/game';
+import { AIOpponent } from '../../engine/ai/ai-opponent';
 
 export function mountTitleScreen(container: HTMLElement, context: ScreenContext): ScreenCleanup {
   const { router } = context;
@@ -34,6 +35,66 @@ export function mountTitleScreen(container: HTMLElement, context: ScreenContext)
   versionLine.className = 'title-screen__version';
   versionLine.textContent = `v${__APP_VERSION__} | ${__BUILD_DATE__}`;
   el.appendChild(versionLine);
+
+  // --- Mode Selector ---
+  let selectedMode: 'local' | 'ai' = 'local';
+
+  const modeSelector = document.createElement('div');
+  modeSelector.className = 'title-screen__mode-selector';
+
+  const modeLabel = document.createElement('div');
+  modeLabel.className = 'title-screen__rank-label';
+  modeLabel.textContent = 'GAME MODE';
+  modeSelector.appendChild(modeLabel);
+
+  const modeBtnContainer = document.createElement('div');
+  modeBtnContainer.className = 'title-screen__rank-buttons';
+
+  const modes: Array<{ id: 'local' | 'ai'; label: string }> = [
+    { id: 'local', label: 'LOCAL' },
+    { id: 'ai', label: 'VS AI' },
+  ];
+  for (const mode of modes) {
+    const btn = document.createElement('button');
+    btn.className = 'title-screen__rank-btn';
+    if (mode.id === selectedMode) {
+      btn.classList.add('title-screen__rank-btn--active');
+    }
+    btn.textContent = mode.label;
+    btn.dataset.mode = mode.id;
+    btn.addEventListener('click', () => {
+      selectedMode = mode.id;
+      const allBtns = modeBtnContainer.querySelectorAll('.title-screen__rank-btn');
+      for (const b of allBtns) {
+        (b as HTMLElement).classList.toggle('title-screen__rank-btn--active', (b as HTMLElement).dataset.mode === mode.id);
+      }
+      apiKeyRow.style.display = mode.id === 'ai' ? 'flex' : 'none';
+      apiKeyError.textContent = '';
+    });
+    modeBtnContainer.appendChild(btn);
+  }
+
+  modeSelector.appendChild(modeBtnContainer);
+  el.appendChild(modeSelector);
+
+  // --- API Key Input (visible only in VS AI mode) ---
+  const apiKeyRow = document.createElement('div');
+  apiKeyRow.className = 'title-screen__api-key-row';
+  apiKeyRow.style.display = 'none';
+
+  const apiKeyInput = document.createElement('input');
+  apiKeyInput.type = 'password';
+  apiKeyInput.className = 'title-screen__api-key-input';
+  apiKeyInput.placeholder = 'ENTER ANTHROPIC API KEY';
+  apiKeyInput.spellcheck = false;
+  apiKeyInput.autocomplete = 'off';
+  apiKeyRow.appendChild(apiKeyInput);
+
+  const apiKeyError = document.createElement('div');
+  apiKeyError.className = 'title-screen__api-key-error';
+  apiKeyRow.appendChild(apiKeyError);
+
+  el.appendChild(apiKeyRow);
 
   // --- Rank Selector ---
   let selectedRank: Rank = 'officer';
@@ -80,6 +141,24 @@ export function mountTitleScreen(container: HTMLElement, context: ScreenContext)
   startBtn.textContent = 'START';
   startBtn.addEventListener('click', () => {
     context.game.setRank(selectedRank);
+
+    if (selectedMode === 'ai') {
+      const apiKey = apiKeyInput.value.trim();
+      if (!apiKey) {
+        apiKeyError.textContent = 'API KEY REQUIRED';
+        return;
+      }
+      if (!apiKey.startsWith('sk-')) {
+        apiKeyError.textContent = 'INVALID KEY FORMAT';
+        return;
+      }
+      apiKeyError.textContent = '';
+      const aiOpponent = new AIOpponent(apiKey);
+      router.setAIMode(aiOpponent);
+    } else {
+      router.clearAIMode();
+    }
+
     router.navigate('setup');
   });
   actions.appendChild(startBtn);

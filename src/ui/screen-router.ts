@@ -1,4 +1,5 @@
 import type { GameController } from '../engine/game';
+import type { AIOpponent } from '../engine/ai/ai-opponent';
 import { getLogger } from '../observability/logger';
 
 export type ScreenId = 'title' | 'setup' | 'handoff' | 'combat' | 'victory' | 'help';
@@ -6,6 +7,8 @@ export type ScreenId = 'title' | 'setup' | 'handoff' | 'combat' | 'victory' | 'h
 export interface ScreenContext {
   game: GameController;
   router: ScreenRouter;
+  aiMode: boolean;
+  aiOpponent: AIOpponent | null;
 }
 
 export interface ScreenCleanup {
@@ -35,7 +38,7 @@ export class ScreenRouter {
     this.screenContainer.className = 'screen-container';
     this.container.appendChild(this.screenContainer);
 
-    this.context = { game, router: this };
+    this.context = { game, router: this, aiMode: false, aiOpponent: null };
   }
 
   register(id: ScreenId, mount: ScreenMountFn): void {
@@ -69,6 +72,19 @@ export class ScreenRouter {
 
   setGame(game: GameController): void {
     this.context.game = game;
+  }
+
+  setAIMode(aiOpponent: AIOpponent): void {
+    this.context.aiMode = true;
+    this.context.aiOpponent = aiOpponent;
+  }
+
+  clearAIMode(): void {
+    if (this.context.aiOpponent) {
+      this.context.aiOpponent.dispose();
+    }
+    this.context.aiMode = false;
+    this.context.aiOpponent = null;
   }
 
   getCurrentScreen(): ScreenId | null {

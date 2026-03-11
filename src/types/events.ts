@@ -45,6 +45,11 @@ export type LogEventType =
   | 'perk.use'
   | 'perk.effect'
   | 'perk.expire'
+  // AI opponent
+  | 'ai.turn_start'
+  | 'ai.action'
+  | 'ai.turn_end'
+  | 'ai.error'
   // System
   | 'system.init'
   | 'system.error'
