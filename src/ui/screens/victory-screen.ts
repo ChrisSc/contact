@@ -27,7 +27,11 @@ export function mountVictoryScreen(container: HTMLElement, context: ScreenContex
   // Winner
   const winnerEl = document.createElement('div');
   winnerEl.className = 'victory-screen__winner';
-  winnerEl.textContent = PLAYER_DESIGNATIONS[winner] + ' WINS';
+  if (context.aiMode) {
+    winnerEl.textContent = winner === 0 ? 'YOU WIN' : 'YOU LOSE';
+  } else {
+    winnerEl.textContent = PLAYER_DESIGNATIONS[winner] + ' WINS';
+  }
   el.appendChild(winnerEl);
 
   // Stats container
@@ -68,6 +72,7 @@ export function mountVictoryScreen(container: HTMLElement, context: ScreenContex
   newGameBtn.addEventListener('click', () => {
     const newGame = new GameController();
     router.setGame(newGame);
+    router.clearAIMode();
     router.navigate('title');
   });
   actionsEl.appendChild(newGameBtn);

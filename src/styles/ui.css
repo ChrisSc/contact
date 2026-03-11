@@ -1463,3 +1463,74 @@
   text-shadow: 0 0 8px #ffaa00, 0 0 16px #ffaa00;
   border-color: #ffaa00;
 }
+
+/* --- Mode Selector (VS AI) --- */
+.title-screen__mode-selector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+/* --- API Key Input --- */
+.title-screen__api-key-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--spacing-xs);
+  margin-bottom: var(--spacing-sm);
+}
+
+.title-screen__api-key-input {
+  font-family: var(--font-display);
+  font-size: 10px;
+  color: var(--crt-green);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--crt-green-dim);
+  padding: 8px 14px;
+  width: 320px;
+  max-width: 90vw;
+  letter-spacing: 1px;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.title-screen__api-key-input::placeholder {
+  color: var(--crt-green-dim);
+  opacity: 0.6;
+}
+
+.title-screen__api-key-input:focus {
+  border-color: var(--crt-green);
+  box-shadow: 0 0 8px rgba(0, 255, 65, 0.15);
+}
+
+.title-screen__api-key-error {
+  font-family: var(--font-display);
+  font-size: 8px;
+  color: #ff3333;
+  min-height: 14px;
+  letter-spacing: 1px;
+}
+
+/* --- AI Thinking Overlay --- */
+.combat-screen__ai-thinking {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 15;
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--crt-green);
+  text-shadow: 0 0 12px var(--crt-green-glow), 0 0 24px var(--crt-green-glow);
+  letter-spacing: 3px;
+  animation: ai-thinking-pulse 1.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes ai-thinking-pulse {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 1; }
+}

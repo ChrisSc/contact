@@ -1,10 +1,25 @@
 import type { ScreenContext, ScreenCleanup } from '../screen-router';
 import { GamePhase, PLAYER_DESIGNATIONS } from '../../types/game';
 import { initAudioContext } from '../../audio/audio-manager';
+import { placeFleetRandomly } from '../../engine/ai/ai-placement';
 
 export function mountHandoffScreen(container: HTMLElement, context: ScreenContext): ScreenCleanup {
   const { game, router } = context;
   const state = game.getState();
+
+  // In AI mode, skip handoff entirely — auto-handle AI setup or go straight to combat
+  if (context.aiMode) {
+    if (state.phase === GamePhase.SetupP2) {
+      // Auto-place AI fleet and skip to combat
+      placeFleetRandomly(game);
+      game.confirmSetup();
+      // Use setTimeout to avoid navigating during mount
+      setTimeout(() => router.navigate('combat'), 0);
+    } else {
+      // AI combat turn — skip handoff, go straight to combat
+      setTimeout(() => router.navigate('combat'), 0);
+    }
+  }
 
   // Determine next player designation
   const designation = PLAYER_DESIGNATIONS[state.currentPlayer];

@@ -258,6 +258,13 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   const overlays = new AbilityOverlayManager();
   el.appendChild(overlays.render());
 
+  // --- AI Thinking overlay (hidden by default) ---
+  const aiThinkingEl = document.createElement('div');
+  aiThinkingEl.className = 'combat-screen__ai-thinking';
+  aiThinkingEl.textContent = 'BRAVO IS THINKING...';
+  aiThinkingEl.style.display = 'none';
+  el.appendChild(aiThinkingEl);
+
   // --- Right-side stack: end turn + fleet panel (bottom-right overlay) ---
   const rightStack = document.createElement('div');
   rightStack.className = 'combat-screen__right-stack';
@@ -474,6 +481,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   }
 
   function handleCellClick(coord: Coordinate): void {
+    if (aiTurnInProgress) return;
     if (uiState.silentRunningMode && uiState.boardView === 'own') {
       handleSilentRunningSelect(coord);
       return;
@@ -958,7 +966,106 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     const phase = getAudioPhaseFromTurn(game.getState().turnCount);
     setGamePhase(phase);
     updateAmbientPhase(phase);
-    router.navigate('handoff');
+
+    if (context.aiMode && context.aiOpponent) {
+      executeAITurn();
+    } else {
+      router.navigate('handoff');
+    }
+  }
+
+  async function executeAITurn(): Promise<void> {
+    // Check for victory after human's endTurn
+    if (game.getState().phase !== GamePhase.Combat) {
+      router.navigate('victory');
+      return;
+    }
+
+    // Disable all controls and show thinking indicator
+    setControlsEnabled(false);
+    aiThinkingEl.style.display = '';
+
+    // Check for stalemate bonus before AI turn
+    const stalemateBonusAwarded = game.getLastRankBonus() !== null;
+
+    const result = await context.aiOpponent!.executeTurn(game, stalemateBonusAwarded);
+
+    // Hide thinking indicator
+    aiThinkingEl.style.display = 'none';
+
+    if (result.error) {
+      notifications.show({
+        text: result.error,
+        duration: 5000,
+        className: 'notification-banner__message--rank-bonus',
+      });
+    }
+
+    // Check for victory after AI turn
+    if (game.getState().phase === GamePhase.Victory) {
+      router.navigate('victory');
+      return;
+    }
+
+    // Refresh all UI for the human's next turn
+    refreshAllUI();
+    setControlsEnabled(true);
+
+    // Check for rank bonus notification
+    const rankBonus = game.getLastRankBonus();
+    if (rankBonus) {
+      notifications.show({
+        text: `STALEMATE BONUS: +${rankBonus.amount} CREDITS`,
+        duration: 3000,
+        className: 'notification-banner__message--rank-bonus',
+      });
+    }
+  }
+
+  let aiTurnInProgress = false;
+
+  function setControlsEnabled(enabled: boolean): void {
+    aiTurnInProgress = !enabled;
+    endTurnBtn.disabled = !enabled || !game.getTurnSlots().attackUsed;
+    if (!enabled) {
+      inventoryTray.clearSelection();
+      cancelAllModes();
+    }
+  }
+
+  function cancelAllModes(): void {
+    uiState.pingMode = false;
+    uiState.droneMode = false;
+    uiState.depthChargeMode = false;
+    uiState.silentRunningMode = false;
+    uiState.gSonarMode = false;
+    sceneManager.clearGhostCells();
+  }
+
+  function refreshAllUI(): void {
+    uiState.turnSlots = game.getTurnSlots();
+    uiState.sunkShipIds = game.getOpponent().ships.filter(s => s.sunk).map(s => s.id);
+
+    // Reset board to targeting view
+    if (uiState.boardView !== 'targeting') {
+      uiState.boardView = 'targeting';
+      const player = game.getCurrentPlayer();
+      sceneManager.setBoardType('targeting');
+      sceneManager.updateGrid(player.targetingGrid);
+    } else {
+      sceneManager.updateGrid(game.getCurrentPlayer().targetingGrid);
+    }
+
+    refreshHeader();
+    refreshCredits();
+    refreshInventory();
+    refreshActionSlots();
+    refreshBottomBar();
+    refreshFleetStatus();
+    refreshFriendlyFleetStatus();
+    endTurnBtn.disabled = true;
+    statusEl.textContent = 'SELECT TARGET';
+    statusEl.className = 'combat-screen__status';
   }
 
   function refreshHeader(): void {
