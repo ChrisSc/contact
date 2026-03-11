@@ -83,18 +83,18 @@ describe('Rank System', () => {
   });
 
   describe('Recruit rank', () => {
-    it('should trigger at 10 dry turns with +8 credits', () => {
+    it('should trigger at 8 dry turns with +8 credits', () => {
       const game = setupGame('recruit');
       const coords = missCoords();
 
-      // 9 dry turns -- no bonus yet
-      for (let i = 0; i < 9; i++) {
+      // 7 dry turns -- no bonus yet
+      for (let i = 0; i < 7; i++) {
         doMissTurn(game, coords);
       }
       expect(game.getLastRankBonus()).toBeNull();
-      expect(game.getDryTurnCounter()).toBe(9);
+      expect(game.getDryTurnCounter()).toBe(7);
 
-      // 10th dry turn triggers bonus
+      // 8th dry turn triggers bonus
       doMissTurn(game, coords);
 
       const bonus = game.getLastRankBonus();
@@ -110,12 +110,12 @@ describe('Rank System', () => {
       const p0StartCredits = game.getState().players[0].credits;
       const p1StartCredits = game.getState().players[1].credits;
 
-      // 10 dry turns to trigger
-      for (let i = 0; i < 10; i++) {
+      // 8 dry turns to trigger
+      for (let i = 0; i < 8; i++) {
         doMissTurn(game, coords);
       }
 
-      // After 10th turn ends, bonus triggered and new current player got bonus
+      // After 8th turn ends, bonus triggered and new current player got bonus
       // The current player (who just switched in) should have received +8
       const currentPlayer = game.getCurrentPlayer();
       expect(currentPlayer.pendingRankBonus).toBe(false);
@@ -138,16 +138,16 @@ describe('Rank System', () => {
   });
 
   describe('Enlisted rank', () => {
-    it('should trigger at 16 dry turns with +5 credits', () => {
+    it('should trigger at 10 dry turns with +5 credits', () => {
       const game = setupGame('enlisted');
       const coords = missCoords();
 
-      for (let i = 0; i < 15; i++) {
+      for (let i = 0; i < 9; i++) {
         doMissTurn(game, coords);
       }
       expect(game.getLastRankBonus()).toBeNull();
 
-      // 16th dry turn triggers
+      // 10th dry turn triggers
       doMissTurn(game, coords);
       const bonus = game.getLastRankBonus();
       expect(bonus).not.toBeNull();
@@ -160,11 +160,11 @@ describe('Rank System', () => {
       const game = setupGame('recruit');
       const coords = missCoords();
 
-      // 8 dry turns
-      for (let i = 0; i < 8; i++) {
+      // 6 dry turns (must be < threshold of 8 to avoid bonus reset)
+      for (let i = 0; i < 6; i++) {
         doMissTurn(game, coords);
       }
-      expect(game.getDryTurnCounter()).toBe(8);
+      expect(game.getDryTurnCounter()).toBe(6);
 
       // Hit a ship (ships at row 0, depth 0, cols 0-4 for typhoon)
       // Current player is P0 after 8 turns (even number, alternating 0,1,0,1...)
@@ -228,22 +228,21 @@ describe('Rank System', () => {
       const game = setupGame('recruit');
       const coords = missCoords();
 
-      // First trigger at 10
-      for (let i = 0; i < 10; i++) {
+      // First trigger at 8
+      for (let i = 0; i < 8; i++) {
         doMissTurn(game, coords);
       }
       expect(game.getLastRankBonus()).not.toBeNull();
       expect(game.getDryTurnCounter()).toBe(0);
 
-      // Need 10 more dry turns for second trigger
-      // But the 11th turn (first after reset) already has pending bonus for the other player
-      // which gets awarded but doesn't affect dry counter. So just do 10 more misses.
-      for (let i = 0; i < 9; i++) {
+      // Need 8 more dry turns for second trigger
+      // The 9th turn (first after reset) already has pending bonus for the other player
+      // which gets awarded but doesn't affect dry counter. So just do 8 more misses.
+      for (let i = 0; i < 7; i++) {
         doMissTurn(game, coords);
       }
-      // After 9 more misses, counter should be at 9
-      // (the pending bonus from first trigger doesn't affect dry counter)
-      expect(game.getDryTurnCounter()).toBe(9);
+      // After 7 more misses, counter should be at 7
+      expect(game.getDryTurnCounter()).toBe(7);
 
       doMissTurn(game, coords);
       expect(game.getLastRankBonus()).not.toBeNull();

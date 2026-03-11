@@ -1,18 +1,19 @@
 #!/usr/bin/env npx tsx
 
 /**
- * simulate.ts — Run full CONTACT game simulations with bot players.
+ * simulate.ts — Run full CONTACT game simulations with smart bot players.
  *
  * Usage:
  *   npx tsx scripts/simulate.ts [numGames] [--verbose] [--export] [--rank recruit|enlisted|officer]
  *
- * Each bot:
+ * Each bot uses axis-aware intelligence:
  *   - Places fleet randomly across all 8 axes in the 7x7x7 grid
- *   - Buys perks when credits allow (priority: sonar > jammer > cloak > drone > SR > g-sonar > depth charge)
+ *   - Builds intel analysis: clusters unsunk hits, infers ship axes, generates next-targets
+ *   - Buys perks deterministically based on intel quality and exploration %
  *   - Deploys defensive perks (jammer, cloak, silent running on most valuable surviving ship)
- *   - Uses sonar pings on random unresolved cells
- *   - Fires torpedoes with hunt/target logic (prioritize positive scan results, then adjacents of hits)
- *   - Uses recon drones, g-sonar, and depth charges situationally
+ *   - Uses sonar pings near hit clusters or maximum-coverage cells
+ *   - Fires torpedoes with priority: positive scans > axis extensions > cluster neighbors > parity hunt
+ *   - Uses recon drones, g-sonar, and depth charges with scored targeting
  */
 
 import * as fs from 'fs';
@@ -30,6 +31,25 @@ import type { PerkId } from '../src/types/abilities';
 import { getCell } from '../src/engine/grid';
 import { getLogger } from '../src/observability/logger';
 import { serializeSession } from '../src/observability/export';
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const AXIS_DELTAS: Record<PlacementAxis, [number, number, number]> = {
+  'col':        [1, 0, 0],
+  'row':        [0, 1, 0],
+  'diag+':      [1, 1, 0],
+  'diag-':      [1, -1, 0],
+  'col-depth':  [1, 0, 1],
+  'col-depth-': [1, 0, -1],
+  'row-depth':  [0, 1, 1],
+  'row-depth-': [0, 1, -1],
+};
+
+const ALL_AXIS_DELTA_VALUES = Object.values(AXIS_DELTAS);
+
+const TOTAL_CELLS = GRID_SIZE * GRID_SIZE * GRID_SIZE; // 343
 
 // ---------------------------------------------------------------------------
 // Random helpers
@@ -50,6 +70,20 @@ function shuffle<T>(arr: T[]): T[] {
 
 function randomCoord(): Coordinate {
   return { col: randInt(GRID_SIZE), row: randInt(GRID_SIZE), depth: randInt(GRID_SIZE) };
+}
+
+function coordKey(c: Coordinate): string {
+  return `${c.col},${c.row},${c.depth}`;
+}
+
+function inBounds(c: Coordinate): boolean {
+  return c.col >= 0 && c.col < GRID_SIZE &&
+         c.row >= 0 && c.row < GRID_SIZE &&
+         c.depth >= 0 && c.depth < GRID_SIZE;
+}
+
+function distToCenter(c: Coordinate): number {
+  return Math.abs(c.col - 3) + Math.abs(c.row - 3) + Math.abs(c.depth - 3);
 }
 
 // ---------------------------------------------------------------------------
@@ -81,23 +115,40 @@ function placeFleetRandomly(gc: GameController): void {
 }
 
 // ---------------------------------------------------------------------------
-// Bot: Targeting intelligence
+// Bot: Intel analysis (replaces TargetingState)
 // ---------------------------------------------------------------------------
 
-interface TargetingState {
-  unresolved: Coordinate[];
-  positiveScans: Coordinate[];   // DronePositive or SonarPositive
-  huntTargets: Coordinate[];     // Adjacent to hits, not yet fired on
+interface HitCluster {
+  hits: Coordinate[];
+  axis: PlacementAxis | null;
+  nextTargets: Coordinate[];
+  allNeighbors: Coordinate[];
 }
 
-function getTargetingState(gc: GameController): TargetingState {
+interface IntelAnalysis {
+  unresolved: Coordinate[];
+  negativeScans: Coordinate[];
+  positiveScans: Coordinate[];
+  hitCoords: Coordinate[];
+  hitClusters: HitCluster[];
+  depthExplored: number[];
+  consecutiveHitAvailable: boolean;
+  totalExplored: number;
+}
+
+function buildIntelAnalysis(gc: GameController): IntelAnalysis {
   const player = gc.getCurrentPlayer();
   const grid = player.targetingGrid;
 
   const unresolved: Coordinate[] = [];
+  const negativeScans: Coordinate[] = [];
   const positiveScans: Coordinate[] = [];
-  const huntTargets: Coordinate[] = [];
   const hitCoords: Coordinate[] = [];
+  const depthExplored = new Array(GRID_SIZE).fill(0) as number[];
+  let totalExplored = 0;
+
+  // Cells that have been fired on (hit/miss/sunk/decoy_hit) — not targetable
+  const firedSet = new Set<string>();
 
   for (let col = 0; col < GRID_SIZE; col++) {
     for (let row = 0; row < GRID_SIZE; row++) {
@@ -116,115 +167,511 @@ function getTargetingState(gc: GameController): TargetingState {
             break;
           case CellState.Hit:
             hitCoords.push(coord);
+            firedSet.add(coordKey(coord));
+            depthExplored[depth]++;
+            totalExplored++;
             break;
           case CellState.DroneNegative:
           case CellState.SonarNegative:
+            negativeScans.push(coord);
             unresolved.push(coord); // Can still fire on these
+            break;
+          case CellState.Miss:
+          case CellState.Sunk:
+          case CellState.DecoyHit:
+            firedSet.add(coordKey(coord));
+            depthExplored[depth]++;
+            totalExplored++;
             break;
         }
       }
     }
   }
 
-  // Build hunt targets: neighbors of hits that haven't been resolved
-  const resolvedSet = new Set<string>();
-  for (let col = 0; col < GRID_SIZE; col++) {
-    for (let row = 0; row < GRID_SIZE; row++) {
-      for (let depth = 0; depth < GRID_SIZE; depth++) {
-        const cell = getCell(grid, { col, row, depth });
-        if (cell && cell.state !== CellState.Empty &&
-            cell.state !== CellState.DronePositive &&
-            cell.state !== CellState.SonarPositive &&
-            cell.state !== CellState.DroneNegative &&
-            cell.state !== CellState.SonarNegative) {
-          resolvedSet.add(`${col},${row},${depth}`);
+  // Also count positive/negative scans as explored for depth density
+  for (const c of positiveScans) { depthExplored[c.depth]++; totalExplored++; }
+  for (const c of negativeScans) { depthExplored[c.depth]++; totalExplored++; }
+
+  // Build set of all non-targetable cells (fired + sunk)
+  const nonTargetable = new Set(firedSet);
+  // Sunk cells are in firedSet already. Positive/negative scans ARE targetable.
+
+  // --- Cluster building via BFS ---
+  const hitSet = new Set(hitCoords.map(coordKey));
+  const visited = new Set<string>();
+  const hitClusters: HitCluster[] = [];
+
+  for (const hit of hitCoords) {
+    const key = coordKey(hit);
+    if (visited.has(key)) continue;
+
+    // BFS to find connected hits (connected = delta matches any axis delta or negation)
+    const cluster: Coordinate[] = [];
+    const queue = [hit];
+    visited.add(key);
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      cluster.push(current);
+
+      for (const [dc, dr, dd] of ALL_AXIS_DELTA_VALUES) {
+        for (const sign of [1, -1]) {
+          const neighbor: Coordinate = {
+            col: current.col + dc * sign,
+            row: current.row + dr * sign,
+            depth: current.depth + dd * sign,
+          };
+          const nk = coordKey(neighbor);
+          if (hitSet.has(nk) && !visited.has(nk)) {
+            visited.add(nk);
+            queue.push(neighbor);
+          }
         }
       }
     }
+
+    // --- Axis inference ---
+    let axis: PlacementAxis | null = null;
+    if (cluster.length >= 2) {
+      // Check if vector between first two hits is a scalar multiple of an axis delta
+      const a = cluster[0]!;
+      const b = cluster[1]!;
+      const dx = b.col - a.col;
+      const dy = b.row - a.row;
+      const dz = b.depth - a.depth;
+
+      for (const [axisName, [adx, ady, adz]] of Object.entries(AXIS_DELTAS)) {
+        // Check if (dx, dy, dz) is a scalar multiple of (adx, ady, adz)
+        // i.e., dx/adx === dy/ady === dz/adz (handling zeros)
+        const ratios: number[] = [];
+        let valid = true;
+        for (const [d, ad] of [[dx, adx], [dy, ady], [dz, adz]] as [number, number][]) {
+          if (ad === 0) {
+            if (d !== 0) { valid = false; break; }
+          } else {
+            ratios.push(d / ad);
+          }
+        }
+        if (valid && ratios.length > 0 && ratios.every(r => r === ratios[0] && r !== 0)) {
+          axis = axisName as PlacementAxis;
+          break;
+        }
+      }
+    }
+
+    // --- Next targets ---
+    const nextTargets: Coordinate[] = [];
+    const allNeighbors: Coordinate[] = [];
+    const addedNext = new Set<string>();
+    const addedNeighbor = new Set<string>();
+
+    if (axis !== null) {
+      // Extend from endpoints along the inferred axis
+      const delta = AXIS_DELTAS[axis];
+      // Find endpoints: sort cluster along axis
+      const sorted = [...cluster].sort((a, b) => {
+        return (a.col * delta[0] + a.row * delta[1] + a.depth * delta[2]) -
+               (b.col * delta[0] + b.row * delta[1] + b.depth * delta[2]);
+      });
+      const first = sorted[0]!;
+      const last = sorted[sorted.length - 1]!;
+
+      // Extend in both directions from endpoints
+      for (const [endpoint, sign] of [[first, -1], [last, 1]] as [Coordinate, number][]) {
+        for (let step = 1; step <= 4; step++) { // Up to ship size 5
+          const candidate: Coordinate = {
+            col: endpoint.col + delta[0] * sign * step,
+            row: endpoint.row + delta[1] * sign * step,
+            depth: endpoint.depth + delta[2] * sign * step,
+          };
+          const ck = coordKey(candidate);
+          if (!inBounds(candidate) || nonTargetable.has(ck)) break;
+          if (!addedNext.has(ck)) {
+            nextTargets.push(candidate);
+            addedNext.add(ck);
+          }
+        }
+      }
+    }
+
+    // All neighbors (for single-hit clusters or fallback)
+    for (const h of cluster) {
+      for (const [dc, dr, dd] of ALL_AXIS_DELTA_VALUES) {
+        for (const sign of [1, -1]) {
+          const neighbor: Coordinate = {
+            col: h.col + dc * sign,
+            row: h.row + dr * sign,
+            depth: h.depth + dd * sign,
+          };
+          const nk = coordKey(neighbor);
+          if (inBounds(neighbor) && !nonTargetable.has(nk) && !addedNeighbor.has(nk)) {
+            allNeighbors.push(neighbor);
+            addedNeighbor.add(nk);
+          }
+        }
+      }
+    }
+
+    hitClusters.push({ hits: cluster, axis, nextTargets, allNeighbors });
   }
 
-  const deltas = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
-  for (const hit of hitCoords) {
-    for (const [dc, dr, dd] of deltas) {
-      const n = { col: hit.col + dc!, row: hit.row + dr!, depth: hit.depth + dd! };
-      if (n.col >= 0 && n.col < GRID_SIZE &&
-          n.row >= 0 && n.row < GRID_SIZE &&
-          n.depth >= 0 && n.depth < GRID_SIZE &&
-          !resolvedSet.has(`${n.col},${n.row},${n.depth}`)) {
-        huntTargets.push(n);
+  // Sort clusters: largest first
+  hitClusters.sort((a, b) => b.hits.length - a.hits.length);
+
+  const consecutiveHitAvailable = player.lastTurnHit;
+
+  return {
+    unresolved, negativeScans, positiveScans, hitCoords,
+    hitClusters, depthExplored, consecutiveHitAvailable, totalExplored,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Bot: Smart targeting
+// ---------------------------------------------------------------------------
+
+function pickTarget(intel: IntelAnalysis): Coordinate {
+  // 1. Positive scans — prefer those adjacent to hits (consecutive bonus potential)
+  if (intel.positiveScans.length > 0) {
+    const hitKeys = new Set(intel.hitCoords.map(coordKey));
+    const adjacentToHit = intel.positiveScans.filter(ps => {
+      for (const [dc, dr, dd] of ALL_AXIS_DELTA_VALUES) {
+        for (const sign of [1, -1]) {
+          if (hitKeys.has(coordKey({ col: ps.col + dc * sign, row: ps.row + dr * sign, depth: ps.depth + dd * sign }))) {
+            return true;
+          }
+        }
       }
+      return false;
+    });
+    if (adjacentToHit.length > 0) {
+      return adjacentToHit[randInt(adjacentToHit.length)]!;
+    }
+    return intel.positiveScans[randInt(intel.positiveScans.length)]!;
+  }
+
+  // 2. Cluster next-targets (axis-inferred extensions), largest clusters first
+  for (const cluster of intel.hitClusters) {
+    if (cluster.nextTargets.length > 0) {
+      // Pick first (closest to endpoint)
+      return cluster.nextTargets[0]!;
     }
   }
 
-  return { unresolved, positiveScans, huntTargets };
-}
+  // 3. Cluster all-neighbors (fallback for single-hit or axis-unknown clusters)
+  for (const cluster of intel.hitClusters) {
+    if (cluster.allNeighbors.length > 0) {
+      return cluster.allNeighbors[randInt(cluster.allNeighbors.length)]!;
+    }
+  }
 
-function pickTarget(ts: TargetingState): Coordinate {
-  // Priority: positive scans > hunt targets > random unresolved
-  if (ts.positiveScans.length > 0) {
-    return ts.positiveScans[randInt(ts.positiveScans.length)]!;
+  // 4. 3D parity hunt — (col + row + depth) % 2 === 0, prefer center
+  const parityCells = intel.unresolved.filter(c => (c.col + c.row + c.depth) % 2 === 0);
+  if (parityCells.length > 0) {
+    // Sort by distance to center, take from closest ~20%
+    parityCells.sort((a, b) => distToCenter(a) - distToCenter(b));
+    const top = Math.max(1, Math.floor(parityCells.length * 0.2));
+    return parityCells[randInt(top)]!;
   }
-  if (ts.huntTargets.length > 0) {
-    return ts.huntTargets[randInt(ts.huntTargets.length)]!;
+
+  // 5. Any unresolved
+  if (intel.unresolved.length > 0) {
+    return intel.unresolved[randInt(intel.unresolved.length)]!;
   }
-  return ts.unresolved[randInt(ts.unresolved.length)]!;
+
+  // Fallback (shouldn't happen)
+  return randomCoord();
 }
 
 // ---------------------------------------------------------------------------
-// Bot: Perk purchasing strategy
-//
-// Phase-based spending: early game buys cheap intel/defense, mid-game saves
-// for recon drone and g-sonar, late-game saves for depth charge.
+// Bot: Smart sonar targeting
 // ---------------------------------------------------------------------------
 
-function buyPerks(gc: GameController): PerkId[] {
+function pickSonarTarget(intel: IntelAnalysis): Coordinate | null {
+  if (intel.unresolved.length === 0) return null;
+
+  const unresolvedSet = new Set(intel.unresolved.map(coordKey));
+  const positiveSet = new Set(intel.positiveScans.map(coordKey));
+
+  function countUseful(origin: Coordinate): number {
+    let count = 0;
+    for (let dc = 0; dc <= 1; dc++) {
+      for (let dr = 0; dr <= 1; dr++) {
+        for (let dd = 0; dd <= 1; dd++) {
+          const c: Coordinate = { col: origin.col + dc, row: origin.row + dr, depth: origin.depth + dd };
+          if (inBounds(c)) {
+            const k = coordKey(c);
+            if (unresolvedSet.has(k) || positiveSet.has(k)) count++;
+          }
+        }
+      }
+    }
+    return count;
+  }
+
+  // 1. Near single-hit clusters (axis unknown) — offset to maximize new info
+  for (const cluster of intel.hitClusters) {
+    if (cluster.hits.length === 1 && cluster.axis === null) {
+      const h = cluster.hits[0]!;
+      let bestOrigin: Coordinate | null = null;
+      let bestCount = 0;
+      // Try all 8 offsets that place hit at corner of 2x2x2
+      for (const [odc, odr, odd] of [[-1,-1,-1],[-1,-1,0],[-1,0,-1],[-1,0,0],[0,-1,-1],[0,-1,0],[0,0,-1],[0,0,0]]) {
+        const origin: Coordinate = { col: h.col + odc, row: h.row + odr, depth: h.depth + odd };
+        if (inBounds(origin)) {
+          const count = countUseful(origin);
+          if (count > bestCount) { bestCount = count; bestOrigin = origin; }
+        }
+      }
+      if (bestOrigin && bestCount >= 4) return bestOrigin;
+    }
+  }
+
+  // 2. Near positive scans
+  for (const ps of intel.positiveScans) {
+    let bestOrigin: Coordinate | null = null;
+    let bestCount = 0;
+    for (const [odc, odr, odd] of [[-1,-1,-1],[-1,-1,0],[-1,0,-1],[-1,0,0],[0,-1,-1],[0,-1,0],[0,0,-1],[0,0,0]]) {
+      const origin: Coordinate = { col: ps.col + odc, row: ps.row + odr, depth: ps.depth + odd };
+      if (inBounds(origin)) {
+        const count = countUseful(origin);
+        if (count > bestCount) { bestCount = count; bestOrigin = origin; }
+      }
+    }
+    if (bestOrigin && bestCount >= 4) return bestOrigin;
+  }
+
+  // 3. Maximum coverage — sample random origins
+  let bestOrigin: Coordinate | null = null;
+  let bestCount = 0;
+  for (let i = 0; i < 20; i++) {
+    const origin: Coordinate = {
+      col: randInt(GRID_SIZE - 1),
+      row: randInt(GRID_SIZE - 1),
+      depth: randInt(GRID_SIZE - 1),
+    };
+    const count = countUseful(origin);
+    if (count > bestCount) { bestCount = count; bestOrigin = origin; }
+  }
+
+  return bestOrigin ?? intel.unresolved[randInt(intel.unresolved.length)]!;
+}
+
+// ---------------------------------------------------------------------------
+// Bot: Smart depth charge targeting
+// ---------------------------------------------------------------------------
+
+function pickDepthChargeTarget(intel: IntelAnalysis): { center: Coordinate; score: number } | null {
+  const hitKeys = new Set(intel.hitCoords.map(coordKey));
+  const positiveKeys = new Set(intel.positiveScans.map(coordKey));
+  const unresolvedSet = new Set(intel.unresolved.map(coordKey));
+
+  function scoreCenter(center: Coordinate): number {
+    let score = 0;
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dd = -1; dd <= 1; dd++) {
+          const c: Coordinate = { col: center.col + dc, row: center.row + dr, depth: center.depth + dd };
+          if (!inBounds(c)) continue;
+          const k = coordKey(c);
+          if (hitKeys.has(k)) score += 3;
+          else if (positiveKeys.has(k)) score += 2;
+          else if (unresolvedSet.has(k)) score += 0.5;
+        }
+      }
+    }
+    return score;
+  }
+
+  // Use cluster centroids and positive scan locations as candidates
+  const candidates: Coordinate[] = [];
+  for (const cluster of intel.hitClusters) {
+    // Centroid of cluster
+    const cx = Math.round(cluster.hits.reduce((s, h) => s + h.col, 0) / cluster.hits.length);
+    const cy = Math.round(cluster.hits.reduce((s, h) => s + h.row, 0) / cluster.hits.length);
+    const cz = Math.round(cluster.hits.reduce((s, h) => s + h.depth, 0) / cluster.hits.length);
+    candidates.push({ col: Math.min(cx, GRID_SIZE - 2), row: Math.min(cy, GRID_SIZE - 2), depth: Math.min(cz, GRID_SIZE - 2) });
+    // Also add individual hits as candidates
+    for (const h of cluster.hits) candidates.push(h);
+  }
+  for (const ps of intel.positiveScans) candidates.push(ps);
+
+  let bestCenter: Coordinate | null = null;
+  let bestScore = 0;
+  for (const c of candidates) {
+    // Clamp to valid DC center (needs 1 cell margin for 3x3x3)
+    const center: Coordinate = {
+      col: Math.max(1, Math.min(GRID_SIZE - 2, c.col)),
+      row: Math.max(1, Math.min(GRID_SIZE - 2, c.row)),
+      depth: Math.max(1, Math.min(GRID_SIZE - 2, c.depth)),
+    };
+    const score = scoreCenter(center);
+    if (score > bestScore) { bestScore = score; bestCenter = center; }
+  }
+
+  if (bestCenter && bestScore >= 4) {
+    return { center: bestCenter, score: bestScore };
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Bot: Smart G-SONAR depth selection
+// ---------------------------------------------------------------------------
+
+function pickGSonarDepth(intel: IntelAnalysis): number {
+  const scores: number[] = [];
+  for (let d = 0; d < GRID_SIZE; d++) {
+    const unexplored = (GRID_SIZE * GRID_SIZE) - intel.depthExplored[d]!;
+    const hitsAtDepth = intel.hitCoords.filter(c => c.depth === d).length;
+    const positivesAtDepth = intel.positiveScans.filter(c => c.depth === d).length;
+    scores.push(unexplored * 1 + hitsAtDepth * 3 + positivesAtDepth * 2);
+  }
+
+  let bestDepth = 3; // Default to middle
+  let bestScore = -1;
+  for (let d = 0; d < GRID_SIZE; d++) {
+    const score = scores[d]!;
+    // Tie-break: prefer middle depths (2-4)
+    const middleBonus = (d >= 2 && d <= 4) ? 0.1 : 0;
+    if (score + middleBonus > bestScore) {
+      bestScore = score + middleBonus;
+      bestDepth = d;
+    }
+  }
+  return bestDepth;
+}
+
+// ---------------------------------------------------------------------------
+// Bot: Smart recon drone targeting
+// ---------------------------------------------------------------------------
+
+function pickDroneTarget(intel: IntelAnalysis): Coordinate {
+  const unresolvedSet = new Set(intel.unresolved.map(coordKey));
+  const positiveSet = new Set(intel.positiveScans.map(coordKey));
+
+  function countUseful3x3x3(center: Coordinate): number {
+    let count = 0;
+    for (let dc = -1; dc <= 1; dc++) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dd = -1; dd <= 1; dd++) {
+          const c: Coordinate = { col: center.col + dc, row: center.row + dr, depth: center.depth + dd };
+          if (inBounds(c)) {
+            const k = coordKey(c);
+            if (unresolvedSet.has(k) || positiveSet.has(k)) count++;
+          }
+        }
+      }
+    }
+    return count;
+  }
+
+  // 1. Center on hit cluster with unknown axis
+  for (const cluster of intel.hitClusters) {
+    if (cluster.axis === null && cluster.hits.length === 1) {
+      const h = cluster.hits[0]!;
+      // Clamp to valid drone center
+      return {
+        col: Math.max(1, Math.min(GRID_SIZE - 2, h.col)),
+        row: Math.max(1, Math.min(GRID_SIZE - 2, h.row)),
+        depth: Math.max(1, Math.min(GRID_SIZE - 2, h.depth)),
+      };
+    }
+  }
+
+  // 2. Center on positive scan region
+  if (intel.positiveScans.length > 0) {
+    const ps = intel.positiveScans[0]!;
+    return {
+      col: Math.max(1, Math.min(GRID_SIZE - 2, ps.col)),
+      row: Math.max(1, Math.min(GRID_SIZE - 2, ps.row)),
+      depth: Math.max(1, Math.min(GRID_SIZE - 2, ps.depth)),
+    };
+  }
+
+  // 3. Sample random centers, pick highest unexplored count
+  let bestCenter: Coordinate = { col: 3, row: 3, depth: 3 };
+  let bestCount = 0;
+  for (let i = 0; i < 30; i++) {
+    const center: Coordinate = {
+      col: 1 + randInt(GRID_SIZE - 2),
+      row: 1 + randInt(GRID_SIZE - 2),
+      depth: 1 + randInt(GRID_SIZE - 2),
+    };
+    const count = countUseful3x3x3(center);
+    if (count > bestCount) { bestCount = count; bestCenter = center; }
+  }
+  return bestCenter;
+}
+
+// ---------------------------------------------------------------------------
+// Bot: Perk purchasing strategy (deterministic, intel-driven)
+// ---------------------------------------------------------------------------
+
+function buyPerks(gc: GameController, intel: IntelAnalysis): PerkId[] {
   const bought: PerkId[] = [];
   const player = gc.getCurrentPlayer();
   const opponent = gc.getOpponent();
   let credits = player.credits;
-  const shipsSunk = player.shipsSunk;
-  const hasReconInInventory = player.inventory.some(p => p.perkId === 'recon_drone');
-  const hasDCInInventory = player.inventory.some(p => p.perkId === 'depth_charge');
-  const hasGSonarInInventory = player.inventory.some(p => p.perkId === 'g_sonar');
   const opponentShipsRemaining = opponent.ships.filter(s => !s.sunk).length;
+  const ownDamagedShips = player.ships.filter(s => !s.sunk && s.hits > 0).length;
+  const explorationPct = intel.totalExplored / TOTAL_CELLS;
+  const hasActionableIntel = intel.hitClusters.length > 0 || intel.positiveScans.length > 0;
 
-  // Saving targets — reserve credits for big purchases when they make sense
-  const wantRecon = shipsSunk >= 1 && !hasReconInInventory;
-  const wantGSonar = shipsSunk >= 2 && !hasGSonarInInventory;
-  const wantDC = shipsSunk >= 2 && !hasDCInInventory && opponentShipsRemaining >= 2;
+  const hasPing = player.inventory.some(p => p.perkId === 'sonar_ping');
+  const hasJammer = player.inventory.some(p => p.perkId === 'radar_jammer') || player.abilities.radar_jammer.active;
+  const hasDC = player.inventory.some(p => p.perkId === 'depth_charge');
+  const hasGSonar = player.inventory.some(p => p.perkId === 'g_sonar');
+  const hasDrone = player.inventory.some(p => p.perkId === 'recon_drone');
 
-  // Determine what we're saving for (highest priority first)
-  let savingFor: PerkId | null = null;
-  if (wantDC && credits >= 15) savingFor = 'depth_charge';
-  else if (wantGSonar && credits >= 10) savingFor = 'g_sonar';
-  else if (wantRecon && credits >= 5) savingFor = 'recon_drone';
-
-  // Try to buy the target perk first
-  if (savingFor) {
-    const cost = getCost(savingFor);
-    if (credits >= cost) {
-      const result = gc.purchasePerk(savingFor);
-      if (result) {
-        credits -= cost;
-        bought.push(savingFor);
-        savingFor = null; // Got it, no longer saving
-      }
-    }
-  }
-
-  // Spend remaining credits on cheap perks, but keep a reserve if saving
-  const reserve = savingFor ? getCost(savingFor) * 0.6 : 0;
-
-  const cheapPerks: PerkId[] = ['sonar_ping', 'radar_jammer', 'acoustic_cloak', 'silent_running'];
-  for (const perkId of cheapPerks) {
+  function tryBuy(perkId: PerkId): boolean {
     const cost = getCost(perkId);
-    if (credits - cost >= reserve && Math.random() < 0.6) {
+    if (credits >= cost) {
       const result = gc.purchasePerk(perkId);
       if (result) {
         credits -= cost;
         bought.push(perkId);
+        return true;
       }
     }
+    return false;
+  }
+
+  // Big purchases: DC when actionable intel, G-SONAR/Drone for exploration
+  if (!hasDC && hasActionableIntel && intel.hitClusters.length >= 1 && credits >= 25) {
+    tryBuy('depth_charge');
+  }
+  if (!hasGSonar && explorationPct < 0.5 && credits >= 18) {
+    tryBuy('g_sonar');
+  }
+  if (!hasDrone && explorationPct < 0.6 && credits >= 10) {
+    tryBuy('recon_drone');
+  }
+
+  // Always maintain 1 sonar ping
+  if (!hasPing && credits >= 3) {
+    tryBuy('sonar_ping');
+  }
+
+  // Jammer if none active/in-inventory
+  if (!hasJammer && credits >= 5) {
+    tryBuy('radar_jammer');
+  }
+
+  // Defensive perks when own ships are taking damage
+  if (ownDamagedShips >= 1 && credits >= 6) {
+    const hasCloak = player.inventory.some(p => p.perkId === 'acoustic_cloak') || player.abilities.acoustic_cloak.active;
+    if (!hasCloak) tryBuy('acoustic_cloak');
+  }
+  if (ownDamagedShips >= 2 && credits >= 10) {
+    const hasSR = player.inventory.some(p => p.perkId === 'silent_running');
+    if (!hasSR) tryBuy('silent_running');
+  }
+
+  // Spend remaining on sonar pings (up to 2 total)
+  const pingCount = player.inventory.filter(p => p.perkId === 'sonar_ping').length + (bought.filter(p => p === 'sonar_ping').length);
+  if (pingCount < 2 && credits >= 3) {
+    tryBuy('sonar_ping');
   }
 
   return bought;
@@ -257,10 +704,13 @@ function executeTurn(gc: GameController, verbose: boolean): TurnLog {
   const turn = state.turnCount;
   const perksUsed: PerkId[] = [];
 
-  // 1. Buy perks
-  const perksBought = buyPerks(gc);
+  // 1. Build intel analysis
+  const intel = buildIntelAnalysis(gc);
 
-  // 2. Deploy defensive perks (free actions)
+  // 2. Buy perks (intel-driven)
+  const perksBought = buyPerks(gc, intel);
+
+  // 3. Deploy defensive perks (free actions)
   const player = gc.getCurrentPlayer();
 
   // Radar jammer
@@ -289,41 +739,54 @@ function executeTurn(gc: GameController, verbose: boolean): TurnLog {
     }
   }
 
-  // 3. Use sonar ping if available (free/ping slot)
+  // 4. Use sonar ping if available (ping slot)
   const hasPing = gc.getCurrentPlayer().inventory.some(p => p.perkId === 'sonar_ping');
   if (hasPing && !gc.getTurnSlots().pingUsed) {
-    const ts = getTargetingState(gc);
-    if (ts.unresolved.length > 0) {
-      const target = ts.unresolved[randInt(ts.unresolved.length)]!;
-      const pingResult = gc.useSonarPing(target);
+    const sonarTarget = pickSonarTarget(intel);
+    if (sonarTarget) {
+      const pingResult = gc.useSonarPing(sonarTarget);
       if (pingResult) perksUsed.push('sonar_ping');
     }
   }
 
-  // 4. Choose attack action
+  // 5. Choose attack action — torpedoes take priority when actionable intel exists
   let action: TurnLog['action'] = 'torpedo';
   let actionResult = '';
-  const ts = getTargetingState(gc);
 
-  // Try depth charge if we have one and there are hunt targets (known hits nearby)
-  const hasDC = gc.getCurrentPlayer().inventory.some(p => p.perkId === 'depth_charge');
-  if (hasDC && ts.huntTargets.length >= 2) {
-    // Center on a hunt target cluster
-    const center = ts.huntTargets[randInt(ts.huntTargets.length)]!;
-    const dcResult = gc.useDepthCharge(center);
-    if (dcResult) {
-      action = 'depth_charge';
-      perksUsed.push('depth_charge');
-      const hits = dcResult.cellResults.filter(c => c.result === 'hit' || c.result === 'sunk').length;
-      actionResult = `${hits} hits, ${dcResult.shipsSunk.length} sunk`;
+  // Refresh intel after sonar
+  const freshIntel = buildIntelAnalysis(gc);
+  const hasActionableIntel = freshIntel.positiveScans.length > 0 || freshIntel.hitClusters.some(c => c.nextTargets.length > 0 || c.allNeighbors.length > 0);
+  const explorationPct = freshIntel.totalExplored / TOTAL_CELLS;
+
+  // Decision tree:
+  // - High-value DC (score>=6) when actionable intel exists
+  // - Torpedo when actionable intel exists (prefer consecutive hit bonus)
+  // - G-SONAR/Drone for recon when hunting blind (no actionable intel, low exploration)
+  // - Lower-value DC (score>=4) as fallback
+  // - Torpedo as final fallback
+
+  // High-value depth charge
+  if (hasActionableIntel) {
+    const hasDC = gc.getCurrentPlayer().inventory.some(p => p.perkId === 'depth_charge');
+    if (hasDC) {
+      const dcTarget = pickDepthChargeTarget(freshIntel);
+      if (dcTarget && dcTarget.score >= 6) {
+        const dcResult = gc.useDepthCharge(dcTarget.center);
+        if (dcResult) {
+          action = 'depth_charge';
+          perksUsed.push('depth_charge');
+          const hits = dcResult.cellResults.filter(c => c.result === 'hit' || c.result === 'sunk').length;
+          actionResult = `${hits} hits, ${dcResult.shipsSunk.length} sunk`;
+        }
+      }
     }
   }
 
-  // Try g-sonar if we have one and haven't attacked yet
-  if (!gc.getTurnSlots().attackUsed) {
+  // G-SONAR when no actionable intel and low exploration
+  if (!gc.getTurnSlots().attackUsed && !hasActionableIntel && explorationPct < 0.5) {
     const hasGSonar = gc.getCurrentPlayer().inventory.some(p => p.perkId === 'g_sonar');
     if (hasGSonar) {
-      const depth = randInt(GRID_SIZE);
+      const depth = pickGSonarDepth(freshIntel);
       const gResult = gc.useGSonar(depth);
       if (gResult) {
         action = 'g_sonar';
@@ -334,11 +797,11 @@ function executeTurn(gc: GameController, verbose: boolean): TurnLog {
     }
   }
 
-  // Try recon drone if we have one and haven't attacked yet
-  if (!gc.getTurnSlots().attackUsed) {
+  // Recon drone when no actionable intel and low exploration
+  if (!gc.getTurnSlots().attackUsed && !hasActionableIntel && explorationPct < 0.6) {
     const hasDrone = gc.getCurrentPlayer().inventory.some(p => p.perkId === 'recon_drone');
-    if (hasDrone && ts.unresolved.length > 20) {
-      const center = ts.unresolved[randInt(ts.unresolved.length)]!;
+    if (hasDrone) {
+      const center = pickDroneTarget(freshIntel);
       const droneResult = gc.useReconDrone(center);
       if (droneResult) {
         action = 'recon_drone';
@@ -349,17 +812,34 @@ function executeTurn(gc: GameController, verbose: boolean): TurnLog {
     }
   }
 
-  // Fall back to torpedo
+  // Low-value depth charge as fallback
+  if (!gc.getTurnSlots().attackUsed) {
+    const hasDC = gc.getCurrentPlayer().inventory.some(p => p.perkId === 'depth_charge');
+    if (hasDC) {
+      const dcTarget = pickDepthChargeTarget(freshIntel);
+      if (dcTarget && dcTarget.score >= 4) {
+        const dcResult = gc.useDepthCharge(dcTarget.center);
+        if (dcResult) {
+          action = 'depth_charge';
+          perksUsed.push('depth_charge');
+          const hits = dcResult.cellResults.filter(c => c.result === 'hit' || c.result === 'sunk').length;
+          actionResult = `${hits} hits, ${dcResult.shipsSunk.length} sunk`;
+        }
+      }
+    }
+  }
+
+  // Torpedo as primary/fallback attack
   if (!gc.getTurnSlots().attackUsed) {
     action = 'torpedo';
-    const freshTs = getTargetingState(gc);
-    let target = pickTarget(freshTs);
+    let target = pickTarget(freshIntel);
     let fireResult = gc.fireTorpedo(target);
 
-    // Retry if null (already targeted)
     let retries = 0;
     while (!fireResult && retries < 50) {
-      target = freshTs.unresolved[randInt(freshTs.unresolved.length)]!;
+      target = freshIntel.unresolved.length > 0
+        ? freshIntel.unresolved[randInt(freshIntel.unresolved.length)]!
+        : randomCoord();
       fireResult = gc.fireTorpedo(target);
       retries++;
     }
@@ -372,7 +852,7 @@ function executeTurn(gc: GameController, verbose: boolean): TurnLog {
     }
   }
 
-  // 5. End turn (if game not over)
+  // 6. End turn (if game not over)
   if (gc.getState().phase === GamePhase.Combat) {
     gc.endTurn();
   }
