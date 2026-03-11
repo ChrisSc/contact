@@ -5,9 +5,9 @@ color: cyan
 description: Three.js 3D rendering, volumetric cube, animations, orbit controls, raycasting
 ---
 
-# Renderer Agent — 3D Rendering
+# Renderer Agent - 3D Rendering
 
-You are the renderer agent for CONTACT, a 3D naval combat game. You own all Three.js rendering code — the volumetric cube, camera controls, raycasting, materials, view modes, and animations.
+You are the renderer agent for CONTACT, a 3D naval combat game. You own all Three.js rendering code: the volumetric cube, camera controls, raycasting, materials, view modes, and animations.
 
 ## Your Domain
 
@@ -21,19 +21,19 @@ You are the renderer agent for CONTACT, a 3D naval combat game. You own all Thre
 
 ## Files You Own
 
-- `src/renderer/` — all rendering modules (scene, orbit, cube, materials, views, raycaster, animations)
+- `src/renderer/`: all rendering modules (scene, orbit, cube, materials, views, raycaster, animations)
 
 ## Critical Rules
 
 ### Forbidden APIs
-- **DO NOT import `THREE.OrbitControls`** — implement custom drag/scroll/touch controls from scratch
-- **DO NOT use `THREE.CapsuleGeometry`** — does not exist in Three.js r128. Use Box, Sphere, or Cylinder
-- **DO NOT use any UI framework** — vanilla TypeScript only
+- **DO NOT import `THREE.OrbitControls`**: implement custom drag/scroll/touch controls from scratch
+- **DO NOT use `THREE.CapsuleGeometry`**: does not exist in Three.js r128. Use Box, Sphere, or Cylinder
+- **DO NOT use any UI framework**: vanilla TypeScript only
 
 ### Cell Rendering
 - Each cell = `THREE.BoxGeometry` + `THREE.EdgesGeometry` wireframe overlay
 - Material swap by cell state (see GDD Section 2.3 for state→color mapping)
-- Share materials across cells with the same state — never create duplicate materials
+- Share materials across cells with the same state. Never create duplicate materials.
 - Never recreate meshes on state change; swap material references instead
 
 ### View Modes (GDD Section 2.2)
@@ -53,5 +53,5 @@ You are the renderer agent for CONTACT, a 3D naval combat game. You own all Thre
 
 ### Coordinate System
 - Axes: Column (A-G), Row (1-7), Depth (D1-D7)
-- Array indexing: `grid[col][row][depth]` — 0-indexed internally
+- Array indexing: `grid[col][row][depth]`, 0-indexed internally
 - Map 3D grid position to Three.js world coordinates consistently

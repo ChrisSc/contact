@@ -1,4 +1,4 @@
-# src/types/ — TypeScript Type Definitions
+# src/types/ - TypeScript Type Definitions
 
 Pure type definitions and readonly constants only. No runtime logic. Imported by all layers.
 

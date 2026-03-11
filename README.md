@@ -13,11 +13,11 @@ Browser-based 3D Battleship variant. Command submarine fleets hidden in a 7x7x7 
 ## Tech Stack
 
 - **TypeScript 5.x** + **Vite 6.x**
-- **Three.js** — 3D volumetric grid rendering
-- **Tone.js** — Synthesized audio (no sample files)
-- **Vanilla DOM** — No UI frameworks
-- **Vitest** — Testing
-- **Docker** — Optional local WiFi hosting
+- **Three.js**: 3D volumetric grid rendering
+- **Tone.js**: Synthesized audio (no sample files)
+- **Vanilla DOM**: No UI frameworks
+- **Vitest**: Testing
+- **Docker**: Optional local WiFi hosting
 
 ## Getting Started
 
@@ -49,9 +49,9 @@ Play as ALPHA against Claude Sonnet as BRAVO. Select **VS AI** on the title scre
 
 ## How to Play
 
-1. **Setup** — Each player places 7 submarines + 1 decoy in the 7x7x7 grid (AI places automatically in VS AI mode)
-2. **Combat** — Alternate turns: fire a torpedo, use a perk, or do both (one per slot)
-3. **Victory** — Sink all 7 enemy subs to win
+1. **Setup**: Each player places 7 submarines + 1 decoy in the 7x7x7 grid (AI places automatically in VS AI mode)
+2. **Combat**: Alternate turns: fire a torpedo, use a perk, or do both (one per slot)
+3. **Victory**: Sink all 7 enemy subs to win
 
 Each turn you have three slots available: one **ping** action, one **attack** action, and one **defend** action. Firing a torpedo always uses the attack slot. Perks consume the slot matching their type.
 
@@ -69,7 +69,7 @@ Starting credits: **5**. Credits accumulate across turns within a game.
 
 ### Rank (Difficulty)
 
-Select a rank on the title screen to control the **stalemate bonus** — a dry spell mechanic that awards bonus credits when neither player makes contact for too long. This softens the early game at lower ranks while preserving the pure experience for veterans.
+Select a rank on the title screen to control the **stalemate bonus**, a dry spell mechanic that awards bonus credits when neither player makes contact for too long. This softens the early game at lower ranks while preserving the pure experience for veterans.
 
 | Rank | Dry Turn Threshold | Bonus Credits | Description |
 |---|:---:|:---:|---|
@@ -77,7 +77,7 @@ Select a rank on the title screen to control the **stalemate bonus** — a dry s
 | Enlisted | 10 | +5 | Moderate safety net for intermediate players |
 | Officer | -- | -- | No bonuses (default, original experience) |
 
-When the threshold is reached, both players receive the bonus credits. The counter resets on any contact — torpedo hit, sonar positive, drone contact, depth charge hit, or decoy hit. The bottom bar shows a `DRY` counter for non-officer ranks.
+When the threshold is reached, both players receive the bonus credits. The counter resets on any contact (torpedo hit, sonar positive, drone contact, depth charge hit, or decoy hit). The bottom bar shows a `DRY` counter for non-officer ranks.
 
 ### Fleet
 
@@ -91,7 +91,7 @@ When the threshold is reached, both players receive the bonus credits. The count
 | Midget Sub | 2 |
 | Piranha | 2 |
 
-Ships may be placed along 8 axes — any direction except purely vertical (depth-only):
+Ships may be placed along 8 axes, any direction except purely vertical (depth-only):
 
 - **Within a depth slice:** `col`, `row`, `diag+`, `diag-`
 - **Crossing depth layers:** `col-depth`, `col-depth-`, `row-depth`, `row-depth-`
@@ -124,9 +124,9 @@ Perks are purchased with credits during combat and deployed on your turn.
 
 Switch between three 3D views during combat:
 
-- **Cube** — Full volumetric 7x7x7 cube, orbit freely
-- **Slice** — Single depth layer shown as a flat grid
-- **X-Ray** — Semi-transparent cube revealing interior cells
+- **Cube**: Full volumetric 7x7x7 cube, orbit freely
+- **Slice**: Single depth layer shown as a flat grid
+- **X-Ray**: Semi-transparent cube revealing interior cells
 
 ## Session Logging
 
@@ -169,14 +169,14 @@ npx tsx scripts/analyze-log.ts <path-to-log.jsonl> --json   # machine-readable J
 
 The report includes:
 
-- **Combat stats** — shots, hits, misses, hit rate, longest streak per player
-- **Economy** — credits earned, spent, and remaining
-- **Perk usage** — purchase and deployment counts per perk type, sonar hit rates, drone contacts, depth charge effectiveness
-- **Ship survival** — per-ship fate (turn sunk + method) for both fleets
-- **Kill order** — chronological list of every ship destroyed
-- **Momentum chart** — ships sunk and credit balance tracked over time
-- **Key events timeline** — sinks, depth charges, and perk deployments
-- **Timing** — setup time, average turn duration per player
+- **Combat stats**: shots, hits, misses, hit rate, longest streak per player
+- **Economy**: credits earned, spent, and remaining
+- **Perk usage**: purchase and deployment counts per perk type, sonar hit rates, drone contacts, depth charge effectiveness
+- **Ship survival**: per-ship fate (turn sunk + method) for both fleets
+- **Kill order**: chronological list of every ship destroyed
+- **Momentum chart**: ships sunk and credit balance tracked over time
+- **Key events timeline**: sinks, depth charges, and perk deployments
+- **Timing**: setup time, average turn duration per player
 
 The analyzer handles both current and legacy log formats.
 

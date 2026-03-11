@@ -1,4 +1,4 @@
-# tests/renderer/ — Renderer Tests
+# tests/renderer/ - Renderer Tests
 
 ## Files
 
@@ -9,7 +9,7 @@
 | `cube.test.ts` | 343 mesh creation, coord↔mesh lookups, material swap, layer helpers, dispose |
 | `views.test.ts` | CUBE/SLICE/X-RAY visibility, depth selection, material tiers, board filtering |
 | `raycaster.test.ts` | NDC normalization, intersection handling, mesh source filtering |
-| `animations.test.ts` | Hit flash, sunk cascade, miss fade, sonar sweep, drone scan — timing, material lifecycle, cancel/restore |
+| `animations.test.ts` | Hit flash, sunk cascade, miss fade, sonar sweep, drone scan: timing, material lifecycle, cancel/restore |
 | `scene.test.ts` | Sub-component wiring, render loop, delegation, dispose |
 | `visual-audit.test.ts` | GDD §2.3 audit: all 11 CellState materials, CRT palette, opacity ordering, X-RAY filtering |
 

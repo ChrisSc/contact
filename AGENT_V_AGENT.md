@@ -1,6 +1,6 @@
 # Agent vs Agent: Claude vs Claude
 
-Two Claude instances command opposing submarine fleets in a 7x7x7 volumetric grid. Each agent receives a structured briefing of its game state and chooses actions via tool use — no random heuristics, pure strategic reasoning.
+Two Claude instances command opposing submarine fleets in a 7x7x7 volumetric grid. Each agent receives a structured briefing of its game state and chooses actions via tool use. No random heuristics, pure strategic reasoning.
 
 ## Prerequisites
 
@@ -18,10 +18,10 @@ A full game typically takes 2-5 minutes and costs roughly $0.50-2.00 in API usag
 ## Command Reference
 
 ```sh
-# Basic game — officer rank, memory enabled
+# Basic game: officer rank, memory enabled
 npx tsx scripts/agent-play.ts
 
-# Verbose mode — see agent reasoning, tool calls, and results
+# Verbose mode: see agent reasoning, tool calls, and results
 npx tsx scripts/agent-play.ts --verbose
 npx tsx scripts/agent-play.ts -v
 
@@ -46,13 +46,13 @@ npx tsx scripts/agent-play.ts -v --no-memory --rank enlisted -e
 
 Each agent receives a turn briefing containing:
 
-- **Targeting grid** — what the agent knows about the enemy (hits, misses, sonar results)
-- **Own grid** — the agent's ships and incoming damage
-- **Fleet status** — ship health, active defensive perks
-- **Enemy status** — confirmed sunk ships
-- **Inventory and credits** — available perks and purchasing power
-- **Turn slots** — which action slots remain (ping, attack, defend)
-- **Rank info** — current dry turn streak and stalemate bonus rules
+- **Targeting grid**: what the agent knows about the enemy (hits, misses, sonar results)
+- **Own grid**: the agent's ships and incoming damage
+- **Fleet status**: ship health, active defensive perks
+- **Enemy status**: confirmed sunk ships
+- **Inventory and credits**: available perks and purchasing power
+- **Turn slots**: which action slots remain (ping, attack, defend)
+- **Rank info**: current dry turn streak and stalemate bonus rules
 
 The agent responds with tool calls (fire torpedo, use sonar, purchase perks, etc.) and the game engine executes them. The agent continues making tool calls until it ends its turn.
 
@@ -162,7 +162,7 @@ With `--verbose`, you'll see each agent's reasoning and every tool call:
 
 ```
 ──────────────────────────────────────────────────────
-  TURN 1 — COMMANDER ALPHA
+  TURN 1 - COMMANDER ALPHA
 ──────────────────────────────────────────────────────
   ALPHA: I'll start by purchasing a sonar ping to scout...
   ✓ purchase_perk({"perk_id":"sonar_ping"}) → Purchased sonar_ping. Credits remaining: 2 CR
@@ -181,8 +181,8 @@ npx tsx scripts/analyze-log.ts contact-agent-*.jsonl
 
 ## Notes
 
-- Memory files are gitignored (`scripts/memory/` is in `.gitignore`) — they are per-machine experimental artifacts
+- Memory files are gitignored (`scripts/memory/` is in `.gitignore`). They are per-machine experimental artifacts
 - Both agents use the same Claude model (currently `claude-sonnet-4-20250514`)
-- Fleet placement is random for both sides — agents control combat strategy only
+- Fleet placement is random for both sides; agents control combat strategy only
 - Each agent maintains a separate conversation history across turns within a game for continuity
 - The safety limit is 15 API calls per turn and 200 turns per game

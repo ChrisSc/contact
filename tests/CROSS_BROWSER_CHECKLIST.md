@@ -1,4 +1,4 @@
-# CONTACT — Cross-Browser Manual Testing Checklist
+# CONTACT: Cross-Browser Manual Testing Checklist
 
 ## Common Test Matrix
 

@@ -1,4 +1,4 @@
-# src/styles/ — CSS Design System
+# src/styles/ - CSS Design System
 
 ## Files
 
@@ -13,8 +13,8 @@
 ## Conventions
 
 - **BEM naming**: `.component__element--modifier`
-- **CSS custom properties** are the single source of truth — all colors, spacing, fonts reference `--var`
-- **No preprocessors** — vanilla CSS only
+- **CSS custom properties** are the single source of truth; all colors, spacing, fonts reference `--var`
+- **No preprocessors**: vanilla CSS only
 - **Monospace-only fonts**: Press Start 2P, Silkscreen, system monospace fallback
 - **Green phosphor palette**: dark backgrounds (`#0a0a0a`), green text/borders (`#00ff41`). Extended: `--crt-orange`, `--crt-amber`, `--crt-cyan`
 

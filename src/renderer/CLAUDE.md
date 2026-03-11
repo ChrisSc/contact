@@ -1,20 +1,20 @@
-# src/renderer/ — Three.js 3D Rendering
+# src/renderer/ - Three.js 3D Rendering
 
 ## Files
 
 | File | Role |
 |---|---|
 | `materials.ts` | `CRT_COLORS` palette, `MaterialPool` (normal + dimmed + ghost tiers per `CellState`) |
-| `orbit.ts` | Custom `OrbitControls` (spherical coords, pointer/wheel/pinch). `wasDragging` + `consumeDrag()` for click suppression (5px threshold). |
-| `cube.ts` | `GridCube` — 343 cells (shared `BoxGeometry`/`EdgesGeometry`), O(1) coord↔mesh lookups, layer helpers |
-| `views.ts` | `ViewManager` — CUBE/SLICE/X-RAY modes, depth layer control, board type, opacity transitions |
-| `raycaster.ts` | `GridRaycaster` — cell picking via NDC, mesh source filtered by ViewManager |
-| `animations.ts` | `AnimationManager` — private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop. Multi-cell animations deduplicate via `processed` Set. |
-| `scene.ts` | `SceneManager` — orchestrator (scene, camera, renderer, all sub-systems, render loop, pointer events, overlays, resize, dispose) |
+| `orbit.ts` | Custom `OrbitControls` (spherical coords, pointer/wheel/pinch). `wasDragging` + `consumeDrag()` for click suppression (5px threshold) |
+| `cube.ts` | `GridCube`: 343 cells (shared `BoxGeometry`/`EdgesGeometry`), O(1) coord-to-mesh lookups, layer helpers |
+| `views.ts` | `ViewManager`: CUBE/SLICE/X-RAY modes, depth layer control, board type, opacity transitions |
+| `raycaster.ts` | `GridRaycaster`: cell picking via NDC, mesh source filtered by ViewManager |
+| `animations.ts` | `AnimationManager`: private material copies per animated cell, keyed by coord. Runs after ViewManager in render loop. Multi-cell animations deduplicate via `processed` Set. |
+| `scene.ts` | `SceneManager`: orchestrator (scene, camera, renderer, all sub-systems, render loop, pointer events, overlays, resize, dispose) |
 
 ## Key Decisions
 
-- **No THREE.OrbitControls** — custom spherical coordinate implementation.
+- **No THREE.OrbitControls**: custom spherical coordinate implementation.
 - **Three overlay systems** coexist independently: ghost cells (placement preview), SR overlay (CYAN), friendly fleet overlay (GREEN). Each has separate storage; `updateGrid()` clears all.
 - **AnimationManager creates private material copies** per cell, not shared pool materials. Completed one-shots restore to pooled materials via `MaterialPool`.
 - **Coordinate system**: `grid[col][row][depth]` → 3D position: `x = col - 3`, `y = row - 3`, `z = depth - 3`. Cell size 0.9, spacing 1.0.

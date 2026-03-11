@@ -1,10 +1,10 @@
-# CONTACT — JSONL Event Log Format
+# CONTACT: JSONL Event Log Format
 
 ## Overview
 
 CONTACT emits structured JSONL (JSON Lines) logs throughout every game session. Each log entry is a single JSON object on one line, making the output suitable for streaming parsers, `grep`, `jq`, and line-by-line ingestion.
 
-The logger runs from the first frame of the game — it is not bolted on after the fact. Every state mutation (placement, firing, ability use, phase transition) emits an event. The result is a complete, ordered audit trail of the entire session.
+The logger runs from the first frame of the game. It is not bolted on after the fact. Every state mutation (placement, firing, ability use, phase transition) emits an event. The result is a complete, ordered audit trail of the entire session.
 
 **Ring buffer:** The in-memory buffer is capped at 10,000 events. When full, the oldest event is evicted (FIFO). For typical games this limit is never reached.
 
@@ -36,7 +36,7 @@ Every log entry conforms to this envelope:
 
 Events are namespaced by domain. The namespace prefix identifies which subsystem emitted the event.
 
-### `game.*` — Game Lifecycle
+### `game.*` - Game Lifecycle
 
 Emitted by the turn controller and game state machine.
 
@@ -48,7 +48,7 @@ Emitted by the turn controller and game state machine.
 | `game.turn_end` | Active player's turn concludes |
 | `game.victory` | Win condition met; one player's fleet is fully sunk |
 
-### `fleet.*` — Fleet Management
+### `fleet.*` - Fleet Management
 
 Emitted during ship placement (setup phase).
 
@@ -60,7 +60,7 @@ Emitted during ship placement (setup phase).
 | `fleet.confirm` | Player confirms fleet placement; phase advances |
 | `fleet.reset` | Player resets all placements to start over |
 
-### `combat.*` — Combat Resolution
+### `combat.*` - Combat Resolution
 
 Emitted by the combat engine on each torpedo fire and resolution.
 
@@ -71,7 +71,7 @@ Emitted by the combat engine on each torpedo fire and resolution.
 | `combat.miss` | The torpedo struck an empty cell |
 | `combat.sunk` | A ship was fully destroyed (all cells hit) |
 
-### `ability.*` — Ability System
+### `ability.*` - Ability System
 
 Emitted by the ability state machine (earn/use/resolve flow from the GDD ability pairs).
 
@@ -82,7 +82,7 @@ Emitted by the ability state machine (earn/use/resolve flow from the GDD ability
 | `ability.resolve` | An ability's effect is computed and applied |
 | `ability.expire` | A time-limited ability (Silent Running, Acoustic Cloak) expires |
 
-### `economy.*` — Credit Economy
+### `economy.*` - Credit Economy
 
 Emitted by the credit engine when credits are awarded or spent.
 
@@ -92,7 +92,7 @@ Emitted by the credit engine when credits are awarded or spent.
 | `economy.purchase` | A player buys a perk from the store |
 | `economy.balance` | Credit balance snapshot (emitted after significant balance changes) |
 
-### `perk.*` — Perk System
+### `perk.*` - Perk System
 
 Emitted by the perk system when purchasable abilities are deployed.
 
@@ -102,7 +102,7 @@ Emitted by the perk system when purchasable abilities are deployed.
 | `perk.effect` | The perk's effect is applied (may fire separately from use for multi-step perks) |
 | `perk.expire` | A time-limited perk effect expires |
 
-### `view.*` — UI & Camera
+### `view.*` - UI & Camera
 
 Emitted by UI controllers when the player changes their view.
 
@@ -114,7 +114,7 @@ Emitted by UI controllers when the player changes their view.
 | `view.rotate` | Camera orbit/rotation applied |
 | `view.board_toggle` | Board display toggled (own grid vs targeting grid) |
 
-### `audio.*` — Audio System
+### `audio.*` - Audio System
 
 Emitted by the Tone.js audio manager.
 
@@ -125,7 +125,7 @@ Emitted by the Tone.js audio manager.
 | `audio.mute` | Audio muted or unmuted |
 | `audio.phase_change` | Ambient music transitions to match game phase (setup, combat, tension) |
 
-### `system.*` — System Events
+### `system.*` - System Events
 
 Emitted by the global error handler and session infrastructure.
 

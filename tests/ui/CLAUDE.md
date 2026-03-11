@@ -1,4 +1,4 @@
-# tests/ui/ — UI Tests
+# tests/ui/ - UI Tests
 
 ## Files
 
@@ -14,6 +14,6 @@
 ## Mock Patterns
 
 - **SceneManager**: Mock object with `vi.fn()` for all methods. `onCellClick`/`onCellHover` capture callbacks. `resetMocks()` helper.
-- **Audio**: `vi.mock` for `audio-manager`, `abilities`, `ambient` — avoids Tone.js ESM issues in jsdom.
-- **AbilityOverlayManager**: Mock constructor — jsdom lacks canvas 2D context.
+- **Audio**: `vi.mock` for `audio-manager`, `abilities`, `ambient`. Avoids Tone.js ESM issues in jsdom.
+- **AbilityOverlayManager**: Mock constructor (jsdom lacks canvas 2D context).
 - All tests use real `GameController` + real `Logger`. Only rendering/audio is mocked.

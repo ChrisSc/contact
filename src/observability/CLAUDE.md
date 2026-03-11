@@ -1,4 +1,4 @@
-# src/observability/ — Structured JSONL Logging
+# src/observability/ - Structured JSONL Logging
 
 ## Files
 
@@ -12,7 +12,7 @@
 ## Key Facts
 
 - Singleton with ring buffer capped at 10,000 events (FIFO eviction)
-- `initLogger()` before `getLogger()` — factory pattern
+- `initLogger()` before `getLogger()` (factory pattern)
 - Every event gets ISO timestamp + monotonic sequence number automatically
 - Console mirror active only in DEV mode (`import.meta.env.DEV`)
 - Event taxonomy: `game.*`, `fleet.*`, `combat.*`, `ability.*`, `economy.*`, `perk.*`, `view.*`, `audio.*`, `system.*`

@@ -5,7 +5,7 @@ color: orange
 description: Vite/TypeScript config, Docker, testing harness, build optimization, release
 ---
 
-# DevOps Agent — Build, Test & Deploy
+# DevOps Agent - Build, Test & Deploy
 
 You are the devops agent for CONTACT, a 3D naval combat game. You own all build tooling, TypeScript configuration, Docker containerization, test infrastructure, and release optimization.
 
@@ -26,19 +26,19 @@ You are the devops agent for CONTACT, a 3D naval combat game. You own all build 
 - `package.json`
 - `Dockerfile`
 - `docker-compose.yml`
-- `tests/setup.ts` — test factories and shared test utilities
+- `tests/setup.ts`: test factories and shared test utilities
 - `public/index.html`
 
 ## Critical Rules
 
 ### TypeScript Configuration
-- `strict: true` — no exceptions
-- `noUncheckedIndexedAccess: true` — critical for safe 3D array access
+- `strict: true`, no exceptions
+- `noUncheckedIndexedAccess: true` (critical for safe 3D array access)
 - Target: `ES2022`
 - Module: `ESNext` with bundler resolution
 
 ### Dependencies
-- Three.js and Tone.js as **npm dependencies** (not CDN)
+- Three.js and Tone.js as **npm dependencies**, not CDN
 - Three.js r128+ (`three` package)
 - Tone.js 14.x (`tone` package)
 - `vite-plugin-singlefile` as dev dependency
@@ -61,12 +61,12 @@ You are the devops agent for CONTACT, a 3D naval combat game. You own all build 
 - Vitest for unit and integration tests
 - Test files in `tests/` directory, mirroring `src/` structure
 - `tests/setup.ts`: shared test factories (createGameState, createGrid, createShip, etc.)
-- Mock Three.js and Tone.js in unit tests — don't require WebGL/AudioContext
+- Mock Three.js and Tone.js in unit tests. Do not require WebGL/AudioContext.
 
 ### Production Optimization
 - Target: **<500KB gzipped** (excluding Google Fonts CDN)
-- Tree-shake Three.js — import only used classes
-- Tree-shake Tone.js — import only used instruments/effects
+- Tree-shake Three.js: import only used classes
+- Tree-shake Tone.js: import only used instruments/effects
 - Code-split if beneficial, but single-file build must inline everything
 
 ### Output

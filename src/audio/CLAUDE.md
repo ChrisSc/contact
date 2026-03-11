@@ -1,4 +1,4 @@
-# src/audio/ — Tone.js Synthesized Audio
+# src/audio/ - Tone.js Synthesized Audio
 
 ## Files
 
@@ -10,12 +10,12 @@
 
 ## Key Decisions
 
-- **No sample files** — all synthesis via Tone.js oscillators, noise, filters, envelopes.
-- **Lazy init** — `initAudioContext()` must be called from a user gesture (browser autoplay policy).
-- **Guard pattern** — every play function checks `isAudioReady()` first, returns silently if not ready.
-- **Fire-and-forget** — no persistent audio graph for SFX. Each call creates, plays, disposes.
-- **Error resilience** — all play functions wrap in try/catch. Never throws to caller.
-- **Ambient is persistent** — unlike SFX, ambient nodes stay alive during combat. Phase transitions use 2s `rampTo`.
+- **No sample files**: all synthesis via Tone.js oscillators, noise, filters, envelopes.
+- **Lazy init**: `initAudioContext()` must be called from a user gesture (browser autoplay policy).
+- **Guard pattern**: every play function checks `isAudioReady()` first, returns silently if not ready.
+- **Fire-and-forget**: no persistent audio graph for SFX. Each call creates, plays, disposes.
+- **Error resilience**: all play functions wrap in try/catch. Never throws to caller.
+- **Ambient is persistent**: unlike SFX, ambient nodes stay alive during combat. Phase transitions use 2s `rampTo`.
 
 ## Integration
 
@@ -23,4 +23,4 @@ Combat screen calls `initAudioContext()` on first interaction, then `startAmbien
 
 ## Testing
 
-Audio modules are **mocked** in UI tests (`vi.mock`) to avoid Tone.js ESM import issues in jsdom. No dedicated audio unit tests — functions are fire-and-forget with no testable return values.
+Audio modules are **mocked** in UI tests (`vi.mock`) to avoid Tone.js ESM import issues in jsdom. No dedicated audio unit tests; functions are fire-and-forget with no testable return values.
