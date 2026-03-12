@@ -124,11 +124,11 @@ export type PlayerInventory = PerkInstance[];
 export const STARTING_CREDITS = 5;
 
 export const PERK_CATALOG: readonly PerkDefinition[] = [
-  { id: 'sonar_ping', name: 'Sonar Ping', type: 'offensive', slot: 'ping', cost: 3, description: 'Scans a 2x2x2 volume (up to 8 cells) for ship presence' },
+  { id: 'sonar_ping', name: 'Sonar Ping', type: 'offensive', slot: 'ping', cost: 2, description: 'Scans a 2x2x2 volume (up to 8 cells) for ship presence' },
   { id: 'recon_drone', name: 'Recon Drone', type: 'offensive', slot: 'attack', cost: 10, description: 'Reveals contents of a 3x3x3 volume (up to 27 cells)' },
-  { id: 'depth_charge', name: 'Depth Charge', type: 'offensive', slot: 'attack', cost: 25, description: 'Strikes all occupied cells in a 3x3x3 volume' },
-  { id: 'g_sonar', name: 'G-SONAR', type: 'offensive', slot: 'attack', cost: 18, description: 'Scans an entire depth layer (49 cells)' },
-  { id: 'radar_jammer', name: 'Radar Jammer', type: 'defensive', slot: 'defend', cost: 5, description: 'Inverts next enemy Sonar Ping or Recon Drone result' },
-  { id: 'silent_running', name: 'Silent Running', type: 'defensive', slot: 'defend', cost: 10, description: 'Masks a ship from recon for 2 opponent turns' },
-  { id: 'acoustic_cloak', name: 'Acoustic Cloak', type: 'defensive', slot: 'defend', cost: 6, description: 'All ships masked from recon for 2 opponent turns' },
+  { id: 'depth_charge', name: 'Depth Charge', type: 'offensive', slot: 'attack', cost: 20, description: 'Strikes all occupied cells in a 3x3x3 volume' },
+  { id: 'g_sonar', name: 'G-SONAR', type: 'offensive', slot: 'attack', cost: 14, description: 'Scans an entire depth layer (49 cells)' },
+  { id: 'radar_jammer', name: 'Radar Jammer', type: 'defensive', slot: 'defend', cost: 12, description: 'Inverts next enemy Sonar Ping or Recon Drone result' },
+  { id: 'silent_running', name: 'Silent Running', type: 'defensive', slot: 'defend', cost: 8, description: 'Masks a ship from recon for 2 opponent turns' },
+  { id: 'acoustic_cloak', name: 'Acoustic Cloak', type: 'defensive', slot: 'defend', cost: 14, description: 'All ships masked from recon for 2 opponent turns' },
 ] as const;

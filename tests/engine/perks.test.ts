@@ -22,7 +22,7 @@ describe('getPerkDefinition', () => {
     expect(def.id).toBe('sonar_ping');
     expect(def.name).toBe('Sonar Ping');
     expect(def.slot).toBe('ping');
-    expect(def.cost).toBe(3);
+    expect(def.cost).toBe(2);
   });
 
   it('throws on unknown perk id', () => {
@@ -33,10 +33,10 @@ describe('getPerkDefinition', () => {
 describe('purchasePerk', () => {
   it('success: returns new player state with credits deducted and instance added', () => {
     const player = createEmptyPlayerState(0); // credits: 5
-    const result = purchasePerk(player, 'sonar_ping', 1); // cost 3
+    const result = purchasePerk(player, 'sonar_ping', 1); // cost 2
 
     expect(result).not.toBeNull();
-    expect(result!.player.credits).toBe(2); // 5 - 3
+    expect(result!.player.credits).toBe(3); // 5 - 2
     expect(result!.player.inventory).toHaveLength(1);
     expect(result!.instance.perkId).toBe('sonar_ping');
     expect(result!.instance.purchasedOnTurn).toBe(1);
@@ -44,8 +44,8 @@ describe('purchasePerk', () => {
 
   it('insufficient credits: returns null', () => {
     const player = createEmptyPlayerState(0);
-    player.credits = 2;
-    const result = purchasePerk(player, 'sonar_ping', 1); // cost 3
+    player.credits = 1;
+    const result = purchasePerk(player, 'sonar_ping', 1); // cost 2
     expect(result).toBeNull();
   });
 

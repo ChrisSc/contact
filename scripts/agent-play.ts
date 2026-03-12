@@ -127,7 +127,7 @@ async function executeAgentTurn(
 
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 300,
+      max_tokens: 500,
       system: systemPrompt,
       tools: gameTools as Anthropic.Tool[],
       messages,

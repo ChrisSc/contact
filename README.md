@@ -62,7 +62,7 @@ Credits fund the perk store. You earn them by landing shots:
 | Action | Credits Earned |
 |---|---|
 | Hit | +1 |
-| Consecutive hit (chain) | +8 |
+| Consecutive hit (chain) | +3 |
 | Sink | +15 |
 
 Starting credits: **5**. Credits accumulate across turns within a game.
@@ -104,13 +104,13 @@ Perks are purchased with credits during combat and deployed on your turn.
 
 | Perk | Slot | Cost | Description |
 |---|---|:---:|---|
-| Sonar Ping | Ping | 3 | Scans a 2x2x2 volume (up to 8 cells) for ship presence |
-| Radar Jammer | Defend | 5 | Inverts the next enemy Sonar Ping result; suppresses Recon Drone |
+| Sonar Ping | Ping | 2 | Scans a 2x2x2 volume (up to 8 cells) for ship presence |
+| Radar Jammer | Defend | 12 | Inverts the next enemy Sonar Ping result; suppresses Recon Drone |
 | Recon Drone | Attack | 10 | Reveals contents of a 3x3x3 volume (up to 27 cells) |
-| Silent Running | Defend | 10 | Masks one ship from recon scans for 2 opponent turns |
-| Acoustic Cloak | Defend | 6 | Masks your entire fleet from recon for 2 opponent turns |
-| G-SONAR | Attack | 18 | Scans a full depth layer (49 cells), reveals all ship segments |
-| Depth Charge | Attack | 25 | Strikes all occupied cells in a 3x3x3 volume |
+| Silent Running | Defend | 8 | Masks one ship from recon scans for 2 opponent turns |
+| Acoustic Cloak | Defend | 14 | Masks your entire fleet from recon for 2 opponent turns |
+| G-SONAR | Attack | 14 | Scans a full depth layer (49 cells), reveals all ship segments |
+| Depth Charge | Attack | 20 | Strikes all occupied cells in a 3x3x3 volume |
 
 ### Keyboard Shortcuts
 

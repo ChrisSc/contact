@@ -142,7 +142,7 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     createLines([
       'Starting credits: 5cr',
       'Torpedo hit: +1cr',
-      'Consecutive hit bonus: +8cr',
+      'Consecutive hit bonus: +3cr',
       'Enemy ship sunk: +15cr',
       'Use credits to purchase perks from the STORE.',
     ]),
@@ -170,13 +170,13 @@ export function mountHelpScreen(container: HTMLElement, context: ScreenContext):
     createTable(
       ['PERK', 'COST', 'SLOT', 'DESCRIPTION'],
       [
-        ['Sonar Ping', '3cr', 'PING', 'Scans a 2x2x2 volume (up to 8 cells) — does not consume attack slot'],
+        ['Sonar Ping', '2cr', 'PING', 'Scans a 2x2x2 volume (up to 8 cells) — does not consume attack slot'],
         ['Recon Drone', '10cr', 'ATK', 'Reveals contents of a 3x3x3 volume (up to 27 cells)'],
-        ['Depth Charge', '25cr', 'ATK', 'Strikes all occupied cells in a 3x3x3 volume'],
-        ['G-SONAR', '18cr', 'ATK', 'Scans an entire depth layer (49 cells)'],
-        ['Radar Jammer', '5cr', 'DEF', 'Inverts next enemy Sonar Ping; returns all-false for Recon Drone'],
-        ['Silent Running', '10cr', 'DEF', 'Masks a single ship from recon for 2 opponent turns'],
-        ['Acoustic Cloak', '6cr', 'DEF', 'All ships masked from all recon for 2 opponent turns'],
+        ['Depth Charge', '20cr', 'ATK', 'Strikes all occupied cells in a 3x3x3 volume'],
+        ['G-SONAR', '14cr', 'ATK', 'Scans an entire depth layer (49 cells)'],
+        ['Radar Jammer', '12cr', 'DEF', 'Inverts next enemy Sonar Ping; returns all-false for Recon Drone'],
+        ['Silent Running', '8cr', 'DEF', 'Masks a single ship from recon for 2 opponent turns'],
+        ['Acoustic Cloak', '14cr', 'DEF', 'All ships masked from all recon for 2 opponent turns'],
       ],
     ),
   ));

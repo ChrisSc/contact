@@ -432,10 +432,10 @@ describe('GameController - Credits', () => {
     gc.fireTorpedo({ col: 6, row: 5, depth: 6 });
     gc.endTurn();
 
-    // Sink midget — consecutive since last was hit → 1 + 8 + 15 = 24
+    // Sink midget — consecutive since last was hit → 1 + 3 + 15 = 19
     const before = gc.getCurrentPlayer().credits;
     gc.fireTorpedo({ col: 1, row: 4, depth: 0 }); // sinks midget
-    expect(gc.getCurrentPlayer().credits).toBe(before + 24);
+    expect(gc.getCurrentPlayer().credits).toBe(before + 19);
   });
 
   it('consecutive hit: hit on turn N, hit on turn N+1 awards 1+8=9 credits on turn N+1', () => {
@@ -451,7 +451,7 @@ describe('GameController - Credits', () => {
     // Turn 2: player 0 hits again (consecutive)
     const before = gc.getCurrentPlayer().credits;
     gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // hit typhoon again
-    expect(gc.getCurrentPlayer().credits).toBe(before + 9); // 1 hit + 8 consecutive
+    expect(gc.getCurrentPlayer().credits).toBe(before + 4); // 1 hit + 3 consecutive
   });
 });
 
@@ -460,7 +460,7 @@ describe('GameController - Perk Purchase', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    const instance = gc.purchasePerk('sonar_ping'); // cost 3, have 5
+    const instance = gc.purchasePerk('sonar_ping'); // cost 2, have 5
     expect(instance).not.toBeNull();
     expect(instance!.perkId).toBe('sonar_ping');
   });
@@ -470,17 +470,18 @@ describe('GameController - Perk Purchase', () => {
     setupBothPlayers(gc);
 
     const before = gc.getCurrentPlayer().credits;
-    gc.purchasePerk('sonar_ping'); // cost 3
-    expect(gc.getCurrentPlayer().credits).toBe(before - 3);
+    gc.purchasePerk('sonar_ping'); // cost 2
+    expect(gc.getCurrentPlayer().credits).toBe(before - 2);
   });
 
   it('purchasePerk returns null with insufficient credits', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    // sonar_ping costs 3, recon_drone costs 10 — total 13 > 5
-    gc.purchasePerk('sonar_ping'); // costs 3, leaves 2
-    const result = gc.purchasePerk('sonar_ping'); // costs 3, only have 2
+    // sonar_ping costs 2 — buy twice (5-2-2=1), third fails
+    gc.purchasePerk('sonar_ping'); // costs 2, leaves 3
+    gc.purchasePerk('sonar_ping'); // costs 2, leaves 1
+    const result = gc.purchasePerk('sonar_ping'); // costs 2, only have 1
     expect(result).toBeNull();
   });
 
@@ -489,13 +490,14 @@ describe('GameController - Perk Purchase', () => {
     setupBothPlayers(gc);
 
     // Give player extra credits for this test by hitting ships
-    // Starting with 5 credits, sonar_ping costs 3
-    const first = gc.purchasePerk('sonar_ping'); // 5-3=2
+    // Starting with 5 credits, sonar_ping costs 2
+    const first = gc.purchasePerk('sonar_ping'); // 5-2=3
     expect(first).not.toBeNull();
+    const second = gc.purchasePerk('sonar_ping'); // 3-2=1
+    expect(second).not.toBeNull();
 
-    // Not enough for a second sonar_ping at cost 3 with only 2 credits
-    // But we can verify multiple purchases work in principle by checking inventory
-    expect(gc.getCurrentPlayer().inventory).toHaveLength(1);
+    // Verify multiple purchases work by checking inventory
+    expect(gc.getCurrentPlayer().inventory).toHaveLength(2);
   });
 });
 
@@ -504,7 +506,7 @@ describe('GameController - Sonar Ping', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    gc.purchasePerk('sonar_ping'); // cost 3, have 5
+    gc.purchasePerk('sonar_ping'); // cost 2, have 5
     const result = gc.useSonarPing({ col: 6, row: 6, depth: 6 });
     expect(result).not.toBeNull();
 
@@ -778,7 +780,8 @@ describe('GameController - Radar Jammer', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    gc.purchasePerk('radar_jammer'); // cost 5, have 5
+    gc.getState().players[gc.getState().currentPlayer]!.credits = 12;
+    gc.purchasePerk('radar_jammer'); // cost 12
     const deployed = gc.useRadarJammer();
     expect(deployed).toBe(true);
     expect(gc.getCurrentPlayer().abilities.radar_jammer.active).toBe(true);
@@ -789,18 +792,11 @@ describe('GameController - Radar Jammer', () => {
     const gc = new GameController('test-session');
     setupBothPlayers(gc);
 
-    // Need 10 credits for two jammers. Start with 5, earn more.
-    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
-    gc.endTurn();
-    gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
-    gc.endTurn();
-    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // +6 = 12
-    gc.endTurn();
-    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
-    gc.endTurn();
+    // Need 24 credits for two jammers at cost 12 each.
+    gc.getState().players[gc.getState().currentPlayer]!.credits = 24;
 
-    gc.purchasePerk('radar_jammer'); // -5 = 7
-    gc.purchasePerk('radar_jammer'); // -5 = 2
+    gc.purchasePerk('radar_jammer'); // -12 = 12
+    gc.purchasePerk('radar_jammer'); // -12 = 0
 
     gc.useRadarJammer();
     expect(gc.getCurrentPlayer().abilities.radar_jammer.active).toBe(true);
@@ -820,7 +816,8 @@ describe('GameController - Radar Jammer', () => {
     setupBothPlayers(gc);
 
     // Player 0 buys and deploys jammer
-    gc.purchasePerk('radar_jammer'); // cost 5
+    gc.getState().players[gc.getState().currentPlayer]!.credits = 12;
+    gc.purchasePerk('radar_jammer'); // cost 12
     gc.useRadarJammer();
     expect(gc.getCurrentPlayer().abilities.radar_jammer.active).toBe(true);
 
@@ -828,7 +825,7 @@ describe('GameController - Radar Jammer', () => {
     gc.endTurn();
 
     // Player 1 pings player 0
-    gc.purchasePerk('sonar_ping'); // cost 3, p1 has 5
+    gc.purchasePerk('sonar_ping'); // cost 2, p1 has 5
     const pingResult = gc.useSonarPing({ col: 3, row: 3, depth: 3 });
     expect(pingResult).not.toBeNull();
     expect(pingResult!.jammed).toBe(true);
@@ -844,28 +841,16 @@ describe('GameController - Radar Jammer', () => {
     setupBothPlayers(gc);
 
     // Player 0 buys and deploys jammer
+    gc.getState().players[gc.getState().currentPlayer]!.credits = 12;
     gc.purchasePerk('radar_jammer');
     gc.useRadarJammer();
 
     gc.fireTorpedo({ col: 6, row: 6, depth: 6 });
     gc.endTurn();
 
-    // Player 1 needs credits for drone (cost 10, has 5)
-    // Turn 2 (P1): hit P0 typhoon → +1 = 6
-    gc.fireTorpedo({ col: 0, row: 0, depth: 0 }); // hit +1 = 6
-    gc.endTurn();
-    // Turn 3 (P0): P0 fires a miss
-    gc.fireTorpedo({ col: 6, row: 6, depth: 5 });
-    gc.endTurn();
-    // Turn 4 (P1): consecutive hit → +9 = 15
-    gc.fireTorpedo({ col: 1, row: 0, depth: 0 }); // consecutive +9 = 15
-    gc.endTurn();
-    // Turn 5 (P0): P0 fires a miss, then endTurn so P1 gets to act
-    gc.fireTorpedo({ col: 6, row: 5, depth: 6 });
-    gc.endTurn();
-
-    // Turn 6 (P1): buy and use drone — P1 has 15 credits
-    gc.purchasePerk('recon_drone'); // cost 10, should have enough
+    // Player 1 needs credits for drone (cost 10)
+    gc.getState().players[gc.getState().currentPlayer]!.credits = 10;
+    gc.purchasePerk('recon_drone'); // cost 10
     const droneResult = gc.useReconDrone({ col: 5, row: 5, depth: 5 });
     expect(droneResult).not.toBeNull();
     expect(droneResult!.jammed).toBe(true);
@@ -881,6 +866,7 @@ describe('GameController - Radar Jammer', () => {
     setupBothPlayers(gc);
 
     // Player 0 has both jammer and cloak active
+    gc.getState().players[gc.getState().currentPlayer]!.credits = 12;
     gc.purchasePerk('radar_jammer');
     gc.useRadarJammer();
     // Manually set cloak active (no purchase mechanism yet)
@@ -1261,7 +1247,7 @@ describe('GameController - Silent Running', () => {
     gc.endTurn();
 
     // P1 pings P0's typhoon (at row 0, col 2, depth 0 - still a ship cell)
-    gc.purchasePerk('sonar_ping'); // P1 has 5 credits, cost 3
+    gc.purchasePerk('sonar_ping'); // P1 has 5 credits, cost 2
     const pingResult = gc.useSonarPing({ col: 2, row: 0, depth: 0 });
     expect(pingResult).not.toBeNull();
     const targetCell = pingResult!.cells.find(c => c.coord.col === 2 && c.coord.row === 0 && c.coord.depth === 0);
@@ -1644,7 +1630,7 @@ describe('ability and sink on same turn', () => {
     gc.fireTorpedo({ col: 5, row: 6, depth: 0 }); // p1 miss
     gc.endTurn();
 
-    // Player 0 now has enough credits for sonar_ping (cost 3)
+    // Player 0 now has enough credits for sonar_ping (cost 2)
     // Purchase sonar ping
     const perk = gc.purchasePerk('sonar_ping');
     expect(perk).not.toBeNull();

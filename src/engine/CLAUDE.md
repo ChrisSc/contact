@@ -7,7 +7,7 @@
 | `grid.ts` | `createGrid`, `getCell`, `setCell`, `parseCoordinate`, `formatCoordinate`, `isValidCoordinate` |
 | `fleet.ts` | `calculateShipCells`, `validatePlacement`, `placeShip`, `removeShip`, `placeDecoy`, `isFleetComplete`, `checkSunk`, `getShipHealth`. Uses `AXIS_DELTAS` for 8-axis placement. |
 | `game.ts` | `GameController`: single stateful orchestrator. Setup flow, combat, victory, credit economy, all ability methods, rank system with dry-turn bonus. |
-| `credits.ts` | Pure `calculateFireCredits()`. Hit=1, consecutive=+5, sink=+10. |
+| `credits.ts` | Pure `calculateFireCredits()`. Hit=1, consecutive=+3, sink=+15. |
 | `perks.ts` | Pure perk store functions. Returns new `PlayerState` (immutable pattern). |
 | `sonar.ts` | Pure `executeSonarPing()`. Applies SR → cloak → jammer modifier chain. |
 | `drone.ts` | Pure `executeReconDrone()` + `calculateScanArea()`. 3x3x3 volume. Jammer forces all-false (not inversion). |
@@ -15,7 +15,7 @@
 | `g-sonar.ts` | Pure `executeGSonar()`. Scans all 49 cells at a depth layer. No jammer interaction. |
 | `silent-running.ts` | Pure helpers: `isShipSilentRunning()`, `decrementSilentRunning()`. |
 | `ai/ai-briefing.ts` | State serializers + `SYSTEM_PROMPT` for Claude AI agents. Converts game state to structured text briefings. Pure game logic. |
-| `ai/ai-opponent.ts` | `AIOpponent` class: browser-side AI turn executor using Anthropic SDK. Tool-use loop with turn history (last 3 turns). Model: `claude-sonnet-4-6`. |
+| `ai/ai-opponent.ts` | `AIOpponent` class: browser-side AI turn executor using Anthropic SDK. Tool-use loop with turn history (last 3 turns). Model: `claude-haiku-4-5-20251001`. |
 | `ai/ai-placement.ts` | `placeFleetRandomly()`: random fleet + decoy placement for AI setup. Pure game logic. |
 | `ai/ai-tools.ts` | Tool definitions (`gameTools`) and `executeTool()` dispatcher for Claude tool use. Maps tool calls to `GameController` methods. `forceEndTurn()` fallback. |
 

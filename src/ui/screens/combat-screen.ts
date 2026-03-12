@@ -603,6 +603,10 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
         refreshInventory();
         refreshActionSlots();
         uiState.turnSlots = game.getTurnSlots();
+      } else {
+        playInsufficientFundsSound();
+        notifications.show({ text: 'JAMMER ALREADY ACTIVE', duration: 2000 });
+        inventoryTray.clearSelection();
       }
     } else if (instance.perkId === 'g_sonar') {
       uiState.gSonarMode = true;

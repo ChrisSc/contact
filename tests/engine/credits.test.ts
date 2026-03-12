@@ -18,7 +18,7 @@ describe('calculateFireCredits', () => {
     const result = calculateFireCredits('hit', true);
     expect(result.awards).toEqual([
       { type: 'hit', amount: 1 },
-      { type: 'consecutive_hit', amount: 8 },
+      { type: 'consecutive_hit', amount: 3 },
     ]);
   });
 
@@ -34,7 +34,7 @@ describe('calculateFireCredits', () => {
     const result = calculateFireCredits('sunk', true);
     expect(result.awards).toEqual([
       { type: 'hit', amount: 1 },
-      { type: 'consecutive_hit', amount: 8 },
+      { type: 'consecutive_hit', amount: 3 },
       { type: 'sink', amount: 15 },
     ]);
   });

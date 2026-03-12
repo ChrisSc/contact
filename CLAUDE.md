@@ -8,7 +8,7 @@ CONTACT is a browser-based 3D Battleship variant. Two players command submarine 
 
 **Delivery plan:** `artifacts/delivery/CONTACT_Delivery_Plan_v1.2.md` defines the phased build order (7 phases, 20 sprints, 311 tasks). Follow this plan sequentially.
 
-**Prototype:** `protoype/contact-prototype.jsx` is a one-shot prototype built from the GDD. This should be used to guide motif, look and feel, and provides ideas.
+**Prototype:** `prototype/contact-prototype.jsx` is a one-shot prototype built from the GDD. This should be used to guide motif, look and feel, and provides ideas.
 
 ---
 

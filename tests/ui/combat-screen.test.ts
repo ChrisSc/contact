@@ -317,12 +317,12 @@ describe('Combat Screen', () => {
     const storeBtn = container.querySelector('.combat-screen__store-btn') as HTMLElement;
     storeBtn.click();
 
-    // Buy sonar ping (cost 3, starting credits 5)
+    // Buy sonar ping (cost 2, starting credits 5)
     const buyBtn = container.querySelector('.perk-store__buy-btn') as HTMLButtonElement;
     buyBtn.click();
 
     const credits = container.querySelector('.combat-screen__credits');
-    expect(credits?.textContent).toBe('CR: 2');
+    expect(credits?.textContent).toBe('CR: 3');
   });
 
   it('purchased perk appears in inventory tray', () => {

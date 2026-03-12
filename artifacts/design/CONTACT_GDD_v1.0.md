@@ -169,13 +169,13 @@ Perks compress the effective search space, making the 343-cell grid tractable wi
 | Accomplishment | Credits Earned |
 | :--- | :---: |
 | Hit | 1 |
-| Consecutive Hit (back-to-back hits on successive turns) | 5 |
+| Consecutive Hit (back-to-back hits on successive turns) | 3 |
 | Sink | 10 |
 | Starting Credits (each player) | 5 |
 
 **Notes:**
 * A hit to a Decoy still rewards credits (1 for the hit).
-* Consecutive Hit bonus triggers when a player scores a hit on the turn immediately following a hit (regardless of target ship). The bonus is in addition to the base 1-credit hit reward, for 6 total.
+* Consecutive Hit bonus triggers when a player scores a hit on the turn immediately following a hit (regardless of target ship). The bonus is in addition to the base 1-credit hit reward, for 4 total.
 * Total base credits available per player: 5 (starting) + 23 (hits including decoy) + 70 (7 sinks) = 98, plus consecutive hit bonuses.
 
 ## **5.3 Perk Store**
@@ -184,18 +184,18 @@ Perks compress the effective search space, making the 343-cell grid tractable wi
 
 | Perk | Effect | Cost | Turn Slot |
 | :--- | :--- | :---: | :--- |
-| **Sonar Ping** | Binary yes/no: is a ship present in a single cell? | 3 | Ping (does not consume attack) |
+| **Sonar Ping** | Binary yes/no: is a ship present in a single cell? | 2 | Ping (does not consume attack) |
 | **Recon Drone** | Reveals contents of a 3×3×3 volume (up to 27 cells). Shows which cells contain ship segments, but not ship identity. | 10 | Attack (consumes attack) |
-| **Depth Charge** | Strikes all occupied cells in a 3×3×3 volume (27 cells). Area denial. | 25 | Attack (consumes attack) |
-| **G-SONAR** | Scans an entire depth layer (49 cells). Reveals which cells contain ship segments. | 18 | Attack (consumes attack) |
+| **Depth Charge** | Strikes all occupied cells in a 3×3×3 volume (27 cells). Area denial. | 20 | Attack (consumes attack) |
+| **G-SONAR** | Scans an entire depth layer (49 cells). Reveals which cells contain ship segments. | 14 | Attack (consumes attack) |
 
 ### Defensive Perks
 
 | Perk | Effect | Cost | Turn Slot |
 | :--- | :--- | :---: | :--- |
-| **Radar Jammer** | When activated, the next enemy Sonar Ping or Recon Drone returns an inverted/false result. | 5 | Defend (free action) |
-| **Silent Running** | Masks a ship for 2 opponent turns — enemy recon and G-SONAR cannot detect it. | 10 | Defend (free action) |
-| **Acoustic Cloak** | All own ship segments are masked for 2 opponent turns. Any G-SONAR, Sonar Ping, or Recon Drone returns negative. | 6 | Defend (free action) |
+| **Radar Jammer** | When activated, the next enemy Sonar Ping or Recon Drone returns an inverted/false result. | 12 | Defend (free action) |
+| **Silent Running** | Masks a ship for 2 opponent turns — enemy recon and G-SONAR cannot detect it. | 8 | Defend (free action) |
+| **Acoustic Cloak** | All own ship segments are masked for 2 opponent turns. Any G-SONAR, Sonar Ping, or Recon Drone returns negative. | 14 | Defend (free action) |
 
 ### Decoy (Special)
 
@@ -226,10 +226,10 @@ The **Decoy** is not purchased — it is placed for free during setup (1 per pla
 
 The credit economy creates natural decision points throughout the game:
 
-* **Spend vs. Save:** 3 credits for a Sonar Ping now, or save for a 10-credit Recon Drone later?
-* **Offense vs. Defense:** A dominant player can invest in Depth Charges (25 credits) for devastating area attacks, but a defensive Radar Jammer (5 credits) can poison their recon at a fraction of the cost.
-* **Consecutive Hit Bonus:** Rewards players who chase a found ship rather than scattershot — 6 credits per consecutive hit (1 base + 5 bonus) funds a Sonar Ping every other turn for free.
-* **Losing player economy:** Even a trailing player earns credits from hits. Cheap defensive perks (Radar Jammer at 5, Acoustic Cloak at 6) let them disrupt the leader's intelligence advantage.
+* **Spend vs. Save:** 2 credits for a Sonar Ping now, or save for a 10-credit Recon Drone later?
+* **Offense vs. Defense:** A dominant player can invest in Depth Charges (20 credits) for devastating area attacks, but a defensive Radar Jammer (12 credits) can poison their recon.
+* **Consecutive Hit Bonus:** Rewards players who chase a found ship rather than scattershot — 4 credits per consecutive hit (1 base + 3 bonus) funds a Sonar Ping every other turn for free.
+* **Losing player economy:** Even a trailing player earns credits from hits. Silent Running (8 credits) lets them mask key ships from enemy recon.
 
 **7\. UI/UX DESIGN**
 

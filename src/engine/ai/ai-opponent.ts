@@ -154,7 +154,7 @@ export class AIOpponent {
   private async callAPI(messages: Anthropic.MessageParam[]): Promise<Anthropic.Message> {
     return this.client.messages.create({
       model: MODEL,
-      max_tokens: 300,
+      max_tokens: 500,
       system: SYSTEM_PROMPT,
       tools: gameTools as Anthropic.Tool[],
       messages,
