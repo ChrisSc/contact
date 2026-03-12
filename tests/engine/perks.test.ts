@@ -6,12 +6,14 @@ import {
   removeFromInventory,
   getInventoryBySlot,
   generateInstanceId,
+  resetInstanceCounter,
 } from '../../src/engine/perks';
 import { createEmptyPlayerState } from '../setup';
 import type { PerkInstance } from '../../src/types/abilities';
 
 beforeEach(() => {
   initLogger('test-perks');
+  resetInstanceCounter();
 });
 
 describe('getPerkDefinition', () => {
@@ -100,7 +102,7 @@ describe('getInventoryBySlot', () => {
 });
 
 describe('generateInstanceId', () => {
-  it('generates incrementing IDs based on existing inventory', () => {
+  it('generates monotonically incrementing IDs', () => {
     const inventory: PerkInstance[] = [];
     const id1 = generateInstanceId('sonar_ping', inventory);
     expect(id1).toBe('sonar_ping_1');
@@ -110,12 +112,22 @@ describe('generateInstanceId', () => {
     expect(id2).toBe('sonar_ping_2');
   });
 
-  it('counts only matching perk types', () => {
-    const inventory: PerkInstance[] = [
-      { id: 'sonar_ping_1', perkId: 'sonar_ping', purchasedOnTurn: 1 },
-      { id: 'radar_jammer_1', perkId: 'radar_jammer', purchasedOnTurn: 2 },
-    ];
-    const id = generateInstanceId('radar_jammer', inventory);
-    expect(id).toBe('radar_jammer_2');
+  it('produces unique IDs across different perk types', () => {
+    const inventory: PerkInstance[] = [];
+    const id1 = generateInstanceId('sonar_ping', inventory);
+    expect(id1).toBe('sonar_ping_1');
+    const id2 = generateInstanceId('radar_jammer', inventory);
+    expect(id2).toBe('radar_jammer_2');
+  });
+
+  it('never reuses IDs after removal', () => {
+    const inventory: PerkInstance[] = [];
+    const id1 = generateInstanceId('radar_jammer', inventory);
+    expect(id1).toBe('radar_jammer_1');
+    inventory.push({ id: id1, perkId: 'radar_jammer', purchasedOnTurn: 1 });
+    // Simulate removal
+    inventory.splice(0, 1);
+    const id2 = generateInstanceId('radar_jammer', inventory);
+    expect(id2).toBe('radar_jammer_2');
   });
 });

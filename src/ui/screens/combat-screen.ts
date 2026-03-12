@@ -1096,10 +1096,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   function refreshInventory(): void {
     const player = game.getCurrentPlayer();
-    // Hide radar_jammer instances when ability is active (deployed but not yet triggered)
-    const visible = player.inventory.filter(
-      p => !(p.perkId === 'radar_jammer' && player.abilities.radar_jammer.active),
-    );
+    // Hide only the single deployed radar_jammer instance (not all of them)
+    let activeJammerHidden = false;
+    const visible = player.inventory.filter(p => {
+      if (p.perkId === 'radar_jammer' && player.abilities.radar_jammer.active && !activeJammerHidden) {
+        activeJammerHidden = true;
+        return false;
+      }
+      return true;
+    });
     inventoryTray.update(visible);
   }
 

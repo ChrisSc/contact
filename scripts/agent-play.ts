@@ -82,7 +82,8 @@ function saveMemory(playerKey: PlayerKey, content: string): void {
 // ---------------------------------------------------------------------------
 
 const client = new Anthropic();
-const MODEL = 'claude-sonnet-4-6';
+// const MODEL = 'claude-sonnet-4-6';
+const MODEL = 'claude-haiku-4-5-20251001';
 
 
 // ---------------------------------------------------------------------------

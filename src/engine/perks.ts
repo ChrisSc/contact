@@ -8,9 +8,15 @@ export function getPerkDefinition(perkId: PerkId): PerkDefinition {
   return def;
 }
 
-export function generateInstanceId(perkId: PerkId, inventory: PerkInstance[]): string {
-  const existing = inventory.filter((p) => p.perkId === perkId).length;
-  return `${perkId}_${existing + 1}`;
+let instanceCounter = 0;
+
+export function resetInstanceCounter(): void {
+  instanceCounter = 0;
+}
+
+export function generateInstanceId(perkId: PerkId, _inventory: PerkInstance[]): string {
+  instanceCounter++;
+  return `${perkId}_${instanceCounter}`;
 }
 
 export function purchasePerk(
