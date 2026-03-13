@@ -88,11 +88,27 @@ export function mountTitleScreen(container: HTMLElement, context: ScreenContext)
   apiKeyInput.placeholder = 'ENTER ANTHROPIC API KEY';
   apiKeyInput.spellcheck = false;
   apiKeyInput.autocomplete = 'off';
+
+  const storedKey = localStorage.getItem('contact_api_key');
+  if (storedKey) {
+    apiKeyInput.value = storedKey;
+  }
+
   apiKeyRow.appendChild(apiKeyInput);
 
   const apiKeyError = document.createElement('div');
   apiKeyError.className = 'title-screen__api-key-error';
   apiKeyRow.appendChild(apiKeyError);
+
+  const storeKeyLabel = document.createElement('label');
+  storeKeyLabel.className = 'title-screen__store-key-label';
+  const storeKeyCheckbox = document.createElement('input');
+  storeKeyCheckbox.type = 'checkbox';
+  storeKeyCheckbox.className = 'title-screen__store-key-checkbox';
+  storeKeyCheckbox.checked = !!storedKey;
+  storeKeyLabel.appendChild(storeKeyCheckbox);
+  storeKeyLabel.appendChild(document.createTextNode(' STORE KEY IN BROWSER'));
+  apiKeyRow.appendChild(storeKeyLabel);
 
   el.appendChild(apiKeyRow);
 
@@ -153,6 +169,11 @@ export function mountTitleScreen(container: HTMLElement, context: ScreenContext)
         return;
       }
       apiKeyError.textContent = '';
+      if (storeKeyCheckbox.checked) {
+        localStorage.setItem('contact_api_key', apiKey);
+      } else {
+        localStorage.removeItem('contact_api_key');
+      }
       const aiOpponent = new AIOpponent(apiKey);
       router.setAIMode(aiOpponent);
     } else {
