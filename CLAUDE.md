@@ -8,7 +8,7 @@ CONTACT is a browser-based 3D Battleship variant. Two players command submarine 
 
 **Delivery plan:** `artifacts/delivery/CONTACT_Delivery_Plan_v1.2.md` defines the phased build order (7 phases, 20 sprints, 311 tasks). Follow this plan sequentially.
 
-**Prototype:** `prototype/contact-prototype.jsx` is a one-shot prototype built from the GDD. This should be used to guide motif, look and feel, and provides ideas.
+**Prototype:** `prototype/contact-prototype.jsx` is a one-shot prototype built from the GDD. `prototype/deployment_mobile.png` and `prototype/combat_mobile.png` are mobile portrait layout guides.
 
 ---
 
@@ -39,7 +39,7 @@ src/
 ├── renderer/            # Three.js scene, custom orbit, volumetric cube, animations
 ├── audio/               # Tone.js synthesized SFX + ambient soundscape
 ├── ui/                  # Screens, components, CRT effects. Vanilla DOM only.
-└── styles/              # CSS design system (variables, CRT, grid, UI, effects)
+└── styles/              # CSS design system (variables, CRT, grid, UI, effects, mobile)
 tests/                   # Mirrors src/ structure. Vitest with per-file jsdom pragmas.
 artifacts/design/        # GDD (authoritative)
 artifacts/delivery/      # Delivery plan
@@ -75,6 +75,14 @@ Engine has zero DOM/rendering/audio dependencies. UI orchestrates everything.
 | `docker compose up -d` | Containerized nginx on port 8080 |
 
 ---
+
+## Mobile Layout
+
+Portrait-first responsive layout via `src/styles/mobile.css` (breakpoint: `max-width: 768px, orientation: portrait`). Canvas-dominant overlay with bottom-stacked controls. Horizontal scrolling roster, merged tab strip, two-column fleet panels, full-width END TURN. Camera FOV widens to 70° in portrait; orbit `targetY` adjusts per orientation for cube centering. CRT barrel distortion removed, scanlines lightened, footer hidden.
+
+## AI Mode
+
+`src/engine/ai/` contains 4 files for VS AI gameplay. `AIOpponent` uses Anthropic SDK with `claude-haiku-4-5-20251001` via tool-use loop. Title screen prompts for API key. AI auto-places fleet, auto-executes turns with thinking overlay.
 
 ## Constraints
 
