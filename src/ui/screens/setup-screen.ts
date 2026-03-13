@@ -6,6 +6,7 @@ import { FLEET_ROSTER, PLACEMENT_AXES } from '../../types/fleet';
 import { calculateShipCells, validatePlacement } from '../../engine/fleet';
 import { getCell, formatCoordinate } from '../../engine/grid';
 import { ShipRoster, DECOY_ID } from '../components/ship-roster';
+import { ToolPalette } from '../components/tool-palette';
 import { SceneManager } from '../../renderer/scene';
 import type { ViewMode } from '../../renderer/views';
 import { PLAYER_DESIGNATIONS } from '../../types/game';
@@ -79,91 +80,17 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   statusEl.className = 'setup-screen__status';
   el.appendChild(statusEl);
 
-  // --- Axis selector (below status, centered) ---
-  const axisBar = document.createElement('div');
-  axisBar.className = 'setup-screen__axis-bar';
-
-  const axisLabel = document.createElement('span');
-  axisLabel.className = 'setup-screen__axis-label';
-  axisLabel.textContent = 'AXIS';
-  axisBar.appendChild(axisLabel);
-
-  const axes: { id: PlacementAxis; label: string }[] = [
-    { id: 'col', label: 'ROW' },
-    { id: 'row', label: 'COL' },
-    { id: 'diag+', label: 'DIAG\u2197' },
-    { id: 'diag-', label: 'DIAG\u2198' },
-    { id: 'col-depth', label: 'ROW+D' },
-    { id: 'col-depth-', label: 'ROW-D' },
-    { id: 'row-depth', label: 'COL+D' },
-    { id: 'row-depth-', label: 'COL-D' },
-  ];
-
-  for (const axis of axes) {
-    const btn = document.createElement('button');
-    btn.className = 'setup-screen__axis-btn';
-    if (axis.id === uiState.currentAxis) {
-      btn.classList.add('setup-screen__axis-btn--active');
-    }
-    btn.textContent = axis.label;
-    btn.dataset.axis = axis.id;
-    btn.addEventListener('click', () => handleAxisChange(axis.id));
-    axisBar.appendChild(btn);
-  }
-
-  el.appendChild(axisBar);
-
-  // --- View mode selector (left edge overlay) ---
-  const viewModes = document.createElement('div');
-  viewModes.className = 'setup-screen__view-modes';
-
-  const modes: { id: ViewMode; label: string }[] = [
-    { id: 'cube', label: 'CUBE' },
-    { id: 'slice', label: 'SLICE' },
-    { id: 'xray', label: 'X-RAY' },
-  ];
-
-  for (const mode of modes) {
-    const btn = document.createElement('button');
-    btn.className = 'setup-screen__mode-btn';
-    if (mode.id === uiState.viewMode) {
-      btn.classList.add('setup-screen__mode-btn--active');
-    }
-    btn.textContent = mode.label;
-    btn.dataset.mode = mode.id;
-    btn.addEventListener('click', () => handleViewModeChange(mode.id));
-    viewModes.appendChild(btn);
-  }
-
-  el.appendChild(viewModes);
-
-  // --- Depth selector (right edge overlay) ---
-  const depthPanel = document.createElement('div');
-  depthPanel.className = 'setup-screen__depth-panel';
-
-  const allBtn = document.createElement('button');
-  allBtn.className = 'setup-screen__depth-btn';
-  if (uiState.currentDepth === null) {
-    allBtn.classList.add('setup-screen__depth-btn--active');
-  }
-  allBtn.textContent = 'ALL';
-  allBtn.dataset.depth = '-1';
-  allBtn.addEventListener('click', () => handleDepthChange(-1));
-  depthPanel.appendChild(allBtn);
-
-  for (let i = 0; i < GRID_SIZE; i++) {
-    const btn = document.createElement('button');
-    btn.className = 'setup-screen__depth-btn';
-    if (uiState.currentDepth === i) {
-      btn.classList.add('setup-screen__depth-btn--active');
-    }
-    btn.textContent = String(i + 1);
-    btn.dataset.depth = String(i);
-    btn.addEventListener('click', () => handleDepthChange(i));
-    depthPanel.appendChild(btn);
-  }
-
-  el.appendChild(depthPanel);
+  // --- Tool palette (view modes, depth, axis) ---
+  const toolPalette = new ToolPalette({
+    showAxis: true,
+    initialViewMode: uiState.viewMode,
+    initialDepth: uiState.currentDepth,
+    initialAxis: uiState.currentAxis,
+    onViewModeChange: handleViewModeChange,
+    onDepthChange: handleDepthChange,
+    onAxisChange: handleAxisChange,
+  });
+  el.appendChild(toolPalette.getElement());
 
   // --- Ship roster (right side overlay) ---
   const rosterPanel = document.createElement('div');
@@ -262,16 +189,11 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
     if (mode === uiState.viewMode) return;
     uiState.viewMode = mode;
     sceneManager.setViewMode(mode);
-
-    const btns = viewModes.querySelectorAll('.setup-screen__mode-btn');
-    for (const btn of btns) {
-      const el = btn as HTMLElement;
-      el.classList.toggle('setup-screen__mode-btn--active', el.dataset.mode === mode);
-    }
+    toolPalette.setActiveViewMode(mode);
 
     if (mode === 'slice' && uiState.currentDepth === null) {
       uiState.currentDepth = 0;
-      updateDepthButtons();
+      toolPalette.setActiveDepth(0);
     }
 
     updateSceneGrid();
@@ -280,31 +202,14 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
   function handleDepthChange(depth: number): void {
     uiState.currentDepth = depth === -1 ? null : depth;
     sceneManager.setDepth(uiState.currentDepth);
-    updateDepthButtons();
+    toolPalette.setActiveDepth(uiState.currentDepth);
     updateSceneGrid();
-  }
-
-  function updateDepthButtons(): void {
-    const btns = depthPanel.querySelectorAll('.setup-screen__depth-btn');
-    for (const btn of btns) {
-      const el = btn as HTMLElement;
-      const d = Number(el.dataset.depth);
-      el.classList.toggle('setup-screen__depth-btn--active',
-        (uiState.currentDepth === null && d === -1) ||
-        (uiState.currentDepth === d));
-    }
   }
 
   function handleAxisChange(axis: PlacementAxis): void {
     if (axis === uiState.currentAxis) return;
     uiState.currentAxis = axis;
-
-    const btns = axisBar.querySelectorAll('.setup-screen__axis-btn');
-    for (const btn of btns) {
-      const el = btn as HTMLElement;
-      el.classList.toggle('setup-screen__axis-btn--active', el.dataset.axis === axis);
-    }
-
+    toolPalette.setActiveAxis(axis);
     updateGhostPreview();
   }
 
@@ -511,6 +416,7 @@ export function mountSetupScreen(container: HTMLElement, context: ScreenContext)
       document.removeEventListener('keydown', handleKeyDown);
       sceneManager.dispose();
       shipRoster.destroy();
+      toolPalette.destroy();
       el.remove();
     },
   };

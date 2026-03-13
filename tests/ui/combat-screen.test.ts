@@ -183,22 +183,21 @@ describe('Combat Screen', () => {
     expect(mockSceneManager.start).toHaveBeenCalled();
   });
 
-  it('renders view mode buttons (CUBE/SLICE/X-RAY) on left edge', () => {
-    const btns = container.querySelectorAll('.combat-screen__mode-btn');
+  it('renders view mode buttons (CUBE/SLICE/X-RAY) in tool palette', () => {
+    const btns = container.querySelectorAll('.tool-palette [data-mode]');
     expect(btns.length).toBe(3);
     expect(Array.from(btns).map(b => b.textContent)).toEqual(['CUBE', 'SLICE', 'X-RAY']);
   });
 
-  it('renders depth buttons (ALL + 1-7) on right edge', () => {
-    const btns = container.querySelectorAll('.combat-screen__depth-btn');
+  it('renders depth buttons (ALL + 1-7) in tool palette', () => {
+    const btns = container.querySelectorAll('.tool-palette [data-depth]');
     expect(btns.length).toBe(8);
   });
 
   it('clicking view mode button updates active state', () => {
-    const btns = container.querySelectorAll('.combat-screen__mode-btn');
-    const sliceBtn = Array.from(btns).find(b => b.textContent === 'SLICE') as HTMLElement;
+    const sliceBtn = container.querySelector('.tool-palette [data-mode="slice"]') as HTMLElement;
     sliceBtn.click();
-    expect(sliceBtn.classList.contains('combat-screen__mode-btn--active')).toBe(true);
+    expect(sliceBtn.classList.contains('tool-palette__btn--active')).toBe(true);
     expect(mockSceneManager.setViewMode).toHaveBeenCalledWith('slice');
   });
 
@@ -484,8 +483,7 @@ describe('Combat Screen', () => {
 
       // Switch to SLICE mode
       mockSceneManager.setViewMode.mockClear();
-      const btns = container.querySelectorAll('.combat-screen__mode-btn');
-      const sliceBtn = Array.from(btns).find(b => b.textContent === 'SLICE') as HTMLElement;
+      const sliceBtn = container.querySelector('.tool-palette [data-mode="slice"]') as HTMLElement;
       sliceBtn.click();
 
       expect(mockSceneManager.setViewMode).toHaveBeenCalledWith('slice');
@@ -521,8 +519,7 @@ describe('Combat Screen', () => {
 
       // Now switch view mode — board type should remain 'own' (updateGrid uses 'own' grid)
       mockSceneManager.updateGrid.mockClear();
-      const btns = container.querySelectorAll('.combat-screen__mode-btn');
-      const xrayBtn = Array.from(btns).find(b => b.textContent === 'X-RAY') as HTMLElement;
+      const xrayBtn = container.querySelector('.tool-palette [data-mode="xray"]') as HTMLElement;
       xrayBtn.click();
 
       expect(mockSceneManager.setViewMode).toHaveBeenCalledWith('xray');

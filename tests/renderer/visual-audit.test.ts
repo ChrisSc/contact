@@ -48,12 +48,12 @@ describe('Visual State Audit (GDD §2.3)', () => {
       expect(def.edgeOpacity).toBe(0.9);
     });
 
-    it('Miss: dim green dot marker (very low opacity)', () => {
+    it('Miss: subtle fill with brighter wireframe for "searched" readability', () => {
       const def = MATERIAL_DEFS[CellState.Miss];
       expect(def.fillColor).toBe(CRT_COLORS.GREEN_DIM);
-      expect(def.fillOpacity).toBe(0.15);
-      expect(def.edgeColor).toBe(CRT_COLORS.GREEN_DIM);
-      expect(def.edgeOpacity).toBe(0.2);
+      expect(def.fillOpacity).toBe(0.08);
+      expect(def.edgeColor).toBe(CRT_COLORS.GREEN);
+      expect(def.edgeOpacity).toBe(0.35);
     });
 
     it('Sunk: high-opacity orange fill and edges', () => {
@@ -94,12 +94,12 @@ describe('Visual State Audit (GDD §2.3)', () => {
       expect(def.edgeOpacity).toBe(0.6);
     });
 
-    it('DroneNegative: dim green for negative recon drone result', () => {
+    it('DroneNegative: subtle fill with brighter wireframe for "searched" readability', () => {
       const def = MATERIAL_DEFS[CellState.DroneNegative];
       expect(def.fillColor).toBe(CRT_COLORS.GREEN_DIM);
-      expect(def.fillOpacity).toBe(0.1);
-      expect(def.edgeColor).toBe(CRT_COLORS.GREEN_DIM);
-      expect(def.edgeOpacity).toBe(0.15);
+      expect(def.fillOpacity).toBe(0.08);
+      expect(def.edgeColor).toBe(CRT_COLORS.GREEN);
+      expect(def.edgeOpacity).toBe(0.35);
     });
 
     it('SonarPositive: cyan fill for positive sonar ping result', () => {
@@ -110,12 +110,12 @@ describe('Visual State Audit (GDD §2.3)', () => {
       expect(def.edgeOpacity).toBe(0.6);
     });
 
-    it('SonarNegative: dim green for negative sonar ping result', () => {
+    it('SonarNegative: subtle fill with brighter wireframe for "searched" readability', () => {
       const def = MATERIAL_DEFS[CellState.SonarNegative];
       expect(def.fillColor).toBe(CRT_COLORS.GREEN_DIM);
-      expect(def.fillOpacity).toBe(0.1);
-      expect(def.edgeColor).toBe(CRT_COLORS.GREEN_DIM);
-      expect(def.edgeOpacity).toBe(0.15);
+      expect(def.fillOpacity).toBe(0.08);
+      expect(def.edgeColor).toBe(CRT_COLORS.GREEN);
+      expect(def.edgeOpacity).toBe(0.35);
     });
   });
 

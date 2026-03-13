@@ -84,27 +84,45 @@
   white-space: nowrap;
 }
 
-/* --- Axis selector (below status) --- */
-.setup-screen__axis-bar {
+/* --- Tool Palette (shared VIEW / DEPTH / AXIS panel) --- */
+.tool-palette {
   position: absolute;
-  top: 64px;
+  bottom: 88px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
+  background: rgba(10, 10, 10, 0.85);
+  border: 1px solid rgba(0, 255, 65, 0.25);
+  padding: 4px 8px;
+}
+
+.tool-palette__row {
   display: flex;
   align-items: center;
   gap: 4px;
+  padding: 4px 0;
 }
 
-.setup-screen__axis-label {
+.tool-palette__row--wrap {
+  flex-wrap: wrap;
+}
+
+.tool-palette__separator {
+  height: 1px;
+  background: rgba(0, 255, 65, 0.2);
+}
+
+.tool-palette__label {
   font-family: var(--font-display);
   font-size: 7px;
   color: var(--crt-green-dim);
   letter-spacing: 1px;
+  min-width: 40px;
+  text-align: right;
   margin-right: 4px;
 }
 
-.setup-screen__axis-btn {
+.tool-palette__btn {
   font-family: var(--font-display);
   font-size: 9px;
   padding: 3px 10px;
@@ -116,90 +134,21 @@
   text-align: center;
 }
 
-.setup-screen__axis-btn:hover {
+.tool-palette__btn:hover {
   border-color: var(--crt-green);
   color: var(--crt-green);
 }
 
-.setup-screen__axis-btn--active {
-  border-color: var(--crt-green);
-  color: var(--crt-green);
-  background: rgba(0, 255, 65, 0.12);
-  text-shadow: 0 0 6px var(--crt-green-glow);
-}
-
-/* --- View mode buttons (left edge) --- */
-.setup-screen__view-modes {
-  position: absolute;
-  left: var(--spacing-md);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.setup-screen__mode-btn {
-  font-family: var(--font-display);
-  font-size: 9px;
-  padding: 5px 10px;
-  background: rgba(10, 10, 10, 0.7);
-  border: 1px solid rgba(0, 255, 65, 0.25);
-  color: var(--crt-green-dim);
-  cursor: pointer;
-  transition: all 0.1s;
-  text-align: center;
-  min-width: 60px;
-}
-
-.setup-screen__mode-btn:hover {
-  border-color: var(--crt-green);
-  color: var(--crt-green);
-}
-
-.setup-screen__mode-btn--active {
+.tool-palette__btn--active {
   border-color: var(--crt-green);
   color: var(--crt-green);
   background: rgba(0, 255, 65, 0.12);
   text-shadow: 0 0 6px var(--crt-green-glow);
 }
 
-/* --- Depth selector (right edge) --- */
-.setup-screen__depth-panel {
-  position: absolute;
-  right: var(--spacing-md);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.setup-screen__depth-btn {
-  font-family: var(--font-display);
-  font-size: 9px;
-  padding: 4px 10px;
-  background: rgba(10, 10, 10, 0.7);
-  border: 1px solid rgba(0, 255, 65, 0.25);
-  color: var(--crt-green-dim);
-  cursor: pointer;
-  transition: all 0.1s;
-  text-align: center;
-  min-width: 44px;
-}
-
-.setup-screen__depth-btn:hover {
-  border-color: var(--crt-green);
-  color: var(--crt-green);
-}
-
-.setup-screen__depth-btn--active {
-  border-color: var(--crt-green);
-  color: var(--crt-green);
-  background: rgba(0, 255, 65, 0.12);
-  text-shadow: 0 0 6px var(--crt-green-glow);
+.tool-palette--disabled {
+  pointer-events: none;
+  opacity: 0.3;
 }
 
 /* --- Ship roster (right side overlay) --- */
@@ -250,7 +199,7 @@
 /* --- Controls hint --- */
 .setup-screen__hint {
   position: absolute;
-  bottom: 52px;
+  bottom: 68px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -629,84 +578,11 @@
   background: rgba(0, 255, 65, 0.1);
 }
 
-/* --- View mode buttons (left edge) --- */
-.combat-screen__view-modes {
-  position: absolute;
-  left: var(--spacing-md);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.combat-screen__mode-btn {
-  font-family: var(--font-display);
-  font-size: 9px;
-  padding: 5px 10px;
-  background: rgba(10, 10, 10, 0.7);
-  border: 1px solid rgba(0, 255, 65, 0.25);
-  color: var(--crt-green-dim);
-  cursor: pointer;
-  transition: all 0.1s;
-  text-align: center;
-  min-width: 60px;
-}
-
-.combat-screen__mode-btn:hover {
-  border-color: var(--crt-green);
-  color: var(--crt-green);
-}
-
-.combat-screen__mode-btn--active {
-  border-color: var(--crt-green);
-  color: var(--crt-green);
-  background: rgba(0, 255, 65, 0.12);
-  text-shadow: 0 0 6px var(--crt-green-glow);
-}
-
-/* --- Depth selector (right edge) --- */
-.combat-screen__depth-panel {
-  position: absolute;
-  right: var(--spacing-md);
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 10;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.combat-screen__depth-btn {
-  font-family: var(--font-display);
-  font-size: 9px;
-  padding: 4px 10px;
-  background: rgba(10, 10, 10, 0.7);
-  border: 1px solid rgba(0, 255, 65, 0.25);
-  color: var(--crt-green-dim);
-  cursor: pointer;
-  transition: all 0.1s;
-  text-align: center;
-  min-width: 44px;
-}
-
-.combat-screen__depth-btn:hover {
-  border-color: var(--crt-green);
-  color: var(--crt-green);
-}
-
-.combat-screen__depth-btn--active {
-  border-color: var(--crt-green);
-  color: var(--crt-green);
-  background: rgba(0, 255, 65, 0.12);
-  text-shadow: 0 0 6px var(--crt-green-glow);
-}
 
 /* --- Status message (center) --- */
 .combat-screen__status {
   position: absolute;
-  bottom: 88px;
+  bottom: 148px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -726,7 +602,7 @@
 /* --- Right stack: end turn + fleet (bottom-right overlay) --- */
 .combat-screen__right-stack {
   position: absolute;
-  bottom: 48px;
+  bottom: 68px;
   right: var(--spacing-md);
   z-index: 10;
   display: flex;
@@ -802,7 +678,7 @@
 /* --- Controls hint --- */
 .combat-screen__hint {
   position: absolute;
-  bottom: 52px;
+  bottom: 68px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -1536,8 +1412,6 @@
 }
 
 /* Lock down all interactive controls while AI is thinking */
-.combat-screen--ai-thinking .combat-screen__mode-btn,
-.combat-screen--ai-thinking .combat-screen__depth-btn,
 .combat-screen--ai-thinking .combat-screen__toggle-btn,
 .combat-screen--ai-thinking .combat-screen__store-btn {
   pointer-events: none;

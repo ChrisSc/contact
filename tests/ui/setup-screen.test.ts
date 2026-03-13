@@ -114,34 +114,33 @@ describe('Setup Screen', () => {
     expect(mockSceneManager.start).toHaveBeenCalled();
   });
 
-  it('renders view mode buttons (CUBE/SLICE/X-RAY)', () => {
+  it('renders view mode buttons (CUBE/SLICE/X-RAY) in tool palette', () => {
     mountScreen();
-    const btns = container.querySelectorAll('.setup-screen__mode-btn');
+    const btns = container.querySelectorAll('.tool-palette [data-mode]');
     expect(btns.length).toBe(3);
     expect(Array.from(btns).map(b => b.textContent)).toEqual(['CUBE', 'SLICE', 'X-RAY']);
   });
 
-  it('renders depth buttons (ALL + 1-7)', () => {
+  it('renders depth buttons (ALL + 1-7) in tool palette', () => {
     mountScreen();
-    const btns = container.querySelectorAll('.setup-screen__depth-btn');
+    const btns = container.querySelectorAll('.tool-palette [data-depth]');
     expect(btns.length).toBe(8);
   });
 
-  it('renders axis selector with 8 buttons', () => {
+  it('renders axis selector with 8 buttons in tool palette', () => {
     mountScreen();
-    const btns = container.querySelectorAll('.setup-screen__axis-btn');
+    const btns = container.querySelectorAll('.tool-palette [data-axis]');
     expect(btns.length).toBe(8);
     expect(Array.from(btns).map(b => b.textContent)).toEqual([
-      'ROW', 'COL', 'DIAG\u2197', 'DIAG\u2198', 'ROW+D', 'ROW-D', 'COL+D', 'COL-D',
+      'ROW', 'COL', 'DG\u2197', 'DG\u2198', 'R+D', 'R-D', 'C+D', 'C-D',
     ]);
   });
 
   it('clicking view mode button updates active state and calls setViewMode', () => {
     mountScreen();
-    const btns = container.querySelectorAll('.setup-screen__mode-btn');
-    const sliceBtn = Array.from(btns).find(b => b.textContent === 'SLICE') as HTMLElement;
+    const sliceBtn = container.querySelector('.tool-palette [data-mode="slice"]') as HTMLElement;
     sliceBtn.click();
-    expect(sliceBtn.classList.contains('setup-screen__mode-btn--active')).toBe(true);
+    expect(sliceBtn.classList.contains('tool-palette__btn--active')).toBe(true);
     expect(mockSceneManager.setViewMode).toHaveBeenCalledWith('slice');
   });
 
@@ -267,8 +266,8 @@ describe('Setup Screen', () => {
     mountScreen();
     // Default axis is 'col', R should cycle to 'row'
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
-    const btns = container.querySelectorAll('.setup-screen__axis-btn');
-    const activeBtn = Array.from(btns).find(b => b.classList.contains('setup-screen__axis-btn--active'));
+    const btns = container.querySelectorAll('.tool-palette [data-axis]');
+    const activeBtn = Array.from(btns).find(b => b.classList.contains('tool-palette__btn--active'));
     expect(activeBtn?.textContent).toBe('COL'); // 'row' axis → COL label
   });
 
@@ -278,8 +277,8 @@ describe('Setup Screen', () => {
     for (let i = 0; i < 8; i++) {
       document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
     }
-    const btns = container.querySelectorAll('.setup-screen__axis-btn');
-    const activeBtn = Array.from(btns).find(b => b.classList.contains('setup-screen__axis-btn--active'));
+    const btns = container.querySelectorAll('.tool-palette [data-axis]');
+    const activeBtn = Array.from(btns).find(b => b.classList.contains('tool-palette__btn--active'));
     expect(activeBtn?.textContent).toBe('ROW'); // 'col' axis → ROW label
   });
 
@@ -309,14 +308,14 @@ describe('Setup Screen', () => {
     cellClickCb!({ col: 6, row: 6, depth: 6 });
 
     // Now in confirm phase — R should not change axis
-    const btnsBefore = container.querySelectorAll('.setup-screen__axis-btn');
-    const activeBefore = Array.from(btnsBefore).find(b => b.classList.contains('setup-screen__axis-btn--active'));
+    const btnsBefore = container.querySelectorAll('.tool-palette [data-axis]');
+    const activeBefore = Array.from(btnsBefore).find(b => b.classList.contains('tool-palette__btn--active'));
     const labelBefore = activeBefore?.textContent;
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r' }));
 
-    const btnsAfter = container.querySelectorAll('.setup-screen__axis-btn');
-    const activeAfter = Array.from(btnsAfter).find(b => b.classList.contains('setup-screen__axis-btn--active'));
+    const btnsAfter = container.querySelectorAll('.tool-palette [data-axis]');
+    const activeAfter = Array.from(btnsAfter).find(b => b.classList.contains('tool-palette__btn--active'));
     expect(activeAfter?.textContent).toBe(labelBefore);
   });
 

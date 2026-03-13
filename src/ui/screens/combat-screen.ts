@@ -18,6 +18,7 @@ import { PerkStore } from '../components/perk-store';
 import { InventoryTray } from '../components/inventory-tray';
 import { ActionSlots } from '../components/action-slots';
 import { NotificationBanner } from '../components/notification-banner';
+import { ToolPalette } from '../components/tool-palette';
 import {
   initAudioContext,
   toggleMute,
@@ -181,51 +182,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   const actionSlotsComponent = new ActionSlots();
   el.appendChild(actionSlotsComponent.render());
 
-  // --- View mode selector (left edge overlay) ---
-  const viewModes = document.createElement('div');
-  viewModes.className = 'combat-screen__view-modes';
-
-  const modes: { id: ViewMode; label: string }[] = [
-    { id: 'cube', label: 'CUBE' },
-    { id: 'slice', label: 'SLICE' },
-    { id: 'xray', label: 'X-RAY' },
-  ];
-
-  for (const mode of modes) {
-    const btn = document.createElement('button');
-    btn.className = 'combat-screen__mode-btn';
-    if (mode.id === uiState.viewMode) {
-      btn.classList.add('combat-screen__mode-btn--active');
-    }
-    btn.textContent = mode.label;
-    btn.dataset.mode = mode.id;
-    btn.addEventListener('click', () => handleViewModeChange(mode.id));
-    viewModes.appendChild(btn);
-  }
-
-  el.appendChild(viewModes);
-
-  // --- Depth selector (right edge overlay) ---
-  const depthPanel = document.createElement('div');
-  depthPanel.className = 'combat-screen__depth-panel';
-
-  const allBtn = document.createElement('button');
-  allBtn.className = 'combat-screen__depth-btn combat-screen__depth-btn--active';
-  allBtn.textContent = 'ALL';
-  allBtn.dataset.depth = '-1';
-  allBtn.addEventListener('click', () => handleDepthChange(-1));
-  depthPanel.appendChild(allBtn);
-
-  for (let i = 0; i < GRID_SIZE; i++) {
-    const btn = document.createElement('button');
-    btn.className = 'combat-screen__depth-btn';
-    btn.textContent = String(i + 1);
-    btn.dataset.depth = String(i);
-    btn.addEventListener('click', () => handleDepthChange(i));
-    depthPanel.appendChild(btn);
-  }
-
-  el.appendChild(depthPanel);
+  // --- Tool Palette (view modes + depth) ---
+  const toolPalette = new ToolPalette({
+    showAxis: false,
+    initialViewMode: uiState.viewMode,
+    initialDepth: uiState.currentDepth,
+    onViewModeChange: handleViewModeChange,
+    onDepthChange: handleDepthChange,
+  });
+  el.appendChild(toolPalette.getElement());
 
   // --- Status message (center, above bottom bar) ---
   const statusEl = document.createElement('div');
@@ -382,16 +347,11 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     if (mode === uiState.viewMode) return;
     uiState.viewMode = mode;
     sceneManager.setViewMode(mode);
-
-    const btns = viewModes.querySelectorAll('.combat-screen__mode-btn');
-    for (const btn of btns) {
-      const el = btn as HTMLElement;
-      el.classList.toggle('combat-screen__mode-btn--active', el.dataset.mode === mode);
-    }
+    toolPalette.setActiveViewMode(mode);
 
     if (mode === 'slice' && uiState.currentDepth === null) {
       uiState.currentDepth = 0;
-      updateDepthButtons();
+      toolPalette.setActiveDepth(0);
     }
 
     refreshBottomBar();
@@ -409,20 +369,9 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     }
     uiState.currentDepth = depth === -1 ? null : depth;
     sceneManager.setDepth(uiState.currentDepth);
-    updateDepthButtons();
+    toolPalette.setActiveDepth(uiState.currentDepth);
     refreshBottomBar();
     updateSceneGrid();
-  }
-
-  function updateDepthButtons(): void {
-    const btns = depthPanel.querySelectorAll('.combat-screen__depth-btn');
-    for (const btn of btns) {
-      const el = btn as HTMLElement;
-      const d = Number(el.dataset.depth);
-      el.classList.toggle('combat-screen__depth-btn--active',
-        (uiState.currentDepth === null && d === -1) ||
-        (uiState.currentDepth === d));
-    }
   }
 
   function updateSceneGrid(): void {
@@ -1040,6 +989,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
     endTurnBtn.disabled = !enabled || !game.getTurnSlots().attackUsed;
     storeBtn.disabled = !enabled;
     el.classList.toggle('combat-screen--ai-thinking', !enabled);
+    toolPalette.setDisabled(!enabled);
     if (!enabled) {
       inventoryTray.clearSelection();
       cancelAllModes();
@@ -1244,6 +1194,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       actionSlotsComponent.destroy();
       notifications.destroy();
       overlays.dispose();
+      toolPalette.destroy();
       sceneManager.dispose();
       el.remove();
     },
