@@ -1,12 +1,12 @@
 # Human vs AI: Play Against Claude
 
-Challenge Claude Sonnet as your opponent in a full game of CONTACT. You command ALPHA, Claude commands BRAVO: placing its fleet, choosing targets, purchasing perks, and deploying abilities through real-time strategic reasoning via tool use.
+Challenge Claude Haiku as your opponent in a full game of CONTACT. You command ALPHA, Claude commands BRAVO: placing its fleet, choosing targets, purchasing perks, and deploying abilities through real-time strategic reasoning via tool use.
 
 ## Prerequisites
 
 - Node.js 18+
 - An [Anthropic API key](https://console.anthropic.com/) (starts with `sk-`)
-- The key needs access to `claude-sonnet-4-6`
+- The key needs access to `claude-haiku-4-5-20251001`
 
 ## Quick Start
 

@@ -10,6 +10,7 @@
 | `combat-screen.test.ts` | Fire torpedo, board toggle, perk purchase, ping/drone/depth-charge/SR/G-SONAR/cloak modes, animations, audio, fleet status (friendly + enemy), full game loop, no-pass enforcement, dispose |
 | `handoff-screen.test.ts` | Player designation, instructions, navigation, data leakage check |
 | `victory-screen.test.ts` | Winner display, stats, session export, NEW ENGAGEMENT navigation |
+| `tool-palette.test.ts` | View/depth/axis button rendering, active states, callbacks, axis hiding via config, destruction/cleanup |
 
 ## Mock Patterns
 

@@ -182,7 +182,7 @@ npx tsx scripts/analyze-log.ts contact-agent-*.jsonl
 ## Notes
 
 - Memory files are gitignored (`scripts/memory/` is in `.gitignore`). They are per-machine experimental artifacts
-- Both agents use the same Claude model (currently `claude-sonnet-4-20250514`)
+- Both agents use the same Claude model (currently `claude-haiku-4-5-20251001`)
 - Fleet placement is random for both sides; agents control combat strategy only
 - Each agent maintains a separate conversation history across turns within a game for continuity
 - The safety limit is 15 API calls per turn and 200 turns per game

@@ -20,6 +20,7 @@ title → setup (P1) → handoff → setup (P2) → handoff → combat ↔ hando
 | `components/perk-store.ts` | `PerkStore`: slide-out panel. Offensive (red) / Defensive (green). Cost badges amber. |
 | `components/inventory-tray.ts` | `InventoryTray`: purchased perks grouped by type with count badges |
 | `components/action-slots.ts` | `ActionSlots`: PING / ATTACK / DEFEND slot HUD |
+| `components/tool-palette.ts` | `ToolPalette`: consolidated view mode (CUBE/SLICE/X-RAY), depth (ALL/1-7), and axis (8-axis) selectors. Configurable via `ToolPaletteConfig`. Used by both setup and combat screens. |
 | `components/notification-banner.ts` | `NotificationBanner`: queued CRT notifications with auto-dismiss |
 | `screens/title-screen.ts` | Title with CRT aesthetic. Mode selector (LOCAL/AI). Rank selector (recruit/enlisted/officer, default officer). AI mode prompts for Anthropic API key → creates `AIOpponent`. START → `setRank()` + setup, HELP → help |
 | `screens/setup-screen.ts` | Canvas-dominant 3D layout. Ship/decoy placement via raycaster. 8-axis selector, AUTO DEPLOY, ghost preview. Phases: ships → decoy-pending → decoy → confirm. |

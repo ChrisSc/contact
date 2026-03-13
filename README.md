@@ -45,7 +45,7 @@ Two players share one screen, taking turns with a handoff screen between them. T
 
 ### Human vs AI
 
-Play as ALPHA against Claude Sonnet as BRAVO. Select **VS AI** on the title screen and enter your Anthropic API key. The AI places its fleet automatically, reasons about strategy via tool use, and plays with embedded tactical knowledge from prior games. All controls are locked during the AI's turn. See [HUMAN_V_AI.md](HUMAN_V_AI.md) for full details.
+Play as ALPHA against Claude Haiku as BRAVO. Select **VS AI** on the title screen and enter your Anthropic API key. The AI places its fleet automatically, reasons about strategy via tool use, and plays with embedded tactical knowledge from prior games. All controls are locked during the AI's turn. See [HUMAN_V_AI.md](HUMAN_V_AI.md) for full details.
 
 ## How to Play
 
