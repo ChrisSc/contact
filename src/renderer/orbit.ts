@@ -200,10 +200,13 @@ export class OrbitControls {
     return Math.sqrt(dx * dx + dy * dy);
   }
 
+  // Vertical offset to shift the cube upward in the viewport
+  targetY = -1.4;
+
   private updateCamera(): void {
     const pos = sphericalToCartesian(this.distance, this.phi, this.theta);
-    this.camera.position.set(pos.x, pos.y, pos.z);
-    this.camera.lookAt(0, 0, 0);
+    this.camera.position.set(pos.x, pos.y + this.targetY, pos.z);
+    this.camera.lookAt(0, this.targetY, 0);
   }
 
   update(): void {

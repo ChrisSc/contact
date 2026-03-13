@@ -1,0 +1,706 @@
+/* ==========================================================================
+   MOBILE PORTRAIT LAYOUT
+   Breakpoint: max-width 768px + portrait orientation
+   Additive layer — desktop styles are untouched.
+   ========================================================================== */
+
+@media (max-width: 768px) and (orientation: portrait) {
+
+  /* --- Custom Properties --- */
+  :root {
+    --mobile-tap: 44px;
+    --mobile-tap-sm: 38px;
+    --mobile-gap: 4px;
+  }
+
+  /* --- CRT Effects: lighten for mobile performance --- */
+  #app {
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .crt-overlay::before {
+    background: repeating-linear-gradient(
+      0deg,
+      rgba(0, 0, 0, 0.08) 0px,
+      rgba(0, 0, 0, 0.08) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+
+  /* --- App Footer: hide on mobile --- */
+  .app-footer {
+    display: none;
+  }
+
+  /* --- Global touch targets --- */
+  .crt-button {
+    min-height: var(--mobile-tap);
+    padding: 10px 16px;
+    font-size: 11px;
+  }
+
+  /* =======================================================================
+     TITLE SCREEN
+     ======================================================================= */
+  .title-screen {
+    gap: var(--spacing-md);
+    padding: 0 var(--spacing-md);
+  }
+
+  .title-screen__title {
+    font-size: 28px;
+    letter-spacing: 4px;
+  }
+
+  .title-screen__subtitle {
+    font-size: 10px;
+    letter-spacing: 2px;
+  }
+
+  .title-screen__label {
+    font-size: 8px;
+    letter-spacing: 2px;
+  }
+
+  .title-screen__actions {
+    flex-direction: column;
+    width: 100%;
+    gap: var(--spacing-sm);
+    margin-top: var(--spacing-md);
+  }
+
+  .title-screen__actions .crt-button {
+    width: 100%;
+  }
+
+  .title-screen__rank-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .title-screen__rank-btn {
+    min-height: var(--mobile-tap-sm);
+    padding: 8px 12px;
+    font-size: 9px;
+  }
+
+  .title-screen__mode-selector .crt-button {
+    min-height: var(--mobile-tap-sm);
+    font-size: 9px;
+    padding: 8px 12px;
+  }
+
+  .title-screen__api-key-input {
+    width: 100%;
+    min-height: var(--mobile-tap);
+  }
+
+  /* =======================================================================
+     HANDOFF SCREEN
+     ======================================================================= */
+  .handoff-screen {
+    gap: var(--spacing-lg);
+    padding: 0 var(--spacing-md);
+  }
+
+  .handoff-screen__player {
+    font-size: 24px;
+    letter-spacing: 4px;
+  }
+
+  .handoff-screen__label {
+    font-size: 10px;
+  }
+
+  .handoff-screen__instruction {
+    font-size: 14px;
+  }
+
+  /* =======================================================================
+     VICTORY SCREEN
+     ======================================================================= */
+  .victory-screen {
+    gap: var(--spacing-lg);
+    padding: 0 var(--spacing-md);
+  }
+
+  .victory-screen__winner {
+    font-size: 24px;
+    letter-spacing: 4px;
+  }
+
+  .victory-screen__label {
+    font-size: 10px;
+  }
+
+  .victory-screen__stat {
+    font-size: 14px;
+  }
+
+  .victory-screen__actions {
+    flex-direction: column;
+    width: 100%;
+    gap: var(--spacing-sm);
+  }
+
+  .victory-screen__actions .crt-button {
+    width: 100%;
+  }
+
+  /* =======================================================================
+     HELP SCREEN
+     ======================================================================= */
+  .help-screen {
+    padding: var(--spacing-md) var(--spacing-sm);
+  }
+
+  .help-screen__header {
+    font-size: 16px;
+    letter-spacing: 2px;
+  }
+
+  .help-screen__content {
+    max-width: 100%;
+    padding: 0 var(--spacing-xs);
+    gap: var(--spacing-lg);
+  }
+
+  .help-screen__text {
+    font-size: 12px;
+  }
+
+  .help-screen__section-title {
+    font-size: 10px;
+  }
+
+  .help-screen__table {
+    font-size: 11px;
+    display: block;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* =======================================================================
+     SETUP SCREEN — Portrait stacked layout
+
+     Uses a flex column for the bottom controls region so elements
+     stack naturally without fragile pixel offsets.
+
+     Vertical layout:
+       top 0        — Top bar
+       top 36px     — Status message
+       top 0..55%   — 3D canvas
+       55%          — Controls region (flex column): roster → palette → footer
+     ======================================================================= */
+
+  /* Canvas — cube centered between header and controls */
+  .setup-screen__canvas {
+    bottom: 38%;
+  }
+
+  /* Create a flex column container for the bottom controls region */
+  .setup-screen {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Top bar — compact, stays at top */
+  .setup-screen__top-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+
+  .setup-screen__player-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .setup-screen__title-label {
+    font-size: 8px;
+  }
+
+  .setup-screen__coord-display {
+    font-size: 14px;
+    min-width: auto;
+    letter-spacing: 2px;
+  }
+
+  .setup-screen__top-right {
+    display: none;
+  }
+
+  /* Status — below top bar */
+  .setup-screen__status {
+    top: 36px;
+    font-size: 8px;
+    white-space: normal;
+    max-width: 90vw;
+  }
+
+  /* Ship roster panel — positioned top-down from where canvas ends */
+  .setup-screen__roster-panel {
+    position: absolute;
+    top: 63%;
+    bottom: auto;
+    right: 0;
+    left: 0;
+    transform: none;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+    z-index: 10;
+    padding: 0 var(--spacing-sm);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--mobile-gap);
+    scrollbar-width: none;
+  }
+
+  .setup-screen__roster-panel::-webkit-scrollbar {
+    display: none;
+  }
+
+  .ship-roster {
+    flex-direction: row;
+    overflow-x: visible;
+    overflow-y: hidden;
+    gap: var(--mobile-gap);
+    padding: var(--spacing-xs) 0;
+    flex-shrink: 0;
+  }
+
+  .ship-roster__title {
+    display: none;
+  }
+
+  .ship-roster__entry {
+    flex-shrink: 0;
+    min-height: 34px;
+    padding: 5px 10px;
+    font-size: 10px;
+    white-space: nowrap;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  .ship-roster__status {
+    font-size: 7px;
+    margin-left: 4px;
+  }
+
+  .ship-roster__size {
+    font-size: 8px;
+  }
+
+  /* Auto deploy button — inline pill at end of roster strip */
+  .setup-screen__auto-deploy {
+    min-height: 34px;
+    width: auto;
+    margin-top: 0;
+    padding: 5px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* Tool palette — positioned below roster, stacking top-down */
+  .tool-palette {
+    position: absolute;
+    top: calc(63% + 42px);
+    bottom: auto;
+    left: 0;
+    right: 0;
+    transform: none;
+    border-left: none;
+    border-right: none;
+    border-radius: 0;
+    padding: 2px var(--spacing-sm);
+  }
+
+  .tool-palette__row {
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 3px;
+    padding: 2px 0;
+  }
+
+  .tool-palette__label {
+    font-size: 6px;
+    min-width: 28px;
+    margin-right: 2px;
+  }
+
+  .tool-palette__btn {
+    min-height: 32px;
+    min-width: 32px;
+    padding: 4px 8px;
+    font-size: 8px;
+  }
+
+  /* Footer buttons — anchored at bottom */
+  .setup-screen__footer {
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: var(--spacing-sm);
+    background: rgba(10, 10, 10, 0.9);
+    gap: var(--spacing-sm);
+  }
+
+  .setup-screen__footer .crt-button {
+    flex: 1;
+    min-height: var(--mobile-tap);
+    font-size: 10px;
+    padding: 8px 12px;
+  }
+
+  /* Hint text — hide on mobile */
+  .setup-screen__hint {
+    display: none;
+  }
+
+  /* =======================================================================
+     COMBAT SCREEN — Portrait stacked layout
+
+     Bottom-up stacking (from bottom edge):
+       0px         — END TURN (44px)
+       44px        — Stats bar (~28px)
+       72px        — Fleet panels (two-column, ~100px)
+       172px       — Tool palette (~34px)
+       206px       — Status message
+
+     Top-down (from top edge):
+       0px         — Top bar (~30px)
+       30px        — Tab strip (~38px)
+       68px        — Select label
+
+     Canvas: top 0 to bottom 38% — cube gets ~62% of viewport
+     ======================================================================= */
+
+  /* Canvas — cube centered between tab strip (top ~70px) and tool palette (bottom ~178px) */
+  .combat-screen__canvas {
+    bottom: 32%;
+  }
+
+  /* Top bar — compact */
+  .combat-screen__top-bar {
+    padding: var(--spacing-xs) var(--spacing-sm);
+  }
+
+  .combat-screen__player-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+  }
+
+  .combat-screen__turn-label {
+    font-size: 8px;
+  }
+
+  .combat-screen__coord-display {
+    font-size: 14px;
+    min-width: auto;
+    letter-spacing: 2px;
+  }
+
+  .combat-screen__credits {
+    font-size: 9px;
+  }
+
+  .combat-screen__store-btn,
+  .combat-screen__mute-btn {
+    min-height: 32px;
+    min-width: 32px;
+    padding: 4px 8px;
+    font-size: 7px;
+  }
+
+  .combat-screen__top-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Tab strip — board toggle + action slots merged into scrollable row */
+  .combat-screen__tab-strip {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: var(--mobile-gap);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background: linear-gradient(to bottom, rgba(10, 10, 10, 0.85) 0%, transparent 100%);
+    scrollbar-width: none;
+    pointer-events: auto;
+  }
+
+  .combat-screen__tab-strip::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Reset child positioning inside tab strip on mobile */
+  .combat-screen__tab-strip .combat-screen__board-toggle {
+    position: static;
+    display: flex;
+    gap: var(--mobile-gap);
+    flex-shrink: 0;
+  }
+
+  .combat-screen__tab-strip .action-slots {
+    position: static;
+    display: flex;
+    gap: var(--mobile-gap);
+    flex-shrink: 0;
+  }
+
+  .combat-screen__toggle-btn {
+    min-height: var(--mobile-tap-sm);
+    padding: 6px 12px;
+    font-size: 8px;
+    flex-shrink: 0;
+  }
+
+  .action-slots__slot {
+    min-height: var(--mobile-tap-sm);
+    padding: 6px 10px;
+    font-size: 7px;
+    flex-shrink: 0;
+  }
+
+  /* Select label — below tab strip, clear of scrollable pills */
+  .combat-screen__select-label {
+    top: 78px;
+    font-size: 7px;
+  }
+
+  /* --- Bottom-up stacking: END TURN → stats → fleet → palette → status --- */
+
+  /* END TURN — fixed at very bottom */
+  .combat-screen__end-turn {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    min-height: var(--mobile-tap);
+    font-size: 12px;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    z-index: 10;
+  }
+
+  /* Stats bar — just above END TURN */
+  .combat-screen__bottom-bar {
+    bottom: var(--mobile-tap);
+    padding: 4px var(--spacing-sm);
+  }
+
+  .combat-screen__stat-value {
+    font-size: 11px;
+  }
+
+  .combat-screen__stat-label {
+    font-size: 5px;
+  }
+
+  /* Right stack — fleet just above stats bar */
+  .combat-screen__right-stack {
+    position: absolute;
+    top: auto;
+    bottom: 72px;
+    right: 0;
+    left: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 0 var(--spacing-sm);
+  }
+
+  /* Fleet panel — two-column side by side */
+  .combat-screen__fleet-panel {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-flow: dense;
+    gap: 0 16px;
+    pointer-events: none;
+  }
+
+  /* Place friendly column in col 1, enemy in col 2 */
+  .combat-screen__fleet-panel > .combat-screen__fleet-title:first-child {
+    grid-column: 1;
+  }
+  .combat-screen__fleet-panel > .combat-screen__friendly-fleet {
+    grid-column: 1;
+  }
+  .combat-screen__fleet-panel > .combat-screen__fleet-title:nth-of-type(2) {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .combat-screen__fleet-panel > .combat-screen__enemy-fleet {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .combat-screen__fleet-title {
+    text-align: left;
+    font-size: 8px;
+    color: var(--crt-amber);
+  }
+
+  .combat-screen__fleet-entry {
+    justify-content: flex-start;
+    font-size: 8px;
+    gap: 4px;
+    padding: 1px 0;
+  }
+
+  .combat-screen__pip {
+    width: 8px;
+    height: 6px;
+  }
+
+  .combat-screen__fleet-separator {
+    display: none;
+  }
+
+  /* Tool palette — just above fleet panels */
+  .combat-screen .tool-palette {
+    top: auto;
+    bottom: 178px;
+    left: 0;
+    right: 0;
+    transform: none;
+    padding: 2px var(--spacing-sm);
+    border-left: none;
+    border-right: none;
+  }
+
+  .combat-screen .tool-palette__row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    justify-content: flex-start;
+    gap: 3px;
+    padding: 2px 0;
+  }
+
+  .combat-screen .tool-palette__row::-webkit-scrollbar {
+    display: none;
+  }
+
+  .combat-screen .tool-palette__btn {
+    min-height: 30px;
+    min-width: 30px;
+    padding: 4px 8px;
+    font-size: 7px;
+    flex-shrink: 0;
+  }
+
+  .combat-screen .tool-palette__label {
+    font-size: 6px;
+    min-width: 28px;
+  }
+
+  /* Status message — well above tool palette */
+  .combat-screen__status {
+    top: auto;
+    bottom: 265px;
+    font-size: 9px;
+    white-space: normal;
+    max-width: 90vw;
+  }
+
+  /* Hint — hide on mobile */
+  .combat-screen__hint {
+    display: none;
+  }
+
+  /* Perk store — full-screen overlay */
+  .perk-store {
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    border-radius: 0;
+  }
+
+  .perk-store__close {
+    min-height: var(--mobile-tap);
+    min-width: var(--mobile-tap);
+    padding: 8px 12px;
+    font-size: 12px;
+  }
+
+  .perk-store__buy-btn {
+    min-height: var(--mobile-tap-sm);
+    padding: 6px 12px;
+    font-size: 9px;
+  }
+
+  .perk-store__desc {
+    font-size: 11px;
+  }
+
+  /* Inventory tray — horizontal scroll below select label */
+  .inventory-tray {
+    bottom: auto;
+    left: 0;
+    right: 0;
+    top: 94px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0 var(--spacing-sm);
+    scrollbar-width: none;
+  }
+
+  .inventory-tray::-webkit-scrollbar {
+    display: none;
+  }
+
+  .inventory-tray__item {
+    min-height: var(--mobile-tap-sm);
+    padding: 4px 10px;
+    flex-shrink: 0;
+  }
+
+  .inventory-tray__item-name {
+    font-size: 6px;
+  }
+
+  /* Notification banner — ensure visible in cube area */
+  .notification-banner {
+    top: 20%;
+  }
+
+  .notification-banner__message {
+    font-size: 0.8rem;
+    padding: 10px 16px;
+    max-width: 90vw;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .notification-banner__message--sunk {
+    font-size: 1rem;
+  }
+
+  /* AI thinking overlay */
+  .combat-screen__ai-thinking {
+    font-size: 11px;
+    letter-spacing: 2px;
+  }
+
+}

@@ -85,9 +85,10 @@ describe('OrbitControls', () => {
   });
 
   it('positions camera at initial spherical coordinates', () => {
+    const targetY = controls.targetY;
     const dist = Math.sqrt(
       camera.position.x ** 2 +
-      camera.position.y ** 2 +
+      (camera.position.y - targetY) ** 2 +
       camera.position.z ** 2,
     );
     expect(dist).toBeCloseTo(15);

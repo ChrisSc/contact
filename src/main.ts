@@ -15,6 +15,7 @@ import './styles/crt.css';
 import './styles/grid.css';
 import './styles/ui.css';
 import './styles/effects.css';
+import './styles/mobile.css';
 
 function initApp(): void {
   const app = document.getElementById('app');

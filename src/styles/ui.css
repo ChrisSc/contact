@@ -533,6 +533,11 @@
   opacity: 0.6;
 }
 
+/* --- Tab strip: pass-through container for board toggle + action slots --- */
+.combat-screen__tab-strip {
+  display: contents;
+}
+
 /* --- Select target / board toggle --- */
 .combat-screen__select-label {
   position: absolute;
@@ -582,7 +587,7 @@
 /* --- Status message (center) --- */
 .combat-screen__status {
   position: absolute;
-  bottom: 148px;
+  bottom: 163px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 10;
@@ -618,7 +623,7 @@
 .combat-screen__fleet-title {
   font-family: var(--font-display);
   font-size: 7px;
-  color: var(--crt-green-dim);
+  color: var(--crt-amber);
   letter-spacing: 1px;
   margin-bottom: 4px;
   text-align: right;

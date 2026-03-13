@@ -57,10 +57,10 @@ export class ActionSlots {
       if (!el) continue;
 
       let state: SlotState;
-      if (!slotHas[config.key]) {
-        state = 'unavailable';
-      } else if (slotUsed[config.key]) {
+      if (slotUsed[config.key]) {
         state = 'used';
+      } else if (!slotHas[config.key]) {
+        state = 'unavailable';
       } else {
         state = 'available';
       }
