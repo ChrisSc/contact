@@ -237,6 +237,10 @@ export class SceneManager {
     if (width === 0 || height === 0) return;
 
     this.camera.aspect = width / height;
+    // Widen FOV in portrait to keep cube visible in narrower viewport
+    this.camera.fov = width < height ? 70 : 60;
+    // Desktop: shift cube up in viewport; mobile: center in cropped canvas
+    this.orbit.targetY = width < height ? 0.8 : -1.4;
     this.camera.updateProjectionMatrix();
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));

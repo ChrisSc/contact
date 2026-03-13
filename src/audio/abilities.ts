@@ -6,18 +6,25 @@
  * by checking `isAudioReady()` before scheduling any nodes.
  *
  * Synthesis approaches:
- *   Torpedo fire    — rising filtered noise burst ~200 ms, pneumatic whoosh
- *   Torpedo hit     — FM metallic ping ~400-800 Hz, sharp attack, quick decay
- *   Torpedo miss    — muffled low thud ~150 ms, understated
- *   Torpedo sunk    — low rumble ~80-150 Hz with descending pitch sweep, ~800 ms
- *   Sonar ping      — sine chirp 800→1200→800 Hz with delay echo, ~400 ms
- *   Recon drone     — descending high-pitch beep series, radar sweep ~600 ms
- *   Radar jammer    — white noise burst through bandpass with wobble LFO, ~400 ms
- *   Depth Charge    — low-frequency noise burst (100–200 Hz) + sub-bass rumble (50 Hz), ~1 s
- *   Silent Running activate — descending tone (500→100 Hz) with low-pass filter sweep, ~500 ms
- *   Silent Running expire   — ascending tone (100→400 Hz), ~300 ms
- *   G-SONAR         — deep bass sweep (200→400 Hz) + harmonic layer (600→1200 Hz) + delay echo, ~800 ms
- *   Acoustic Cloak  — white noise through closing bandpass (1200→200 Hz) with LFO wobble, ~500 ms
+ *   Torpedo fire    — two-phase launch: pneumatic bandpass burst (0-60ms) + brown-noise
+ *                     water rush with LPF sweep (40-300ms) + 80 Hz sub-bass thud
+ *   Torpedo hit     — randomised FM carrier (490-550 Hz) descending with metallic modulator,
+ *                     sharp bandpass noise transient, sub-bass (55 Hz) with Tremolo
+ *   Torpedo miss    — low-pass brown noise thud, descending sine Doppler (160→80 Hz),
+ *                     high-pass water splash — audible but understated
+ *   Torpedo sunk    — 5-layer catastrophic destruction ~1.4s: brown noise shockwave,
+ *                     two detuned sawtooth groans, sub-bass Tremolo, bubble bursts,
+ *                     structural snap triangle
+ *   Sonar ping      — single 1500 Hz sine, long natural decay, Reverb echo + FeedbackDelay
+ *   Recon drone     — 5 descending beeps at 70ms intervals + noise bandpass sweep underlay
+ *   Radar Jammer    — BitCrusher noise + alternating square tone 300/500 Hz + LFO wobble
+ *   Depth charge    — detonator click at 0ms, three-layer explosion at +120ms, water eruption at +150ms
+ *   Silent Running  — slow descent 500→80 Hz / filter 600→60 Hz with Reverb tail + dissolving static
+ *   Silent Running expire — two-note ascending chime (200 Hz then 350 Hz), clean sine
+ *   G-SONAR         — deep bass sweep 150→400 Hz + harmonic 450→1200 Hz + noise sweep + delay
+ *   Acoustic Cloak  — bandpass close 1200→180 Hz with wide LFO + reversed-envelope sine pad
+ *   Purchase        — three-tone ascending chime (400/600/800 Hz) with Reverb
+ *   Insufficient funds — two BitCrusher-filtered sawtooth buzzes at 120/100 Hz
  */
 
 import * as Tone from 'tone';
@@ -41,9 +48,9 @@ function logPlay(sound: string): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Deep underwater explosion: bandpass-filtered noise burst centered around
- * 100–200 Hz for the initial shockwave, layered with a 50 Hz sub-bass rumble
- * that fades out over ~1 second.
+ * Click...BOOM timing: a 2000 Hz detonator click at t=0, followed at +120ms
+ * by a three-layer underwater explosion (noise shockwave, sub-bass rumble,
+ * casing crack), then a water eruption burst at +150ms.
  */
 export function playDepthChargeSound(): void {
   if (!isAudioReady()) return;
@@ -51,20 +58,40 @@ export function playDepthChargeSound(): void {
   logPlay('depth_charge');
 
   try {
-    // ---- Layer 1: Noise shockwave ----------------------------------------
-    // White noise run through a bandpass filter sculpted around 150 Hz,
-    // then a short envelope for the sharp detonation transient.
+    const now = Tone.now();
+
+    // ---- Phase 1 (0ms): Detonator click ----------------------------------
+    const clickVol = new Tone.Volume(-10).toDestination();
+    const clickEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.001,
+      decay: 0.015,
+      sustain: 0,
+      release: 0.01,
+    }).connect(clickVol);
+
+    const clickOsc = new Tone.Oscillator({
+      type: 'sine',
+      frequency: 2000,
+    }).connect(clickEnv);
+
+    clickOsc.start(now);
+    clickEnv.triggerAttackRelease(0.015, now);
+
+    // ---- Phase 2 (+120ms): Main explosion --------------------------------
+    const boom = now + 0.12;
+
+    // Noise shockwave
     const noiseVol = new Tone.Volume(-6).toDestination();
     const noiseEnv = new Tone.AmplitudeEnvelope({
       attack: 0.005,
-      decay: 0.25,
+      decay: 0.3,
       sustain: 0.1,
       release: 0.5,
     }).connect(noiseVol);
 
     const bandpass = new Tone.Filter({
       type: 'bandpass',
-      frequency: 150,
+      frequency: 200,
       Q: 1.2,
     }).connect(noiseEnv);
 
@@ -76,13 +103,11 @@ export function playDepthChargeSound(): void {
 
     const noise = new Tone.Noise('white').connect(lowpass);
 
-    // ---- Layer 2: Sub-bass rumble -----------------------------------------
-    // A sine oscillator at 50 Hz with a long decay for the low-frequency
-    // underwater rumble that follows the initial explosion.
+    // Sub-bass rumble
     const rumbleVol = new Tone.Volume(-4).toDestination();
     const rumbleEnv = new Tone.AmplitudeEnvelope({
       attack: 0.01,
-      decay: 0.6,
+      decay: 0.8,
       sustain: 0.15,
       release: 0.4,
     }).connect(rumbleVol);
@@ -92,9 +117,7 @@ export function playDepthChargeSound(): void {
       frequency: 50,
     }).connect(rumbleEnv);
 
-    // ---- Layer 3: Mid-frequency impact crack ------------------------------
-    // A second noise burst filtered higher to give the metallic crack of
-    // the charge casing fracturing.
+    // Casing crack
     const crackVol = new Tone.Volume(-12).toDestination();
     const crackEnv = new Tone.AmplitudeEnvelope({
       attack: 0.002,
@@ -111,53 +134,65 @@ export function playDepthChargeSound(): void {
 
     const crackNoise = new Tone.Noise('white').connect(crackFilter);
 
-    // ---- Schedule playback -----------------------------------------------
-    const now = Tone.now();
+    noise.start(boom);
+    noiseEnv.triggerAttackRelease(0.9, boom);
+    bandpass.frequency.setValueAtTime(200, boom);
+    bandpass.frequency.exponentialRampToValueAtTime(60, boom + 0.8);
 
-    noise.start(now);
-    noiseEnv.triggerAttackRelease(0.9, now);
+    rumble.start(boom);
+    rumbleEnv.triggerAttackRelease(1.0, boom);
 
-    rumble.start(now);
-    rumbleEnv.triggerAttackRelease(1.0, now);
+    crackNoise.start(boom);
+    crackEnv.triggerAttackRelease(0.1, boom);
 
-    crackNoise.start(now);
-    crackEnv.triggerAttackRelease(0.1, now);
+    // ---- Phase 3 (+150ms): Water eruption --------------------------------
+    const erupt = now + 0.15;
 
-    // Sweep the bandpass frequency down during the decay for the "underwater
-    // pressure wave" effect — starts at 200 Hz, drops to 60 Hz over 800 ms.
-    bandpass.frequency.setValueAtTime(200, now);
-    bandpass.frequency.exponentialRampToValueAtTime(60, now + 0.8);
+    const eruptVol = new Tone.Volume(-14).toDestination();
+    const eruptEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.05,
+      decay: 0.4,
+      sustain: 0.05,
+      release: 0.2,
+    }).connect(eruptVol);
+
+    const eruptHpf = new Tone.Filter({
+      type: 'highpass',
+      frequency: 400,
+      rolloff: -12,
+    }).connect(eruptEnv);
+
+    const eruptNoise = new Tone.Noise('brown').connect(eruptHpf);
+
+    eruptNoise.start(erupt);
+    eruptEnv.triggerAttackRelease(0.5, erupt);
 
     // ---- Cleanup after sound completes -----------------------------------
     setTimeout(() => {
+      clickOsc.stop();
       noise.stop();
       rumble.stop();
       crackNoise.stop();
-      noise.disconnect();
-      rumble.disconnect();
-      crackNoise.disconnect();
-      lowpass.disconnect();
-      bandpass.disconnect();
-      noiseEnv.disconnect();
-      rumbleEnv.disconnect();
-      crackFilter.disconnect();
-      crackEnv.disconnect();
-      noiseVol.disconnect();
-      rumbleVol.disconnect();
-      crackVol.disconnect();
-      noise.dispose();
-      rumble.dispose();
-      crackNoise.dispose();
-      lowpass.dispose();
-      bandpass.dispose();
-      noiseEnv.dispose();
-      rumbleEnv.dispose();
-      crackFilter.dispose();
-      crackEnv.dispose();
-      noiseVol.dispose();
-      rumbleVol.dispose();
-      crackVol.dispose();
-    }, 1400);
+      eruptNoise.stop();
+
+      clickOsc.disconnect(); clickEnv.disconnect(); clickVol.disconnect();
+      noise.disconnect(); lowpass.disconnect(); bandpass.disconnect();
+      noiseEnv.disconnect(); noiseVol.disconnect();
+      rumble.disconnect(); rumbleEnv.disconnect(); rumbleVol.disconnect();
+      crackNoise.disconnect(); crackFilter.disconnect();
+      crackEnv.disconnect(); crackVol.disconnect();
+      eruptNoise.disconnect(); eruptHpf.disconnect();
+      eruptEnv.disconnect(); eruptVol.disconnect();
+
+      clickOsc.dispose(); clickEnv.dispose(); clickVol.dispose();
+      noise.dispose(); lowpass.dispose(); bandpass.dispose();
+      noiseEnv.dispose(); noiseVol.dispose();
+      rumble.dispose(); rumbleEnv.dispose(); rumbleVol.dispose();
+      crackNoise.dispose(); crackFilter.dispose();
+      crackEnv.dispose(); crackVol.dispose();
+      eruptNoise.dispose(); eruptHpf.dispose();
+      eruptEnv.dispose(); eruptVol.dispose();
+    }, 1800);
 
   } catch (err) {
     try {
@@ -173,9 +208,9 @@ export function playDepthChargeSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Descending tone sweep from 500 Hz down to 100 Hz over ~500 ms, layered
- * with a slow low-pass filter close that progressively swallows the signal
- * — the auditory equivalent of a submarine disappearing into silence.
+ * Atmospheric disappearance: descending tone 500→80 Hz over 700ms with a
+ * closing low-pass filter (600→60 Hz), Reverb tail, sub-octave descent
+ * (250→40 Hz), and a dissolving static layer fading into silence.
  */
 export function playSilentRunningActivate(): void {
   if (!isAudioReady()) return;
@@ -183,17 +218,24 @@ export function playSilentRunningActivate(): void {
   logPlay('silent_running_activate');
 
   try {
-    // ---- Descending oscillator -------------------------------------------
-    const mainVol = new Tone.Volume(-10).toDestination();
-    const env = new Tone.AmplitudeEnvelope({
-      attack: 0.02,
-      decay: 0.3,
-      sustain: 0.4,
-      release: 0.2,
+    const now = Tone.now();
+    const duration = 0.7;
+
+    // ---- Main descending tone with Reverb tail ---------------------------
+    const mainVol = new Tone.Volume(-8).toDestination();
+
+    const reverb = new Tone.Reverb({
+      decay: 1.5,
+      wet: 0.5,
     }).connect(mainVol);
 
-    // Low-pass filter that closes as the tone descends, emphasizing the
-    // "disappearing" quality.
+    const env = new Tone.AmplitudeEnvelope({
+      attack: 0.02,
+      decay: 0.35,
+      sustain: 0.4,
+      release: 0.2,
+    }).connect(reverb);
+
     const lpf = new Tone.Filter({
       type: 'lowpass',
       frequency: 600,
@@ -205,12 +247,11 @@ export function playSilentRunningActivate(): void {
       frequency: 500,
     }).connect(lpf);
 
-    // ---- Secondary harmonic layer ----------------------------------------
-    // A quieter oscillator one octave below adds depth to the tone.
+    // ---- Sub-octave descent ----------------------------------------------
     const subVol = new Tone.Volume(-18).toDestination();
     const subEnv = new Tone.AmplitudeEnvelope({
       attack: 0.03,
-      decay: 0.35,
+      decay: 0.4,
       sustain: 0.3,
       release: 0.25,
     }).connect(subVol);
@@ -220,46 +261,61 @@ export function playSilentRunningActivate(): void {
       frequency: 250,
     }).connect(subEnv);
 
+    // ---- Dissolving static -----------------------------------------------
+    const staticVol = new Tone.Volume(-22).toDestination();
+    const staticEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.05,
+      decay: 0.5,
+      sustain: 0.1,
+      release: 0.2,
+    }).connect(staticVol);
+
+    const staticLpf = new Tone.Filter({
+      type: 'lowpass',
+      frequency: 800,
+      rolloff: -12,
+    }).connect(staticEnv);
+
+    const staticNoise = new Tone.Noise('white').connect(staticLpf);
+
     // ---- Schedule playback -----------------------------------------------
-    const now = Tone.now();
-    const duration = 0.5;
-
     osc.start(now);
-    subOsc.start(now);
-
-    // Descending frequency sweep
     osc.frequency.setValueAtTime(500, now);
-    osc.frequency.exponentialRampToValueAtTime(100, now + duration);
+    osc.frequency.exponentialRampToValueAtTime(80, now + duration);
 
-    subOsc.frequency.setValueAtTime(250, now);
-    subOsc.frequency.exponentialRampToValueAtTime(50, now + duration);
-
-    // Low-pass filter closes down over the duration
     lpf.frequency.setValueAtTime(600, now);
-    lpf.frequency.exponentialRampToValueAtTime(80, now + duration);
+    lpf.frequency.exponentialRampToValueAtTime(60, now + duration);
 
     env.triggerAttackRelease(duration - 0.05, now);
+
+    subOsc.start(now);
+    subOsc.frequency.setValueAtTime(250, now);
+    subOsc.frequency.exponentialRampToValueAtTime(40, now + duration);
     subEnv.triggerAttackRelease(duration - 0.05, now);
 
-    // ---- Cleanup ----------------------------------------------------------
+    staticNoise.start(now);
+    staticLpf.frequency.setValueAtTime(800, now);
+    staticLpf.frequency.exponentialRampToValueAtTime(100, now + duration);
+    staticEnv.triggerAttackRelease(duration, now);
+
+    // ---- Cleanup (2500ms to allow Reverb tail) ----------------------------
     setTimeout(() => {
       osc.stop();
       subOsc.stop();
-      osc.disconnect();
-      subOsc.disconnect();
-      lpf.disconnect();
-      env.disconnect();
-      subEnv.disconnect();
-      mainVol.disconnect();
-      subVol.disconnect();
-      osc.dispose();
-      subOsc.dispose();
-      lpf.dispose();
-      env.dispose();
-      subEnv.dispose();
-      mainVol.dispose();
-      subVol.dispose();
-    }, 900);
+      staticNoise.stop();
+
+      osc.disconnect(); lpf.disconnect(); env.disconnect();
+      reverb.disconnect(); mainVol.disconnect();
+      subOsc.disconnect(); subEnv.disconnect(); subVol.disconnect();
+      staticNoise.disconnect(); staticLpf.disconnect();
+      staticEnv.disconnect(); staticVol.disconnect();
+
+      osc.dispose(); lpf.dispose(); env.dispose();
+      reverb.dispose(); mainVol.dispose();
+      subOsc.dispose(); subEnv.dispose(); subVol.dispose();
+      staticNoise.dispose(); staticLpf.dispose();
+      staticEnv.dispose(); staticVol.dispose();
+    }, 2500);
 
   } catch (err) {
     try {
@@ -275,9 +331,8 @@ export function playSilentRunningActivate(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Brief ascending tone from 100 Hz up to 400 Hz over ~300 ms.
- * Deliberately subtle — a quiet notification that silent running has ended
- * and the ship is back on sensors.
+ * Two-note ascending chime: clean sine at 200 Hz then 350 Hz (+80ms offset).
+ * No filter — bright and unambiguous re-acquisition alert.
  */
 export function playSilentRunningExpire(): void {
   if (!isAudioReady()) return;
@@ -285,50 +340,47 @@ export function playSilentRunningExpire(): void {
   logPlay('silent_running_expire');
 
   try {
-    // Noticeably quieter than activation — this is a background alert.
-    const vol = new Tone.Volume(-16).toDestination();
-    const env = new Tone.AmplitudeEnvelope({
-      attack: 0.01,
-      decay: 0.15,
-      sustain: 0.2,
-      release: 0.12,
-    }).connect(vol);
-
-    // Slight high-pass to keep it thin and un-intrusive.
-    const hpf = new Tone.Filter({
-      type: 'highpass',
-      frequency: 80,
-      rolloff: -12,
-    }).connect(env);
-
-    const osc = new Tone.Oscillator({
-      type: 'triangle',
-      frequency: 100,
-    }).connect(hpf);
-
     const now = Tone.now();
-    const duration = 0.3;
+    const chimeFreqs = [200, 350];
+    const chimeNodes: Array<{
+      osc: Tone.Oscillator;
+      env: Tone.AmplitudeEnvelope;
+      vol: Tone.Volume;
+    }> = [];
 
-    osc.start(now);
+    for (let i = 0; i < chimeFreqs.length; i++) {
+      const vol = new Tone.Volume(-13).toDestination();
+      const env = new Tone.AmplitudeEnvelope({
+        attack: 0.005,
+        decay: 0.12,
+        sustain: 0,
+        release: 0.08,
+      }).connect(vol);
 
-    // Ascending frequency sweep
-    osc.frequency.setValueAtTime(100, now);
-    osc.frequency.exponentialRampToValueAtTime(400, now + duration);
+      const osc = new Tone.Oscillator({
+        type: 'sine',
+        frequency: chimeFreqs[i],
+      }).connect(env);
 
-    env.triggerAttackRelease(duration - 0.03, now);
+      const offset = i * 0.08;
+      osc.start(now + offset);
+      env.triggerAttackRelease(0.12, now + offset);
+
+      chimeNodes.push({ osc, env, vol });
+    }
 
     // ---- Cleanup ----------------------------------------------------------
     setTimeout(() => {
-      osc.stop();
-      osc.disconnect();
-      hpf.disconnect();
-      env.disconnect();
-      vol.disconnect();
-      osc.dispose();
-      hpf.dispose();
-      env.dispose();
-      vol.dispose();
-    }, 600);
+      for (const { osc, env, vol } of chimeNodes) {
+        osc.stop();
+        osc.disconnect();
+        env.disconnect();
+        vol.disconnect();
+        osc.dispose();
+        env.dispose();
+        vol.dispose();
+      }
+    }, 500);
 
   } catch (err) {
     try {
@@ -344,8 +396,9 @@ export function playSilentRunningExpire(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Pneumatic launch whoosh: white noise run through a rising low-pass filter
- * over ~200 ms — compressed air expelling a torpedo into water.
+ * Two-phase tube launch: Phase 1 (0-60ms) is a pneumatic burst — white noise
+ * through a bandpass at 800 Hz. Phase 2 (40-300ms) is a brown-noise water rush
+ * with a 400→1800→600 Hz LPF sweep. A sub-bass 80 Hz thud anchors the impact.
  */
 export function playTorpedoFireSound(): void {
   if (!isAudioReady()) return;
@@ -353,45 +406,87 @@ export function playTorpedoFireSound(): void {
   logPlay('torpedo_fire');
 
   try {
-    const vol = new Tone.Volume(-8).toDestination();
-    const env = new Tone.AmplitudeEnvelope({
+    const now = Tone.now();
+
+    // ---- Phase 1: Pneumatic burst (0-60ms) -------------------------------
+    const burstVol = new Tone.Volume(-6).toDestination();
+    const burstEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.002,
+      decay: 0.05,
+      sustain: 0,
+      release: 0.02,
+    }).connect(burstVol);
+
+    const burstBp = new Tone.Filter({
+      type: 'bandpass',
+      frequency: 800,
+      Q: 3,
+    }).connect(burstEnv);
+
+    const burstNoise = new Tone.Noise('white').connect(burstBp);
+
+    burstNoise.start(now);
+    burstEnv.triggerAttackRelease(0.055, now);
+
+    // ---- Phase 2: Water rush (40-300ms) ----------------------------------
+    const rushVol = new Tone.Volume(-8).toDestination();
+    const rushEnv = new Tone.AmplitudeEnvelope({
       attack: 0.01,
-      decay: 0.12,
+      decay: 0.18,
       sustain: 0.1,
       release: 0.08,
-    }).connect(vol);
+    }).connect(rushVol);
 
-    // Low-pass filter sweeps upward to simulate the rush of expelled air/water
-    const lpf = new Tone.Filter({
+    const rushLpf = new Tone.Filter({
       type: 'lowpass',
-      frequency: 200,
+      frequency: 400,
       rolloff: -24,
-    }).connect(env);
+    }).connect(rushEnv);
 
-    const noise = new Tone.Noise('white').connect(lpf);
+    const rushNoise = new Tone.Noise('brown').connect(rushLpf);
 
-    const now = Tone.now();
-    const duration = 0.18;
+    const rushStart = now + 0.04;
+    rushNoise.start(rushStart);
+    rushLpf.frequency.setValueAtTime(400, rushStart);
+    rushLpf.frequency.exponentialRampToValueAtTime(1800, rushStart + 0.13);
+    rushLpf.frequency.exponentialRampToValueAtTime(600, rushStart + 0.26);
+    rushEnv.triggerAttackRelease(0.26, rushStart);
 
-    noise.start(now);
+    // ---- Sub-bass thud ---------------------------------------------------
+    const thudVol = new Tone.Volume(-10).toDestination();
+    const thudEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.003,
+      decay: 0.1,
+      sustain: 0,
+      release: 0.05,
+    }).connect(thudVol);
 
-    // Rising filter sweep — starts muffled, opens up as the torpedo launches
-    lpf.frequency.setValueAtTime(200, now);
-    lpf.frequency.exponentialRampToValueAtTime(2400, now + duration);
+    const thudOsc = new Tone.Oscillator({
+      type: 'sine',
+      frequency: 80,
+    }).connect(thudEnv);
 
-    env.triggerAttackRelease(duration, now);
+    thudOsc.start(now);
+    thudEnv.triggerAttackRelease(0.1, now);
 
+    // ---- Cleanup ---------------------------------------------------------
     setTimeout(() => {
-      noise.stop();
-      noise.disconnect();
-      lpf.disconnect();
-      env.disconnect();
-      vol.disconnect();
-      noise.dispose();
-      lpf.dispose();
-      env.dispose();
-      vol.dispose();
-    }, 500);
+      burstNoise.stop();
+      rushNoise.stop();
+      thudOsc.stop();
+
+      burstNoise.disconnect(); burstBp.disconnect();
+      burstEnv.disconnect(); burstVol.disconnect();
+      rushNoise.disconnect(); rushLpf.disconnect();
+      rushEnv.disconnect(); rushVol.disconnect();
+      thudOsc.disconnect(); thudEnv.disconnect(); thudVol.disconnect();
+
+      burstNoise.dispose(); burstBp.dispose();
+      burstEnv.dispose(); burstVol.dispose();
+      rushNoise.dispose(); rushLpf.dispose();
+      rushEnv.dispose(); rushVol.dispose();
+      thudOsc.dispose(); thudEnv.dispose(); thudVol.dispose();
+    }, 700);
 
   } catch (err) {
     try {
@@ -407,8 +502,9 @@ export function playTorpedoFireSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Metallic hull impact: FM synthesis around 500 Hz with a fast attack and
- * quick decay — the satisfying clang of a torpedo striking steel plate.
+ * Hull impact with explosive energy: FM carrier with randomised pitch drop,
+ * metallic modulator, sharp bandpass noise transient, and a 55 Hz sub-bass
+ * with Tremolo for the underwater resonance bloom.
  */
 export function playTorpedoHitSound(): void {
   if (!isAudioReady()) return;
@@ -416,21 +512,26 @@ export function playTorpedoHitSound(): void {
   logPlay('torpedo_hit');
 
   try {
-    // ---- FM carrier — the primary "ping" --------------------------------
+    const now = Tone.now();
+
+    // ---- FM carrier — randomised pitch drop -----------------------------
+    const carrierBase = 490 + Math.random() * 60;     // 490-550 Hz
+    const carrierEnd  = 350 + Math.random() * 60;     // 350-410 Hz
+
     const vol = new Tone.Volume(-6).toDestination();
     const env = new Tone.AmplitudeEnvelope({
       attack: 0.003,
-      decay: 0.18,
+      decay: 0.2,
       sustain: 0.05,
       release: 0.15,
     }).connect(vol);
 
     const carrier = new Tone.Oscillator({
       type: 'sine',
-      frequency: 520,
+      frequency: carrierBase,
     }).connect(env);
 
-    // ---- FM modulator — adds metallic inharmonic partials ---------------
+    // ---- FM modulator — inharmonic metallic partials --------------------
     const modVol = new Tone.Volume(-10).toDestination();
     const modEnv = new Tone.AmplitudeEnvelope({
       attack: 0.002,
@@ -441,16 +542,16 @@ export function playTorpedoHitSound(): void {
 
     const modulator = new Tone.Oscillator({
       type: 'sine',
-      frequency: 370,  // non-harmonic ratio for metallic quality
+      frequency: 370,
     }).connect(modEnv);
 
-    // ---- Short noise transient — impact crack ---------------------------
-    const crackVol = new Tone.Volume(-14).toDestination();
+    // ---- Short noise transient — sharpened impact crack -----------------
+    const crackVol = new Tone.Volume(-10).toDestination();
     const crackEnv = new Tone.AmplitudeEnvelope({
       attack: 0.001,
-      decay: 0.04,
+      decay: 0.02,
       sustain: 0,
-      release: 0.02,
+      release: 0.015,
     }).connect(crackVol);
 
     const crackFilter = new Tone.Filter({
@@ -461,45 +562,63 @@ export function playTorpedoHitSound(): void {
 
     const crackNoise = new Tone.Noise('white').connect(crackFilter);
 
-    const now = Tone.now();
+    // ---- Sub-bass with Tremolo — resonance bloom ------------------------
+    const subVol = new Tone.Volume(-8).toDestination();
+    const subEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.005,
+      decay: 0.3,
+      sustain: 0,
+      release: 0.1,
+    }).connect(subVol);
 
+    const tremolo = new Tone.Tremolo({
+      frequency: 12,
+      depth: 0.6,
+    }).connect(subEnv);
+    tremolo.start(now);
+
+    const subOsc = new Tone.Oscillator({
+      type: 'sine',
+      frequency: 55,
+    }).connect(tremolo);
+
+    // ---- Schedule playback -----------------------------------------------
     carrier.start(now);
-    modulator.start(now);
-    crackNoise.start(now);
-
-    // Slight pitch drop on the carrier for a "bending metal" quality
-    carrier.frequency.setValueAtTime(520, now);
-    carrier.frequency.exponentialRampToValueAtTime(380, now + 0.2);
-
+    carrier.frequency.setValueAtTime(carrierBase, now);
+    carrier.frequency.exponentialRampToValueAtTime(carrierEnd, now + 0.2);
     env.triggerAttackRelease(0.3, now);
-    modEnv.triggerAttackRelease(0.1, now);
-    crackEnv.triggerAttackRelease(0.04, now);
 
+    modulator.start(now);
+    modEnv.triggerAttackRelease(0.1, now);
+
+    crackNoise.start(now);
+    crackEnv.triggerAttackRelease(0.02, now);
+
+    subOsc.start(now);
+    subEnv.triggerAttackRelease(0.35, now);
+
+    // ---- Cleanup ---------------------------------------------------------
     setTimeout(() => {
       carrier.stop();
       modulator.stop();
       crackNoise.stop();
-      carrier.disconnect();
-      modulator.disconnect();
-      crackNoise.disconnect();
-      crackFilter.disconnect();
-      env.disconnect();
-      modEnv.disconnect();
-      crackEnv.disconnect();
-      vol.disconnect();
-      modVol.disconnect();
-      crackVol.disconnect();
-      carrier.dispose();
-      modulator.dispose();
-      crackNoise.dispose();
-      crackFilter.dispose();
-      env.dispose();
-      modEnv.dispose();
-      crackEnv.dispose();
-      vol.dispose();
-      modVol.dispose();
-      crackVol.dispose();
-    }, 700);
+      subOsc.stop();
+      tremolo.stop();
+
+      carrier.disconnect(); env.disconnect(); vol.disconnect();
+      modulator.disconnect(); modEnv.disconnect(); modVol.disconnect();
+      crackNoise.disconnect(); crackFilter.disconnect();
+      crackEnv.disconnect(); crackVol.disconnect();
+      subOsc.disconnect(); tremolo.disconnect();
+      subEnv.disconnect(); subVol.disconnect();
+
+      carrier.dispose(); env.dispose(); vol.dispose();
+      modulator.dispose(); modEnv.dispose(); modVol.dispose();
+      crackNoise.dispose(); crackFilter.dispose();
+      crackEnv.dispose(); crackVol.dispose();
+      subOsc.dispose(); tremolo.dispose();
+      subEnv.dispose(); subVol.dispose();
+    }, 800);
 
   } catch (err) {
     try {
@@ -515,9 +634,9 @@ export function playTorpedoHitSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Muffled underwater thud: very brief, heavily filtered noise — the dull
- * concussion of a torpedo detonating harmlessly in open water. Deliberately
- * understated so frequent misses don't become tiresome.
+ * Audible but understated: low-pass brown noise thud, a subtle descending
+ * sine (160→80 Hz) for the Doppler pass-by, and a very quiet high-pass
+ * white noise splash for surface disturbance.
  */
 export function playTorpedoMissSound(): void {
   if (!isAudioReady()) return;
@@ -525,40 +644,83 @@ export function playTorpedoMissSound(): void {
   logPlay('torpedo_miss');
 
   try {
-    const vol = new Tone.Volume(-14).toDestination();
+    const now = Tone.now();
+
+    // ---- Brown noise thud ------------------------------------------------
+    const vol = new Tone.Volume(-12).toDestination();
     const env = new Tone.AmplitudeEnvelope({
       attack: 0.005,
-      decay: 0.08,
+      decay: 0.16,
       sustain: 0.02,
-      release: 0.06,
+      release: 0.08,
     }).connect(vol);
 
-    // Heavy low-pass to keep it very muffled (~120 Hz cutoff)
     const lpf = new Tone.Filter({
       type: 'lowpass',
-      frequency: 120,
+      frequency: 150,
       rolloff: -24,
     }).connect(env);
 
     const noise = new Tone.Noise('brown').connect(lpf);
 
-    const now = Tone.now();
-    const duration = 0.13;
-
     noise.start(now);
-    env.triggerAttackRelease(duration, now);
+    env.triggerAttackRelease(0.2, now);
 
+    // ---- Descending Doppler sine -----------------------------------------
+    const dopplerVol = new Tone.Volume(-16).toDestination();
+    const dopplerEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.005,
+      decay: 0.18,
+      sustain: 0,
+      release: 0.06,
+    }).connect(dopplerVol);
+
+    const dopplerOsc = new Tone.Oscillator({
+      type: 'sine',
+      frequency: 160,
+    }).connect(dopplerEnv);
+
+    dopplerOsc.start(now);
+    dopplerOsc.frequency.setValueAtTime(160, now);
+    dopplerOsc.frequency.exponentialRampToValueAtTime(80, now + 0.2);
+    dopplerEnv.triggerAttackRelease(0.2, now);
+
+    // ---- Water splash ----------------------------------------------------
+    const splashVol = new Tone.Volume(-18).toDestination();
+    const splashEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.002,
+      decay: 0.03,
+      sustain: 0,
+      release: 0.02,
+    }).connect(splashVol);
+
+    const splashHpf = new Tone.Filter({
+      type: 'highpass',
+      frequency: 3000,
+      rolloff: -12,
+    }).connect(splashEnv);
+
+    const splashNoise = new Tone.Noise('white').connect(splashHpf);
+
+    splashNoise.start(now);
+    splashEnv.triggerAttackRelease(0.03, now);
+
+    // ---- Cleanup ---------------------------------------------------------
     setTimeout(() => {
       noise.stop();
-      noise.disconnect();
-      lpf.disconnect();
-      env.disconnect();
-      vol.disconnect();
-      noise.dispose();
-      lpf.dispose();
-      env.dispose();
-      vol.dispose();
-    }, 400);
+      dopplerOsc.stop();
+      splashNoise.stop();
+
+      noise.disconnect(); lpf.disconnect(); env.disconnect(); vol.disconnect();
+      dopplerOsc.disconnect(); dopplerEnv.disconnect(); dopplerVol.disconnect();
+      splashNoise.disconnect(); splashHpf.disconnect();
+      splashEnv.disconnect(); splashVol.disconnect();
+
+      noise.dispose(); lpf.dispose(); env.dispose(); vol.dispose();
+      dopplerOsc.dispose(); dopplerEnv.dispose(); dopplerVol.dispose();
+      splashNoise.dispose(); splashHpf.dispose();
+      splashEnv.dispose(); splashVol.dispose();
+    }, 500);
 
   } catch (err) {
     try {
@@ -574,8 +736,9 @@ export function playTorpedoMissSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Ship destroyed: low rumble centered at 80–150 Hz with a descending pitch
- * sweep, layered with groaning metallic oscillator. ~800 ms. Heavy and final.
+ * Catastrophic destruction ~1.4s: brown noise shockwave with bandpass sweep,
+ * two detuned sawtooth groans (140 + 147 Hz, beating dissonance), sub-bass
+ * sine with Tremolo, three staggered bubble bursts, and a structural snap.
  */
 export function playTorpedoSunkSound(): void {
   if (!isAudioReady()) return;
@@ -583,18 +746,21 @@ export function playTorpedoSunkSound(): void {
   logPlay('torpedo_sunk');
 
   try {
-    // ---- Layer 1: Low rumble — filtered noise shockwave ------------------
+    const now = Tone.now();
+    const duration = 1.4;
+
+    // ---- Layer 1: Noise shockwave ----------------------------------------
     const rumbleVol = new Tone.Volume(-4).toDestination();
     const rumbleEnv = new Tone.AmplitudeEnvelope({
       attack: 0.008,
-      decay: 0.5,
+      decay: 0.7,
       sustain: 0.2,
-      release: 0.35,
+      release: 0.4,
     }).connect(rumbleVol);
 
     const bandpass = new Tone.Filter({
       type: 'bandpass',
-      frequency: 120,
+      frequency: 180,
       Q: 0.8,
     }).connect(rumbleEnv);
 
@@ -606,80 +772,149 @@ export function playTorpedoSunkSound(): void {
 
     const rumbleNoise = new Tone.Noise('brown').connect(lpf);
 
-    // ---- Layer 2: Groaning metal oscillator — descending tone -----------
-    const groanVol = new Tone.Volume(-8).toDestination();
-    const groanEnv = new Tone.AmplitudeEnvelope({
-      attack: 0.02,
-      decay: 0.4,
-      sustain: 0.3,
-      release: 0.3,
-    }).connect(groanVol);
+    rumbleNoise.start(now);
+    bandpass.frequency.setValueAtTime(180, now);
+    bandpass.frequency.exponentialRampToValueAtTime(40, now + duration);
+    rumbleEnv.triggerAttackRelease(duration, now);
 
-    const groan = new Tone.Oscillator({
-      type: 'sawtooth',
-      frequency: 140,
-    }).connect(groanEnv);
+    // ---- Layer 2: Detuned sawtooth groans (140 Hz + 147 Hz) -------------
+    const groanFreqs = [140, 147];
+    const groanNodes: Array<{
+      groan: Tone.Oscillator;
+      groanEnv: Tone.AmplitudeEnvelope;
+      groanVol: Tone.Volume;
+    }> = [];
 
-    // ---- Layer 3: Sub-bass punch — sine at very low frequency -----------
+    for (const freq of groanFreqs) {
+      const groanVol = new Tone.Volume(-8).toDestination();
+      const groanEnv = new Tone.AmplitudeEnvelope({
+        attack: 0.02,
+        decay: 0.6,
+        sustain: 0.3,
+        release: 0.35,
+      }).connect(groanVol);
+
+      const groan = new Tone.Oscillator({
+        type: 'sawtooth',
+        frequency: freq,
+      }).connect(groanEnv);
+
+      groan.start(now);
+      groan.frequency.setValueAtTime(freq, now);
+      groan.frequency.exponentialRampToValueAtTime(50, now + duration);
+      groanEnv.triggerAttackRelease(duration - 0.1, now);
+
+      groanNodes.push({ groan, groanEnv, groanVol });
+    }
+
+    // ---- Layer 3: Sub-bass with Tremolo ----------------------------------
     const subVol = new Tone.Volume(-2).toDestination();
     const subEnv = new Tone.AmplitudeEnvelope({
       attack: 0.005,
-      decay: 0.6,
+      decay: 0.8,
       sustain: 0.1,
-      release: 0.2,
+      release: 0.3,
     }).connect(subVol);
+
+    const subTremolo = new Tone.Tremolo({
+      frequency: 4,
+      depth: 0.3,
+    }).connect(subEnv);
+    subTremolo.start(now);
 
     const sub = new Tone.Oscillator({
       type: 'sine',
-      frequency: 65,
-    }).connect(subEnv);
+      frequency: 60,
+    }).connect(subTremolo);
 
-    const now = Tone.now();
-    const duration = 0.8;
-
-    rumbleNoise.start(now);
-    groan.start(now);
     sub.start(now);
-
-    // Descending bandpass sweep — pressure wave dissipating
-    bandpass.frequency.setValueAtTime(150, now);
-    bandpass.frequency.exponentialRampToValueAtTime(55, now + duration);
-
-    // Descending groan — hull tearing / sinking
-    groan.frequency.setValueAtTime(140, now);
-    groan.frequency.exponentialRampToValueAtTime(55, now + duration);
-
-    rumbleEnv.triggerAttackRelease(duration, now);
-    groanEnv.triggerAttackRelease(duration - 0.1, now);
     subEnv.triggerAttackRelease(duration, now);
 
+    // ---- Layer 4: Three bubble bursts at 200ms intervals from +300ms ----
+    const bubbleNodes: Array<{
+      bNoise: Tone.Noise;
+      bHpf: Tone.Filter;
+      bEnv: Tone.AmplitudeEnvelope;
+      bVol: Tone.Volume;
+    }> = [];
+
+    for (let b = 0; b < 3; b++) {
+      const bVol = new Tone.Volume(-20).toDestination();
+      const bEnv = new Tone.AmplitudeEnvelope({
+        attack: 0.002,
+        decay: 0.04,
+        sustain: 0,
+        release: 0.02,
+      }).connect(bVol);
+
+      const bHpf = new Tone.Filter({
+        type: 'highpass',
+        frequency: 2000,
+        rolloff: -12,
+      }).connect(bEnv);
+
+      const bNoise = new Tone.Noise('white').connect(bHpf);
+
+      const bOffset = 0.3 + b * 0.2;
+      bNoise.start(now + bOffset);
+      bEnv.triggerAttackRelease(0.04, now + bOffset);
+
+      bubbleNodes.push({ bNoise, bHpf, bEnv, bVol });
+    }
+
+    // ---- Layer 5: Structural snap at +400ms ------------------------------
+    const snapVol = new Tone.Volume(-12).toDestination();
+    const snapEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.001,
+      decay: 0.03,
+      sustain: 0,
+      release: 0.02,
+    }).connect(snapVol);
+
+    const snapOsc = new Tone.Oscillator({
+      type: 'triangle',
+      frequency: 800,
+    }).connect(snapEnv);
+
+    const snapOffset = now + 0.4;
+    snapOsc.start(snapOffset);
+    snapEnv.triggerAttackRelease(0.03, snapOffset);
+
+    // ---- Cleanup ---------------------------------------------------------
     setTimeout(() => {
       rumbleNoise.stop();
-      groan.stop();
       sub.stop();
-      rumbleNoise.disconnect();
-      groan.disconnect();
-      sub.disconnect();
-      lpf.disconnect();
-      bandpass.disconnect();
-      rumbleEnv.disconnect();
-      groanEnv.disconnect();
-      subEnv.disconnect();
-      rumbleVol.disconnect();
-      groanVol.disconnect();
-      subVol.disconnect();
-      rumbleNoise.dispose();
-      groan.dispose();
-      sub.dispose();
-      lpf.dispose();
-      bandpass.dispose();
-      rumbleEnv.dispose();
-      groanEnv.dispose();
-      subEnv.dispose();
-      rumbleVol.dispose();
-      groanVol.dispose();
-      subVol.dispose();
-    }, 1400);
+      subTremolo.stop();
+      snapOsc.stop();
+      for (const { groan } of groanNodes) groan.stop();
+      for (const { bNoise } of bubbleNodes) bNoise.stop();
+
+      rumbleNoise.disconnect(); lpf.disconnect(); bandpass.disconnect();
+      rumbleEnv.disconnect(); rumbleVol.disconnect();
+
+      for (const { groan, groanEnv, groanVol } of groanNodes) {
+        groan.disconnect(); groanEnv.disconnect(); groanVol.disconnect();
+        groan.dispose(); groanEnv.dispose(); groanVol.dispose();
+      }
+
+      sub.disconnect(); subTremolo.disconnect();
+      subEnv.disconnect(); subVol.disconnect();
+
+      for (const { bNoise, bHpf, bEnv, bVol } of bubbleNodes) {
+        bNoise.disconnect(); bHpf.disconnect();
+        bEnv.disconnect(); bVol.disconnect();
+        bNoise.dispose(); bHpf.dispose();
+        bEnv.dispose(); bVol.dispose();
+      }
+
+      snapOsc.disconnect(); snapEnv.disconnect(); snapVol.disconnect();
+
+      rumbleNoise.dispose(); lpf.dispose(); bandpass.dispose();
+      rumbleEnv.dispose(); rumbleVol.dispose();
+      sub.dispose(); subTremolo.dispose();
+      subEnv.dispose(); subVol.dispose();
+      snapOsc.dispose(); snapEnv.dispose(); snapVol.dispose();
+    }, 2200);
 
   } catch (err) {
     try {
@@ -695,8 +930,9 @@ export function playTorpedoSunkSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Classic submarine sonar: sine chirp sweeping 800→1200→800 Hz with a
- * short delay feedback for the echo effect. ~400 ms. Iconic and clean.
+ * Cinema sonar ping: single sharp 1500 Hz sine with long natural decay
+ * (no V-chirp), Reverb (2s, 40% wet) for cavernous echo, and a
+ * FeedbackDelay (300ms, 15% feedback) for the double-bounce effect.
  */
 export function playSonarPingSound(): void {
   if (!isAudioReady()) return;
@@ -704,52 +940,50 @@ export function playSonarPingSound(): void {
   logPlay('sonar_ping');
 
   try {
-    // ---- Primary chirp oscillator ----------------------------------------
-    const vol = new Tone.Volume(-10).toDestination();
-    const env = new Tone.AmplitudeEnvelope({
-      attack: 0.005,
-      decay: 0.25,
-      sustain: 0.1,
-      release: 0.18,
+    // ---- Primary ping oscillator -----------------------------------------
+    const vol = new Tone.Volume(-8).toDestination();
+
+    const reverb = new Tone.Reverb({
+      decay: 2,
+      wet: 0.4,
     }).connect(vol);
+
+    const delay = new Tone.FeedbackDelay({
+      delayTime: 0.3,
+      feedback: 0.15,
+      wet: 0.2,
+    }).connect(reverb);
+
+    const env = new Tone.AmplitudeEnvelope({
+      attack: 0.002,
+      decay: 0.4,
+      sustain: 0,
+      release: 0.3,
+    }).connect(delay);
 
     const osc = new Tone.Oscillator({
       type: 'sine',
-      frequency: 800,
+      frequency: 1500,
     }).connect(env);
 
-    // ---- Delay for echo effect -------------------------------------------
-    const delay = new Tone.FeedbackDelay({
-      delayTime: 0.22,
-      feedback: 0.25,
-      wet: 0.35,
-    }).toDestination();
-
-    osc.connect(delay);
-
     const now = Tone.now();
-    const halfDuration = 0.18;
 
     osc.start(now);
-
-    // Rising then falling frequency sweep — the classic "ping" shape
-    osc.frequency.setValueAtTime(800, now);
-    osc.frequency.exponentialRampToValueAtTime(1200, now + halfDuration);
-    osc.frequency.exponentialRampToValueAtTime(800, now + halfDuration * 2);
-
-    env.triggerAttackRelease(0.35, now);
+    env.triggerAttackRelease(0.4, now);
 
     setTimeout(() => {
       osc.stop();
       osc.disconnect();
       env.disconnect();
       delay.disconnect();
+      reverb.disconnect();
       vol.disconnect();
       osc.dispose();
       env.dispose();
       delay.dispose();
+      reverb.dispose();
       vol.dispose();
-    }, 900);
+    }, 1400);
 
   } catch (err) {
     try {
@@ -765,8 +999,9 @@ export function playSonarPingSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Electronic radar sweep: a rapid descending series of five short sine beeps
- * from 2400 Hz down to 900 Hz, evoking a fast automated scan sequence. ~600 ms.
+ * Scanning sweep: five descending beeps at 70ms intervals (tighter than
+ * before, 2400→900 Hz), each with a shorter decay, over a broad noise
+ * bandpass sweep (3000→500 Hz) that conveys the RF scan passing by.
  */
 export function playReconDroneSound(): void {
   if (!isAudioReady()) return;
@@ -774,7 +1009,7 @@ export function playReconDroneSound(): void {
   logPlay('recon_drone');
 
   try {
-    // Five beeps, each offset by 100 ms, descending in pitch
+    const now = Tone.now();
     const beepFrequencies = [2400, 1900, 1500, 1200, 900];
     const beepNodes: Array<{
       osc: Tone.Oscillator;
@@ -782,15 +1017,13 @@ export function playReconDroneSound(): void {
       vol: Tone.Volume;
     }> = [];
 
-    const now = Tone.now();
-
     for (let i = 0; i < beepFrequencies.length; i++) {
       const vol = new Tone.Volume(-14).toDestination();
       const env = new Tone.AmplitudeEnvelope({
         attack: 0.004,
-        decay: 0.06,
+        decay: 0.04,
         sustain: 0,
-        release: 0.03,
+        release: 0.02,
       }).connect(vol);
 
       const osc = new Tone.Oscillator({
@@ -798,23 +1031,46 @@ export function playReconDroneSound(): void {
         frequency: beepFrequencies[i],
       }).connect(env);
 
-      const offset = i * 0.1;
+      const offset = i * 0.07;
       osc.start(now + offset);
-      env.triggerAttackRelease(0.07, now + offset);
+      env.triggerAttackRelease(0.05, now + offset);
 
       beepNodes.push({ osc, env, vol });
     }
 
+    // ---- Sweep underlay: noise through descending bandpass ---------------
+    const sweepVol = new Tone.Volume(-18).toDestination();
+    const sweepEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.01,
+      decay: 0.35,
+      sustain: 0.1,
+      release: 0.1,
+    }).connect(sweepVol);
+
+    const sweepBp = new Tone.Filter({
+      type: 'bandpass',
+      frequency: 3000,
+      Q: 1.5,
+    }).connect(sweepEnv);
+
+    const sweepNoise = new Tone.Noise('white').connect(sweepBp);
+
+    sweepNoise.start(now);
+    sweepBp.frequency.setValueAtTime(3000, now);
+    sweepBp.frequency.exponentialRampToValueAtTime(500, now + 0.4);
+    sweepEnv.triggerAttackRelease(0.45, now);
+
     setTimeout(() => {
+      sweepNoise.stop();
       for (const { osc, env, vol } of beepNodes) {
         osc.stop();
-        osc.disconnect();
-        env.disconnect();
-        vol.disconnect();
-        osc.dispose();
-        env.dispose();
-        vol.dispose();
+        osc.disconnect(); env.disconnect(); vol.disconnect();
+        osc.dispose(); env.dispose(); vol.dispose();
       }
+      sweepNoise.disconnect(); sweepBp.disconnect();
+      sweepEnv.disconnect(); sweepVol.disconnect();
+      sweepNoise.dispose(); sweepBp.dispose();
+      sweepEnv.dispose(); sweepVol.dispose();
     }, 1000);
 
   } catch (err) {
@@ -831,9 +1087,9 @@ export function playReconDroneSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Electronic warfare burst: white noise through a bandpass filter whose
- * center frequency is modulated by an LFO to create a wobbling, unstable
- * "jamming" texture. ~400 ms. Disruptive and unsettling.
+ * Aggressive electronic warfare: white noise through BitCrusher (4-bit) with
+ * 25 Hz LFO wobble on a bandpass, plus an alternating square wave toggling
+ * 300/500 Hz every 30ms for 12 cycles — sounds hostile and unstable.
  */
 export function playRadarJammerSound(): void {
   if (!isAudioReady()) return;
@@ -841,8 +1097,11 @@ export function playRadarJammerSound(): void {
   logPlay('radar_jammer');
 
   try {
-    // ---- Bandpass-filtered noise — the jamming signal -------------------
-    const vol = new Tone.Volume(-8).toDestination();
+    const now = Tone.now();
+    const duration = 0.38;
+
+    // ---- Bandpass noise through BitCrusher ------------------------------
+    const vol = new Tone.Volume(-6).toDestination();
     const env = new Tone.AmplitudeEnvelope({
       attack: 0.01,
       decay: 0.25,
@@ -850,69 +1109,64 @@ export function playRadarJammerSound(): void {
       release: 0.18,
     }).connect(vol);
 
+    const bitCrusher = new Tone.BitCrusher({ bits: 4 }).connect(env);
+
     const bandpass = new Tone.Filter({
       type: 'bandpass',
       frequency: 800,
       Q: 2.5,
-    }).connect(env);
+    }).connect(bitCrusher);
 
     const noise = new Tone.Noise('white').connect(bandpass);
 
-    // ---- LFO to wobble the bandpass center frequency -------------------
-    // This creates the characteristic "warbling" of electronic jamming.
     const lfo = new Tone.LFO({
       type: 'sine',
-      frequency: 18,   // fast wobble — 18 Hz modulation rate
+      frequency: 25,
       min: 400,
       max: 1600,
     });
     lfo.connect(bandpass.frequency);
 
-    // ---- Low hum layer — continuous interference tone ------------------
-    const humVol = new Tone.Volume(-16).toDestination();
-    const humEnv = new Tone.AmplitudeEnvelope({
-      attack: 0.02,
-      decay: 0.3,
-      sustain: 0.2,
-      release: 0.15,
-    }).connect(humVol);
-
-    const hum = new Tone.Oscillator({
-      type: 'sawtooth',
-      frequency: 120,
-    }).connect(humEnv);
-
-    const now = Tone.now();
-    const duration = 0.38;
-
     noise.start(now);
     lfo.start(now);
-    hum.start(now);
-
     env.triggerAttackRelease(duration, now);
-    humEnv.triggerAttackRelease(duration, now);
+
+    // ---- Alternating square tone 300/500 Hz (12 alternations) -----------
+    const toneVol = new Tone.Volume(-14).toDestination();
+    const toneEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.005,
+      decay: 0.3,
+      sustain: 0.2,
+      release: 0.1,
+    }).connect(toneVol);
+
+    const toneOsc = new Tone.Oscillator({
+      type: 'square',
+      frequency: 300,
+    }).connect(toneEnv);
+
+    toneOsc.start(now);
+    for (let i = 0; i < 12; i++) {
+      const freq = i % 2 === 0 ? 300 : 500;
+      toneOsc.frequency.setValueAtTime(freq, now + i * 0.03);
+    }
+    toneEnv.triggerAttackRelease(duration, now);
 
     setTimeout(() => {
       noise.stop();
       lfo.stop();
-      hum.stop();
-      noise.disconnect();
-      lfo.disconnect();
-      hum.disconnect();
-      bandpass.disconnect();
-      env.disconnect();
-      humEnv.disconnect();
-      vol.disconnect();
-      humVol.disconnect();
-      noise.dispose();
-      lfo.dispose();
-      hum.dispose();
-      bandpass.dispose();
-      env.dispose();
-      humEnv.dispose();
-      vol.dispose();
-      humVol.dispose();
-    }, 800);
+      toneOsc.stop();
+
+      noise.disconnect(); bandpass.disconnect();
+      bitCrusher.disconnect(); env.disconnect();
+      lfo.disconnect(); vol.disconnect();
+      toneOsc.disconnect(); toneEnv.disconnect(); toneVol.disconnect();
+
+      noise.dispose(); bandpass.dispose();
+      bitCrusher.dispose(); env.dispose();
+      lfo.dispose(); vol.dispose();
+      toneOsc.dispose(); toneEnv.dispose(); toneVol.dispose();
+    }, 900);
 
   } catch (err) {
     try {
@@ -928,11 +1182,9 @@ export function playRadarJammerSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Powerful active sonar flooding an entire depth layer: a deep bass sine sweep
- * from 200→400 Hz as the main layer, layered with a quieter harmonic sine at
- * 600→1200 Hz, and a FeedbackDelay echo to suggest the signal bouncing through
- * the water column. More commanding and sustained than the standard sonar ping.
- * ~800 ms total.
+ * Powerful wide-area sonar: bass sweep 150→400 Hz + harmonic 450→1200 Hz
+ * over 1000ms, with a noise bandpass sweep (200→2000 Hz) underlay and
+ * FeedbackDelay (35% feedback, 40% wet) for a commanding echo wash.
  */
 export function playGSonarSound(): void {
   if (!isAudioReady()) return;
@@ -940,88 +1192,98 @@ export function playGSonarSound(): void {
   logPlay('g_sonar');
 
   try {
-    // ---- Layer 1: Main bass sweep — 200→400 Hz --------------------------
-    // The deep sweep is the dominant sonic element; it conveys the sense of a
-    // wide-area signal propagating through volume rather than a point source.
-    const mainVol = new Tone.Volume(-6).toDestination();
+    const now = Tone.now();
+    const duration = 1.0;
+
+    // ---- Layer 1: Main bass sweep 150→400 Hz ----------------------------
+    const mainVol = new Tone.Volume(-4).toDestination();
     const mainEnv = new Tone.AmplitudeEnvelope({
       attack: 0.02,
-      decay: 0.45,
+      decay: 0.5,
       sustain: 0.35,
       release: 0.3,
     }).connect(mainVol);
 
     const mainOsc = new Tone.Oscillator({
       type: 'sine',
-      frequency: 200,
+      frequency: 150,
     }).connect(mainEnv);
 
-    // ---- Layer 2: Harmonic layer — 600→1200 Hz --------------------------
-    // A quieter upper harmonic that adds brightness and reinforces the sense
-    // of an energetic, wide-spectrum sonar pulse.
+    // ---- Layer 2: Harmonic 450→1200 Hz ----------------------------------
     const harmVol = new Tone.Volume(-14).toDestination();
     const harmEnv = new Tone.AmplitudeEnvelope({
       attack: 0.03,
-      decay: 0.4,
+      decay: 0.45,
       sustain: 0.2,
       release: 0.28,
     }).connect(harmVol);
 
     const harmOsc = new Tone.Oscillator({
       type: 'sine',
-      frequency: 600,
+      frequency: 450,
     }).connect(harmEnv);
 
-    // ---- Delay echo — applied to both layers via a shared send ----------
-    // Wet-only delay routed to destination independently; this avoids routing
-    // both layers through a single node which would complicate cleanup.
+    // ---- Shared delay echo -----------------------------------------------
     const delay = new Tone.FeedbackDelay({
       delayTime: 0.32,
-      feedback: 0.28,
-      wet: 0.3,
+      feedback: 0.35,
+      wet: 0.4,
     }).toDestination();
 
     mainOsc.connect(delay);
     harmOsc.connect(delay);
 
+    // ---- Layer 3: Noise bandpass sweep 200→2000 Hz ----------------------
+    const sweepVol = new Tone.Volume(-18).toDestination();
+    const sweepEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.03,
+      decay: 0.7,
+      sustain: 0.1,
+      release: 0.2,
+    }).connect(sweepVol);
+
+    const sweepBp = new Tone.Filter({
+      type: 'bandpass',
+      frequency: 200,
+      Q: 1.2,
+    }).connect(sweepEnv);
+
+    const sweepNoise = new Tone.Noise('white').connect(sweepBp);
+
     // ---- Schedule playback -----------------------------------------------
-    const now = Tone.now();
-    const duration = 0.75;
-
     mainOsc.start(now);
-    harmOsc.start(now);
-
-    // Bass sweep: 200 Hz → 400 Hz over the full duration — a slow, imposing
-    // upward movement that contrasts with the standard ping's V-shape.
-    mainOsc.frequency.setValueAtTime(200, now);
+    mainOsc.frequency.setValueAtTime(150, now);
     mainOsc.frequency.exponentialRampToValueAtTime(400, now + duration);
-
-    // Harmonic sweep: 600 Hz → 1200 Hz — rises in proportion to the bass layer.
-    harmOsc.frequency.setValueAtTime(600, now);
-    harmOsc.frequency.exponentialRampToValueAtTime(1200, now + duration);
-
     mainEnv.triggerAttackRelease(duration, now);
+
+    harmOsc.start(now);
+    harmOsc.frequency.setValueAtTime(450, now);
+    harmOsc.frequency.exponentialRampToValueAtTime(1200, now + duration);
     harmEnv.triggerAttackRelease(duration - 0.05, now);
 
-    // ---- Cleanup after sound + echo tail complete ------------------------
+    sweepNoise.start(now);
+    sweepBp.frequency.setValueAtTime(200, now);
+    sweepBp.frequency.exponentialRampToValueAtTime(2000, now + 0.8);
+    sweepEnv.triggerAttackRelease(0.85, now);
+
+    // ---- Cleanup ---------------------------------------------------------
     setTimeout(() => {
       mainOsc.stop();
       harmOsc.stop();
-      mainOsc.disconnect();
-      harmOsc.disconnect();
-      mainEnv.disconnect();
-      harmEnv.disconnect();
+      sweepNoise.stop();
+
+      mainOsc.disconnect(); mainEnv.disconnect(); mainVol.disconnect();
+      harmOsc.disconnect(); harmEnv.disconnect(); harmVol.disconnect();
       delay.disconnect();
-      mainVol.disconnect();
-      harmVol.disconnect();
-      mainOsc.dispose();
-      harmOsc.dispose();
-      mainEnv.dispose();
-      harmEnv.dispose();
+      sweepNoise.disconnect(); sweepBp.disconnect();
+      sweepEnv.disconnect(); sweepVol.disconnect();
+
+      mainOsc.dispose(); mainEnv.dispose(); mainVol.dispose();
+      harmOsc.dispose(); harmEnv.dispose(); harmVol.dispose();
       delay.dispose();
-      mainVol.dispose();
-      harmVol.dispose();
-    }, 1600);
+      sweepNoise.dispose(); sweepBp.dispose();
+      sweepEnv.dispose(); sweepVol.dispose();
+    }, 2000);
 
   } catch (err) {
     try {
@@ -1033,12 +1295,13 @@ export function playGSonarSound(): void {
 }
 
 // ---------------------------------------------------------------------------
-// Acoustic Cloak — cloaking activation
+// Purchase confirmation
 // ---------------------------------------------------------------------------
 
 /**
- * Brief ascending two-tone chime: 400 Hz → 600 Hz over ~200 ms with clean
- * attack envelope — sounds like a "credit accepted" confirmation.
+ * Three-tone ascending chime: clean sines at 400 Hz, 600 Hz, 800 Hz staggered
+ * 60ms apart, each with a short envelope. A shared Reverb (0.5s decay) adds
+ * gentle warmth without smearing the clarity.
  */
 export function playPurchaseSound(): void {
   if (!isAudioReady()) return;
@@ -1046,39 +1309,50 @@ export function playPurchaseSound(): void {
   logPlay('purchase');
 
   try {
-    const vol = new Tone.Volume(-10).toDestination();
-    const env = new Tone.AmplitudeEnvelope({
-      attack: 0.005,
-      decay: 0.1,
-      sustain: 0.05,
-      release: 0.08,
-    }).connect(vol);
-
-    const osc = new Tone.Oscillator({
-      type: 'sine',
-      frequency: 400,
-    }).connect(env);
-
     const now = Tone.now();
+    const chimeFreqs = [400, 600, 800];
 
-    osc.start(now);
+    const reverb = new Tone.Reverb({
+      decay: 0.5,
+      wet: 0.2,
+    }).toDestination();
 
-    // Two-tone ascending chime: 400 Hz → 600 Hz
-    osc.frequency.setValueAtTime(400, now);
-    osc.frequency.setValueAtTime(600, now + 0.1);
+    const chimeNodes: Array<{
+      osc: Tone.Oscillator;
+      env: Tone.AmplitudeEnvelope;
+      vol: Tone.Volume;
+    }> = [];
 
-    env.triggerAttackRelease(0.08, now);
-    env.triggerAttackRelease(0.08, now + 0.1);
+    for (let i = 0; i < chimeFreqs.length; i++) {
+      const vol = new Tone.Volume(-10).connect(reverb);
+      const env = new Tone.AmplitudeEnvelope({
+        attack: 0.003,
+        decay: 0.08,
+        sustain: 0,
+        release: 0.06,
+      }).connect(vol);
+
+      const osc = new Tone.Oscillator({
+        type: 'sine',
+        frequency: chimeFreqs[i],
+      }).connect(env);
+
+      const offset = i * 0.06;
+      osc.start(now + offset);
+      env.triggerAttackRelease(0.08, now + offset);
+
+      chimeNodes.push({ osc, env, vol });
+    }
 
     setTimeout(() => {
-      osc.stop();
-      osc.disconnect();
-      env.disconnect();
-      vol.disconnect();
-      osc.dispose();
-      env.dispose();
-      vol.dispose();
-    }, 500);
+      for (const { osc, env, vol } of chimeNodes) {
+        osc.stop();
+        osc.disconnect(); env.disconnect(); vol.disconnect();
+        osc.dispose(); env.dispose(); vol.dispose();
+      }
+      reverb.disconnect();
+      reverb.dispose();
+    }, 700);
 
   } catch (err) {
     try {
@@ -1094,8 +1368,9 @@ export function playPurchaseSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Short harsh buzz: sawtooth wave through bandpass filter (~350 Hz center),
- * rapid amplitude decay ~250 ms. Distinct "denied" character.
+ * Double rejection buzz: two sawtooth oscillators (120 Hz then 100 Hz, +80ms)
+ * each routed through a bandpass at 350 Hz and a BitCrusher (3-bit) for a
+ * harsh, lo-fi "denied" character.
  */
 export function playInsufficientFundsSound(): void {
   if (!isAudioReady()) return;
@@ -1103,40 +1378,55 @@ export function playInsufficientFundsSound(): void {
   logPlay('insufficient_funds');
 
   try {
-    const vol = new Tone.Volume(-8).toDestination();
-    const env = new Tone.AmplitudeEnvelope({
-      attack: 0.005,
-      decay: 0.15,
-      sustain: 0.05,
-      release: 0.08,
-    }).connect(vol);
-
-    const bandpass = new Tone.Filter({
-      type: 'bandpass',
-      frequency: 350,
-      Q: 2,
-    }).connect(env);
-
-    const osc = new Tone.Oscillator({
-      type: 'sawtooth',
-      frequency: 120,
-    }).connect(bandpass);
-
     const now = Tone.now();
+    const buzzDefs: Array<{ freq: number; offset: number }> = [
+      { freq: 120, offset: 0 },
+      { freq: 100, offset: 0.08 },
+    ];
 
-    osc.start(now);
-    env.triggerAttackRelease(0.2, now);
+    const buzzNodes: Array<{
+      osc: Tone.Oscillator;
+      bp: Tone.Filter;
+      bc: Tone.BitCrusher;
+      env: Tone.AmplitudeEnvelope;
+      vol: Tone.Volume;
+    }> = [];
+
+    for (const { freq, offset } of buzzDefs) {
+      const vol = new Tone.Volume(-6).toDestination();
+      const env = new Tone.AmplitudeEnvelope({
+        attack: 0.003,
+        decay: 0.1,
+        sustain: 0,
+        release: 0.05,
+      }).connect(vol);
+
+      const bc = new Tone.BitCrusher({ bits: 3 }).connect(env);
+      const bp = new Tone.Filter({
+        type: 'bandpass',
+        frequency: 350,
+        Q: 2,
+      }).connect(bc);
+
+      const osc = new Tone.Oscillator({
+        type: 'sawtooth',
+        frequency: freq,
+      }).connect(bp);
+
+      osc.start(now + offset);
+      env.triggerAttackRelease(0.1, now + offset);
+
+      buzzNodes.push({ osc, bp, bc, env, vol });
+    }
 
     setTimeout(() => {
-      osc.stop();
-      osc.disconnect();
-      bandpass.disconnect();
-      env.disconnect();
-      vol.disconnect();
-      osc.dispose();
-      bandpass.dispose();
-      env.dispose();
-      vol.dispose();
+      for (const { osc, bp, bc, env, vol } of buzzNodes) {
+        osc.stop();
+        osc.disconnect(); bp.disconnect(); bc.disconnect();
+        env.disconnect(); vol.disconnect();
+        osc.dispose(); bp.dispose(); bc.dispose();
+        env.dispose(); vol.dispose();
+      }
     }, 500);
 
   } catch (err) {
@@ -1153,11 +1443,9 @@ export function playInsufficientFundsSound(): void {
 // ---------------------------------------------------------------------------
 
 /**
- * Ships disappearing from sensors: white noise passed through a bandpass
- * filter whose center frequency closes from 1200 Hz down to 200 Hz over
- * ~500 ms, with an LFO providing subtle wobble throughout. The overall level
- * is quieter than Silent Running activation — this is a stealth action that
- * should feel ethereal rather than dramatic.
+ * More ethereal disappearance: white noise through a slow bandpass close
+ * (1200→180 Hz over 650ms) with wide LFO wobble (±120 Hz), layered with a
+ * reversed-envelope sine pad (400 Hz, slow swell) for ghostly presence.
  */
 export function playAcousticCloakSound(): void {
   if (!isAudioReady()) return;
@@ -1165,63 +1453,72 @@ export function playAcousticCloakSound(): void {
   logPlay('acoustic_cloak');
 
   try {
-    // ---- Bandpass-filtered noise — the dissolving sensor contact ---------
+    const now = Tone.now();
+    const duration = 0.65;
+
+    // ---- Bandpass-filtered noise — sensor contact dissolving -------------
     const vol = new Tone.Volume(-14).toDestination();
     const env = new Tone.AmplitudeEnvelope({
-      attack: 0.06,     // medium attack — eases in gently
-      decay: 0.35,
+      attack: 0.06,
+      decay: 0.4,
       sustain: 0.25,
-      release: 0.15,    // fades to nothing at the end
+      release: 0.15,
     }).connect(vol);
 
     const bandpass = new Tone.Filter({
       type: 'bandpass',
       frequency: 1200,
-      Q: 1.8,           // moderately resonant to give the noise tonal color
+      Q: 1.8,
     }).connect(env);
 
     const noise = new Tone.Noise('white').connect(bandpass);
 
-    // ---- LFO for subtle wobble on the filter frequency ------------------
-    // 8 Hz modulation in a narrow range (±80 Hz around the sweep center)
-    // gives an unstable, ghostly quality without being distracting.
+    // Wide LFO wobble — min/max ±120 Hz detune
     const lfo = new Tone.LFO({
       type: 'sine',
       frequency: 8,
-      min: -80,
-      max: 80,
+      min: -120,
+      max: 120,
     });
-    lfo.connect(bandpass.detune);  // modulate via detune for additive offset
-
-    // ---- Schedule playback -----------------------------------------------
-    const now = Tone.now();
-    const duration = 0.5;
+    lfo.connect(bandpass.detune);
 
     noise.start(now);
     lfo.start(now);
-
-    // Bandpass sweeps downward: 1200→200 Hz, the sensor contact narrowing and
-    // dropping in frequency as the cloak engages.
     bandpass.frequency.setValueAtTime(1200, now);
-    bandpass.frequency.exponentialRampToValueAtTime(200, now + duration);
-
+    bandpass.frequency.exponentialRampToValueAtTime(180, now + duration);
     env.triggerAttackRelease(duration, now);
 
-    // ---- Cleanup ----------------------------------------------------------
+    // ---- Reversed-envelope sine pad — eerie swelling presence -----------
+    const padVol = new Tone.Volume(-18).toDestination();
+    const padEnv = new Tone.AmplitudeEnvelope({
+      attack: 0.4,
+      decay: 0.15,
+      sustain: 0,
+      release: 0.05,
+    }).connect(padVol);
+
+    const padOsc = new Tone.Oscillator({
+      type: 'sine',
+      frequency: 400,
+    }).connect(padEnv);
+
+    padOsc.start(now);
+    padEnv.triggerAttackRelease(0.55, now);
+
+    // ---- Cleanup ---------------------------------------------------------
     setTimeout(() => {
       noise.stop();
       lfo.stop();
-      noise.disconnect();
-      lfo.disconnect();
-      bandpass.disconnect();
-      env.disconnect();
-      vol.disconnect();
-      noise.dispose();
-      lfo.dispose();
-      bandpass.dispose();
-      env.dispose();
-      vol.dispose();
-    }, 900);
+      padOsc.stop();
+
+      noise.disconnect(); lfo.disconnect(); bandpass.disconnect();
+      env.disconnect(); vol.disconnect();
+      padOsc.disconnect(); padEnv.disconnect(); padVol.disconnect();
+
+      noise.dispose(); lfo.dispose(); bandpass.dispose();
+      env.dispose(); vol.dispose();
+      padOsc.dispose(); padEnv.dispose(); padVol.dispose();
+    }, 1100);
 
   } catch (err) {
     try {

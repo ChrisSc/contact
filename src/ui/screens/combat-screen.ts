@@ -176,11 +176,15 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
   ownFleetBtn.addEventListener('click', () => handleBoardToggle('own'));
   boardToggle.appendChild(ownFleetBtn);
 
-  el.appendChild(boardToggle);
+  // --- Tab strip: wraps board toggle + action slots for mobile layout ---
+  const tabStrip = document.createElement('div');
+  tabStrip.className = 'combat-screen__tab-strip';
+  tabStrip.appendChild(boardToggle);
 
   // --- Action Slots (below board toggle) ---
   const actionSlotsComponent = new ActionSlots();
-  el.appendChild(actionSlotsComponent.render());
+  tabStrip.appendChild(actionSlotsComponent.render());
+  el.appendChild(tabStrip);
 
   // --- Tool Palette (view modes + depth) ---
   const toolPalette = new ToolPalette({
@@ -293,6 +297,10 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
 
   updateSceneGrid();
   sceneManager.start();
+
+  // Start ambient engine sound immediately (audio context initialized on handoff READY)
+  initAudioContext();
+  if (!isAmbientRunning()) startAmbient();
 
   // --- F key: show friendly fleet overlay ---
   let friendlyOverlayActive = false;
@@ -1087,7 +1095,7 @@ export function mountCombatScreen(container: HTMLElement, context: ScreenContext
       { label: 'VISIBLE', value: String(meshCount) },
       { label: 'SHOTS', value: String(shotsFired) },
       { label: 'HITS', value: String(shotsHit) },
-      { label: 'SUNK', value: `${uiState.sunkShipIds.length}/5` },
+      { label: 'SUNK', value: `${uiState.sunkShipIds.length}/${FLEET_ROSTER.length}` },
       { label: 'MODE', value: uiState.viewMode.toUpperCase() },
     ];
 
