@@ -88,7 +88,7 @@ Portrait-first responsive layout via `src/styles/mobile.css` (breakpoint: `max-w
 
 - **No `THREE.OrbitControls`**: custom drag/zoom implementation per GDD.
 - **No `THREE.CapsuleGeometry`**: does not exist in r128.
-- **No `localStorage`/`sessionStorage`**: all state in JS variables.
+- **No `localStorage`/`sessionStorage`**: all state in JS variables. Exception: API key storage (opt-in via checkbox).
 - **No UI frameworks**: vanilla DOM only.
 - **Observability**: if it changes game state, it emits a log event. No exceptions.
 
