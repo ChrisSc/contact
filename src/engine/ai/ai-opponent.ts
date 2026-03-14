@@ -12,7 +12,10 @@ import { gameTools, executeTool, forceEndTurn } from './ai-tools';
 import { buildTurnBriefing, SYSTEM_PROMPT } from './ai-briefing';
 import { getLogger } from '../../observability/logger';
 
-const MODEL = 'claude-haiku-4-5-20251001';
+// const MODEL = 'claude-haiku-4-5-20251001';
+// const MODEL = 'claude-sonnet-4-6';
+const MODEL = 'claude-opus-4-6';
+
 const MAX_API_CALLS_PER_TURN = 8;
 
 interface TurnRecord {
