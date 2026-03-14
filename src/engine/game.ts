@@ -88,6 +88,8 @@ export class GameController {
   private currentTurnContact: boolean = false;
   private lastRankBonus: { player: PlayerIndex; amount: number } | null = null;
 
+  private mode: 'local' | 'ai' = 'local';
+
   constructor(sessionId?: string, rank?: Rank) {
     this.logger = initLogger(sessionId);
     this.state = {
@@ -103,6 +105,7 @@ export class GameController {
     this.logger.emit('game.start', {
       sessionId: this.state.sessionId,
       rank: this.state.rank,
+      mode: this.mode,
     });
   }
 
@@ -897,6 +900,14 @@ export class GameController {
     return this.lastSRExpired;
   }
 
+  setMode(mode: 'local' | 'ai'): void {
+    this.mode = mode;
+  }
+
+  getMode(): 'local' | 'ai' {
+    return this.mode;
+  }
+
   setRank(rank: Rank): boolean {
     if (this.state.phase === GamePhase.Combat || this.state.phase === GamePhase.Victory) {
       return false;
@@ -905,6 +916,7 @@ export class GameController {
     this.logger.emit('game.start', {
       sessionId: this.state.sessionId,
       rank: this.state.rank,
+      mode: this.mode,
     });
     return true;
   }

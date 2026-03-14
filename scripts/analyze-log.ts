@@ -31,6 +31,9 @@ interface PlayerReport {
   torpedoMisses: number;
   totalHits: number;
   hitRate: number;
+  actionErrors: number;
+  actionTotal: number;
+  errorRate: number;
   shipsSunk: number;
   shipsLost: number;
   longestHitStreak: number;
@@ -68,6 +71,8 @@ interface BattleReport {
   session: string;
   version: string;
   rank: string;
+  mode: string;
+  aiModel: string | null;
   date: string;
   duration: { total: number; setup: number; combat: number };
   totalTurns: number;
@@ -205,6 +210,13 @@ function analyze(events: LogEvent[]): BattleReport {
   const version = (sysInit?.data.version as string) ?? 'unknown';
   const gameStartEvents = events.filter(e => e.event === 'game.start');
   const rank = (gameStartEvents[gameStartEvents.length - 1]?.data.rank as string) ?? 'unknown';
+  // Mode: from game.start data, or infer from ai.turn_start presence
+  const lastGameStart = gameStartEvents[gameStartEvents.length - 1];
+  const hasAiTurns = events.some(e => e.event === 'ai.turn_start');
+  const mode = (lastGameStart?.data.mode as string) ?? (hasAiTurns ? 'ai' : 'local');
+  // AI model: from ai.turn_start data
+  const firstAiTurn = events.find(e => e.event === 'ai.turn_start');
+  const aiModel = (firstAiTurn?.data.model as string) ?? (hasAiTurns ? 'unknown' : null);
   const gameStart = events[0]!.ts;
   const gameEnd = events[events.length - 1]!.ts;
   const date = gameStart.split('T')[0]!;
@@ -447,6 +459,8 @@ function analyze(events: LogEvent[]): BattleReport {
     session,
     version,
     rank,
+    mode,
+    aiModel,
     date,
     duration: { total: totalDuration, setup: setupDuration, combat: combatDuration },
     totalTurns,
@@ -571,6 +585,24 @@ function buildPlayerReport(
     if (match) droneContacts += parseInt(match[1]!, 10);
   }
 
+  // Action errors — ai.action events within ai.turn_start/ai.turn_end windows for this player
+  const allAiStarts = events.filter(e => e.event === 'ai.turn_start');
+  const allAiEnds = events.filter(e => e.event === 'ai.turn_end');
+  let actionErrors = 0;
+  let actionTotal = 0;
+  for (let i = 0; i < allAiStarts.length; i++) {
+    const aiStart = allAiStarts[i]!;
+    if ((aiStart.data.player as number) !== playerIdx) continue;
+    const startSeq = aiStart.seq;
+    const endSeq = allAiEnds[i]?.seq ?? events[events.length - 1]!.seq + 1;
+    for (const e of events) {
+      if (e.seq >= startSeq && e.seq <= endSeq && e.event === 'ai.action') {
+        actionTotal++;
+        if (e.data.success === false) actionErrors++;
+      }
+    }
+  }
+
   // Turn timing
   const playerTurns = turnEvents.filter(t => t.player === playerIdx);
   let totalTurnMs = 0;
@@ -589,6 +621,9 @@ function buildPlayerReport(
     torpedoMisses,
     totalHits,
     hitRate: shotsFired > 0 ? totalHits / shotsFired : 0,
+    actionErrors,
+    actionTotal: actionTotal,
+    errorRate: actionTotal > 0 ? actionErrors / actionTotal : 0,
     shipsSunk: killsByPlayer.length,
     shipsLost: lostByPlayer.length,
     longestHitStreak: maxStreak,
@@ -630,58 +665,80 @@ function bar(filled: number, total: number, width: number = 20): string {
 function printReport(r: BattleReport): void {
   const W = 62;
   const line = '\u2550'.repeat(W);
-  const thin = '\u2500'.repeat(W);
-  const pad = (s: string, w: number) => s.padEnd(w);
+  const thin = '\u2500'.repeat(W - 4);
+
+  /** Pad or truncate content to exactly W characters (fits between ║…║) */
+  function L(s: string): string {
+    if (s.length >= W) return s.slice(0, W);
+    return s + ' '.repeat(W - s.length);
+  }
+
+  /** Section divider using thin line with 2-char margins */
+  function divider(): void {
+    console.log(`\u2551  ${thin}  \u2551`);
+  }
+
+  /** Section header */
+  function header(title: string): void {
+    console.log(`\u2551${L(`  ${title}`)}\u2551`);
+  }
+
+  /** Side-by-side comparison row */
+  function row(label: string, av: string, bv: string): void {
+    console.log(`\u2551${L(`  ${av.padStart(12)}  ${label.padStart(15).padEnd(30)}  ${bv.padEnd(12)}`)}\u2551`);
+  }
 
   console.log();
   console.log(`\u2554${line}\u2557`);
-  console.log(`\u2551  ${'CONTACT \u2014 AFTER ACTION REPORT'.padEnd(W - 2)}\u2551`);
+  console.log(`\u2551${L('  CONTACT \u2014 AFTER ACTION REPORT')}\u2551`);
   console.log(`\u2560${line}\u2563`);
-  console.log(`\u2551  Session:  ${r.session.padEnd(W - 12)}\u2551`);
-  console.log(`\u2551  Date:     ${r.date.padEnd(W - 12)}\u2551`);
-  console.log(`\u2551  Version:  ${r.version.padEnd(W - 12)}\u2551`);
-  console.log(`\u2551  Rank:     ${r.rank.toUpperCase().padEnd(W - 12)}\u2551`);
-  console.log(`\u2551  Duration: ${formatDuration(r.duration.total).padEnd(15)} (setup: ${formatDuration(r.duration.setup)}, combat: ${formatDuration(r.duration.combat)})  \u2551`);
-  console.log(`\u2551  Turns:    ${String(r.totalTurns).padEnd(W - 12)}\u2551`);
+  console.log(`\u2551${L(`  Session:  ${r.session}`)}\u2551`);
+  console.log(`\u2551${L(`  Date:     ${r.date}`)}\u2551`);
+  console.log(`\u2551${L(`  Version:  ${r.version}`)}\u2551`);
+  console.log(`\u2551${L(`  Rank:     ${r.rank.toUpperCase()}`)}\u2551`);
+  console.log(`\u2551${L(`  Mode:     ${r.mode.toUpperCase()}`)}\u2551`);
+  if (r.mode === 'ai') {
+    console.log(`\u2551${L(`  ALPHA:    Human`)}\u2551`);
+    console.log(`\u2551${L(`  BRAVO:    ${r.aiModel ?? 'unknown'}`)}\u2551`);
+  }
+  const dur = `  Duration: ${formatDuration(r.duration.total)} (setup: ${formatDuration(r.duration.setup)}, combat: ${formatDuration(r.duration.combat)})`;
+  console.log(`\u2551${L(dur)}\u2551`);
+  console.log(`\u2551${L(`  Turns:    ${r.totalTurns}`)}\u2551`);
   console.log(`\u2560${line}\u2563`);
 
   // Winner banner
   const winBanner = `\u2605 WINNER: ${r.winner.designation} \u2605`;
   const winPad = Math.max(0, Math.floor((W - winBanner.length) / 2));
-  console.log(`\u2551${' '.repeat(winPad)}${winBanner}${' '.repeat(W - winPad - winBanner.length)}\u2551`);
+  console.log(`\u2551${L(' '.repeat(winPad) + winBanner)}\u2551`);
   console.log(`\u2560${line}\u2563`);
 
   // Side-by-side comparison
-  console.log(`\u2551  ${'COMBAT STATISTICS'.padEnd(W - 2)}\u2551`);
-  console.log(`\u2551  ${thin}\u2551`);
-
   const a = r.players[0];
   const b = r.players[1];
 
-  function row(label: string, av: string, bv: string): void {
-    console.log(`\u2551  ${av.padStart(12)}  ${label.padStart(14).padEnd(28)}  ${bv.padEnd(12)}  \u2551`);
-  }
-
+  header('COMBAT STATISTICS');
+  divider();
   row('', 'ALPHA', 'BRAVO');
-  console.log(`\u2551  ${thin}\u2551`);
+  divider();
   row('Shots Fired', String(a.shotsFired), String(b.shotsFired));
   row('Total Hits', String(a.totalHits), String(b.totalHits));
   row('Torpedo Misses', String(a.torpedoMisses), String(b.torpedoMisses));
   row('Hit Rate', `${(a.hitRate * 100).toFixed(1)}%`, `${(b.hitRate * 100).toFixed(1)}%`);
+  row('Error Rate', `${(a.errorRate * 100).toFixed(1)}%`, `${(b.errorRate * 100).toFixed(1)}%`);
   row('Hit Streak', String(a.longestHitStreak), String(b.longestHitStreak));
   row('Ships Sunk', String(a.shipsSunk), String(b.shipsSunk));
   row('Ships Lost', String(a.shipsLost), String(b.shipsLost));
 
-  console.log(`\u2551  ${thin}\u2551`);
-  console.log(`\u2551  ${'ECONOMY'.padEnd(W - 2)}\u2551`);
-  console.log(`\u2551  ${thin}\u2551`);
+  divider();
+  header('ECONOMY');
+  divider();
   row('CR Earned', String(a.creditsEarned), String(b.creditsEarned));
   row('CR Spent', String(a.creditsSpent), String(b.creditsSpent));
   row('CR Remaining', String(a.creditsFinal), String(b.creditsFinal));
 
-  console.log(`\u2551  ${thin}\u2551`);
-  console.log(`\u2551  ${'PERK USAGE'.padEnd(W - 2)}\u2551`);
-  console.log(`\u2551  ${thin}\u2551`);
+  divider();
+  header('PERK USAGE');
+  divider();
 
   const allPerks = new Set([...Object.keys(a.perksUsed), ...Object.keys(b.perksUsed)]);
   const perkOrder = ['sonar_ping', 'recon_drone', 'depth_charge', 'g_sonar', 'radar_jammer', 'silent_running', 'acoustic_cloak'];
@@ -697,9 +754,9 @@ function printReport(r: BattleReport): void {
 
   // Recon details
   if (a.sonarPingsPositive + a.sonarPingsNegative + b.sonarPingsPositive + b.sonarPingsNegative > 0) {
-    console.log(`\u2551  ${thin}\u2551`);
-    console.log(`\u2551  ${'RECON INTEL'.padEnd(W - 2)}\u2551`);
-    console.log(`\u2551  ${thin}\u2551`);
+    divider();
+    header('RECON INTEL');
+    divider();
     row('Sonar +/-', `${a.sonarPingsPositive}/${a.sonarPingsNegative}`, `${b.sonarPingsPositive}/${b.sonarPingsNegative}`);
     row('Drone Scans', String(a.droneScansTotal), String(b.droneScansTotal));
     row('Drone Contacts', String(a.droneContactsFound), String(b.droneContactsFound));
@@ -709,31 +766,31 @@ function printReport(r: BattleReport): void {
   }
 
   // Timing
-  console.log(`\u2551  ${thin}\u2551`);
-  console.log(`\u2551  ${'TIMING'.padEnd(W - 2)}\u2551`);
-  console.log(`\u2551  ${thin}\u2551`);
+  divider();
+  header('TIMING');
+  divider();
   row('Setup Time', formatDuration(a.setupTime), formatDuration(b.setupTime));
   row('Avg Turn', formatDuration(a.avgTurnTime), formatDuration(b.avgTurnTime));
 
   console.log(`\u2560${line}\u2563`);
 
   // Ship survival table
-  console.log(`\u2551  ${'SHIP SURVIVAL'.padEnd(W - 2)}\u2551`);
-  console.log(`\u2551  ${thin}\u2551`);
-  console.log(`\u2551  ${'Ship'.padEnd(12)}${'Size'.padStart(4)}  ${'ALPHA'.padEnd(20)}${'BRAVO'.padEnd(20)}  \u2551`);
-  console.log(`\u2551  ${thin}\u2551`);
+  header('SHIP SURVIVAL');
+  divider();
+  console.log(`\u2551${L(`  ${'Ship'.padEnd(12)}${'Size'.padStart(4)}  ${'ALPHA'.padEnd(20)}${'BRAVO'.padEnd(20)}`)}\u2551`);
+  divider();
 
   for (const s of r.shipSurvival) {
     const aFate = s.alphaFate.length > 18 ? s.alphaFate.slice(0, 18) : s.alphaFate;
     const bFate = s.bravoFate.length > 18 ? s.bravoFate.slice(0, 18) : s.bravoFate;
-    console.log(`\u2551  ${s.ship.padEnd(12)}${String(s.size).padStart(4)}  ${aFate.padEnd(20)}${bFate.padEnd(20)}  \u2551`);
+    console.log(`\u2551${L(`  ${s.ship.padEnd(12)}${String(s.size).padStart(4)}  ${aFate.padEnd(20)}${bFate.padEnd(20)}`)}\u2551`);
   }
 
   console.log(`\u2560${line}\u2563`);
 
   // Kill order
-  console.log(`\u2551  ${'KILL ORDER'.padEnd(W - 2)}\u2551`);
-  console.log(`\u2551  ${thin}\u2551`);
+  header('KILL ORDER');
+  divider();
 
   // Merge and sort by turn
   const allKills = [
@@ -742,32 +799,34 @@ function printReport(r: BattleReport): void {
   ].sort((x, y) => x.turn - y.turn);
 
   for (const kill of allKills) {
-    const line2 = `T${String(kill.turn).padStart(3)}  ${kill.by.padEnd(6)} sank ${kill.ship.padEnd(12)} (${kill.method})`;
-    console.log(`\u2551  ${line2.padEnd(W - 2)}\u2551`);
+    const killLine = `  T${String(kill.turn).padStart(3)}  ${kill.by.padEnd(6)} sank ${kill.ship.padEnd(12)} (${kill.method})`;
+    console.log(`\u2551${L(killLine)}\u2551`);
   }
 
   console.log(`\u2560${line}\u2563`);
 
   // Momentum chart
-  console.log(`\u2551  ${'MOMENTUM (ships sunk over time)'.padEnd(W - 2)}\u2551`);
-  console.log(`\u2551  ${thin}\u2551`);
+  header('MOMENTUM (ships sunk over time)');
+  divider();
 
   for (const snap of r.momentum) {
     const aBar = bar(snap.alphaShipsSunk, 7, 7);
     const bBar = bar(snap.bravoShipsSunk, 7, 7);
     const turnStr = `T${String(snap.turn).padStart(3)}`;
-    console.log(`\u2551  ${turnStr}  A ${aBar} ${String(snap.alphaShipsSunk).padStart(1)}/7  B ${bBar} ${String(snap.bravoShipsSunk).padStart(1)}/7  CR:${String(snap.alphaCredits).padStart(3)}/${String(snap.bravoCredits).padStart(3)}  \u2551`);
+    const momLine = `  ${turnStr}  A ${aBar} ${String(snap.alphaShipsSunk).padStart(1)}/7  B ${bBar} ${String(snap.bravoShipsSunk).padStart(1)}/7  CR:${String(snap.alphaCredits).padStart(3)}/${String(snap.bravoCredits).padStart(3)}`;
+    console.log(`\u2551${L(momLine)}\u2551`);
   }
 
   // Key events timeline
   console.log(`\u2560${line}\u2563`);
-  console.log(`\u2551  ${'KEY EVENTS'.padEnd(W - 2)}\u2551`);
-  console.log(`\u2551  ${thin}\u2551`);
+  header('KEY EVENTS');
+  divider();
 
   for (const te of r.timeline) {
     const turnStr = `T${String(te.turn).padStart(3)}`;
-    const detail = te.detail.length > W - 10 ? te.detail.slice(0, W - 13) + '...' : te.detail;
-    console.log(`\u2551  ${turnStr}  ${detail.padEnd(W - 8)}\u2551`);
+    const maxDetail = W - 10;
+    const detail = te.detail.length > maxDetail ? te.detail.slice(0, maxDetail - 3) + '...' : te.detail;
+    console.log(`\u2551${L(`  ${turnStr}  ${detail}`)}\u2551`);
   }
 
   console.log(`\u255a${line}\u255d`);

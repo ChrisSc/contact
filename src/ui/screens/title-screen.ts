@@ -156,6 +156,7 @@ export function mountTitleScreen(container: HTMLElement, context: ScreenContext)
   startBtn.className = 'crt-button';
   startBtn.textContent = 'START';
   startBtn.addEventListener('click', () => {
+    context.game.setMode(selectedMode);
     context.game.setRank(selectedRank);
 
     if (selectedMode === 'ai') {

@@ -44,6 +44,7 @@ export class AIOpponent {
     logger.emit('ai.turn_start', {
       turn: state.turnCount,
       player: state.currentPlayer,
+      model: MODEL,
     });
 
     const briefing = buildTurnBriefing(gc, stalemateBonusAwarded);
