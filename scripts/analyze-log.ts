@@ -52,6 +52,10 @@ interface PlayerReport {
   sonarPingsNegative: number;
   droneScansTotal: number;
   droneContactsFound: number;
+  gSonarScansTotal: number;
+  gSonarContactsFound: number;
+  totalContacts: number;
+  costPerContact: number;
   stalemateBonuses: number;
   stalemateBonusCredits: number;
 }
@@ -587,6 +591,19 @@ function buildPlayerReport(
     if (match) droneContacts += parseInt(match[1]!, 10);
   }
 
+  // G-SONAR stats
+  const gSonarUses = perkUseEvents.filter(e => e.data.perkId === 'g_sonar');
+  let gSonarContacts = 0;
+  for (const e of gSonarUses) {
+    const result = e.data.result as string;
+    const match = result.match(/(\d+) contacts/);
+    if (match) gSonarContacts += parseInt(match[1]!, 10);
+  }
+
+  // Total contacts and cost per contact
+  const totalContacts = torpedoHits + dcHitCount + sonarPos + droneContacts + gSonarContacts;
+  const costPerContact = totalContacts > 0 ? creditsSpent / totalContacts : 0;
+
   // Stalemate bonuses — economy.credit with type 'rank_bonus' for this player
   const rankBonusEvents = events.filter(e =>
     e.event === 'economy.credit' && e.data.player === playerIdx && e.data.type === 'rank_bonus');
@@ -650,6 +667,10 @@ function buildPlayerReport(
     sonarPingsNegative: sonarNeg,
     droneScansTotal: droneUses.length,
     droneContactsFound: droneContacts,
+    gSonarScansTotal: gSonarUses.length,
+    gSonarContactsFound: gSonarContacts,
+    totalContacts,
+    costPerContact,
     stalemateBonuses,
     stalemateBonusCredits,
   };
@@ -748,6 +769,10 @@ function printReport(r: BattleReport): void {
   if (a.stalemateBonuses + b.stalemateBonuses > 0) {
     row('Stalemate Bonus', `${a.stalemateBonuses}x +${a.stalemateBonusCredits}`, `${b.stalemateBonuses}x +${b.stalemateBonusCredits}`);
   }
+  row('Cost/Contact', `${a.costPerContact.toFixed(1)} CR`, `${b.costPerContact.toFixed(1)} CR`);
+  const aCPS = a.shipsSunk > 0 ? (a.creditsSpent / a.shipsSunk).toFixed(1) : '-';
+  const bCPS = b.shipsSunk > 0 ? (b.creditsSpent / b.shipsSunk).toFixed(1) : '-';
+  row('Cost/Sink', `${aCPS} CR`, `${bCPS} CR`);
 
   divider();
   header('PERK USAGE');
@@ -766,16 +791,23 @@ function printReport(r: BattleReport): void {
   }
 
   // Recon details
-  if (a.sonarPingsPositive + a.sonarPingsNegative + b.sonarPingsPositive + b.sonarPingsNegative > 0) {
+  const hasRecon = a.sonarPingsPositive + a.sonarPingsNegative + b.sonarPingsPositive + b.sonarPingsNegative
+    + a.droneScansTotal + b.droneScansTotal + a.gSonarScansTotal + b.gSonarScansTotal > 0;
+  if (hasRecon) {
     divider();
     header('RECON INTEL');
     divider();
     row('Sonar +/-', `${a.sonarPingsPositive}/${a.sonarPingsNegative}`, `${b.sonarPingsPositive}/${b.sonarPingsNegative}`);
     row('Drone Scans', String(a.droneScansTotal), String(b.droneScansTotal));
     row('Drone Contacts', String(a.droneContactsFound), String(b.droneContactsFound));
+    if (a.gSonarScansTotal + b.gSonarScansTotal > 0) {
+      row('G-SONAR Scans', String(a.gSonarScansTotal), String(b.gSonarScansTotal));
+      row('G-SONAR Contacts', String(a.gSonarContactsFound), String(b.gSonarContactsFound));
+    }
     if (a.depthChargeHits + b.depthChargeHits > 0) {
       row('DC Hits/Sinks', `${a.depthChargeHits}/${a.depthChargeSinks}`, `${b.depthChargeHits}/${b.depthChargeSinks}`);
     }
+    row('Total Contacts', String(a.totalContacts), String(b.totalContacts));
   }
 
   // Timing
