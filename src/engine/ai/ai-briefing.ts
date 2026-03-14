@@ -25,7 +25,7 @@ TURN SLOTS: Ping(free), Attack(REQUIRED), Defend(free). Purchase perks anytime (
 
 RULES:
 - Cannot fire on X/O/S cells. CAN fire on +/- cells.
-- Hit=+1CR, consecutive hit=+8CR, sink=+15CR.
+- Hit=+1CR, consecutive hit=+3CR, sink=+15CR.
 - Ships are STATIC — once placed, they never move. A confirmed contact remains valid until you torpedo it.
 - Ships placed along 8 axes (never purely vertical). Use hit patterns to trace orientation.
 - Stalemate bonus gives both players free CR after consecutive dry turns (rank-dependent).

@@ -57,7 +57,7 @@ export const gameTools: AIToolDefinition[] = [
   },
   {
     name: 'fire_torpedo',
-    description: 'Fire a torpedo at a single cell. Uses the ATTACK slot. This is your primary weapon — hit=1 CR, consecutive hit=+8 CR, sink=+15 CR.',
+    description: 'Fire a torpedo at a single cell. Uses the ATTACK slot. This is your primary weapon — hit=1 CR, consecutive hit=+3 CR, sink=+15 CR.',
     input_schema: {
       type: 'object' as const,
       properties: {

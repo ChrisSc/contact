@@ -52,6 +52,8 @@ interface PlayerReport {
   sonarPingsNegative: number;
   droneScansTotal: number;
   droneContactsFound: number;
+  stalemateBonuses: number;
+  stalemateBonusCredits: number;
 }
 
 interface TurnEvent {
@@ -585,6 +587,12 @@ function buildPlayerReport(
     if (match) droneContacts += parseInt(match[1]!, 10);
   }
 
+  // Stalemate bonuses — economy.credit with type 'rank_bonus' for this player
+  const rankBonusEvents = events.filter(e =>
+    e.event === 'economy.credit' && e.data.player === playerIdx && e.data.type === 'rank_bonus');
+  const stalemateBonuses = rankBonusEvents.length;
+  const stalemateBonusCredits = rankBonusEvents.reduce((sum, e) => sum + (e.data.amount as number), 0);
+
   // Action errors — ai.action events within ai.turn_start/ai.turn_end windows for this player
   const allAiStarts = events.filter(e => e.event === 'ai.turn_start');
   const allAiEnds = events.filter(e => e.event === 'ai.turn_end');
@@ -642,6 +650,8 @@ function buildPlayerReport(
     sonarPingsNegative: sonarNeg,
     droneScansTotal: droneUses.length,
     droneContactsFound: droneContacts,
+    stalemateBonuses,
+    stalemateBonusCredits,
   };
 }
 
@@ -735,6 +745,9 @@ function printReport(r: BattleReport): void {
   row('CR Earned', String(a.creditsEarned), String(b.creditsEarned));
   row('CR Spent', String(a.creditsSpent), String(b.creditsSpent));
   row('CR Remaining', String(a.creditsFinal), String(b.creditsFinal));
+  if (a.stalemateBonuses + b.stalemateBonuses > 0) {
+    row('Stalemate Bonus', `${a.stalemateBonuses}x +${a.stalemateBonusCredits}`, `${b.stalemateBonuses}x +${b.stalemateBonusCredits}`);
+  }
 
   divider();
   header('PERK USAGE');
