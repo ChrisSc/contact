@@ -3,3 +3,4 @@ dist/
 *.local
 scripts/memory/
 .DS_Store
+*.jsonl
